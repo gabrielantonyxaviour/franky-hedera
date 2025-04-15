@@ -19,7 +19,7 @@ const contractABI = [
     "name": "registerDevice",
     "type": "function",
     "stateMutability": "nonpayable",
-    "outputs": [],
+    "outputs": [], // No direct outputs
     "sighash": "0xbf287b41"
   },
   {
@@ -33,7 +33,7 @@ const contractABI = [
     "name": "createAgent",
     "type": "function",
     "stateMutability": "nonpayable",
-    "outputs": [],
+    "outputs": [], // No direct outputs
     "sighash": "0xd3ea87dc"
   }
 ];
@@ -90,13 +90,10 @@ function decodeInputData(inputData) {
       timestamp: new Date().toISOString()
     };
   } catch (error) {
-    // If standard decoding fails, try to identify by function signature
-    const functionSig = inputData.slice(0, 10); // First 4 bytes (including 0x) is the function signature
-    
+    const functionSig = inputData.slice(0, 10);
     const matchingFunction = contractABI.find(func => func.sighash === functionSig);
     if (matchingFunction) {
       try {
-        // Create an interface with just this function for parsing
         const specificIface = new ethers.utils.Interface([matchingFunction]);
         const decodedData = specificIface.parseTransaction({ data: inputData });
         
@@ -119,20 +116,30 @@ function decodeInputData(inputData) {
   }
 }
 
-// Function to decode event logs
+// Function to decode event logs and extract return data
 function decodeEventLog(log) {
   try {
-    // Create interface with event ABIs
     const iface = new ethers.utils.Interface(eventABI);
     const topics = log.topics;
     const data = log.data;
-
-    // Try to decode the log
     const event = iface.parseLog({ topics, data });
+    
+    // Define return data based on event type
+    let returnData = {};
+    if (event.name === 'DeviceRegistered') {
+      returnData = {
+        deviceId: event.args.deviceId.toString() // Primary "return" value
+      };
+    } else if (event.name === 'AgentCreated') {
+      returnData = {
+        agentId: event.args.agentId.toString() // Primary "return" value
+      };
+    }
     
     return {
       event: event.name,
       params: event.args,
+      returnData: returnData, // Explicitly store return data
       timestamp: new Date().toISOString()
     };
   } catch (error) {
@@ -149,16 +156,14 @@ function decodeEventLog(log) {
 app.post('/webhook', (req, res) => {
   console.log('Received webhook:', JSON.stringify(req.body, null, 2));
   
-  // Check if this contains transaction data
   if (req.body.event && req.body.event.messages) {
     for (const message of req.body.event.messages) {
-      // Process transaction input data if available
+      // Process transaction input data
       if (message.input) {
         console.log('\n--- DECODED INPUT DATA ---');
         const decoded = decodeInputData(message.input);
         console.log(JSON.stringify(decoded, null, 2));
         
-        // Store based on function name
         if (decoded.function === 'registerDevice') {
           mostRecentTransactions.registerDevice = {
             ...decoded,
@@ -176,19 +181,11 @@ app.post('/webhook', (req, res) => {
             receivedAt: new Date().toISOString()
           };
         } else {
-          console.log('Unknown function or failed to decode completely');
-          
-          // Handle createAgent with updated signature
           const functionSig = message.input.slice(0, 10);
           if (functionSig === '0xd3ea87dc') {
-            console.log('Manually identified as createAgent function');
-            // Manual decoding for createAgent function
             try {
-              // Remove function selector (first 4 bytes/8 hex chars + '0x')
               const data = '0x' + message.input.slice(10);
-              // Create a decoder
               const abiCoder = new ethers.utils.AbiCoder();
-              // Decode the parameters (assuming the order is correct)
               const decoded = abiCoder.decode(
                 ['string', 'string', 'string', 'bytes32', 'uint256'], 
                 data
@@ -208,8 +205,6 @@ app.post('/webhook', (req, res) => {
                 txHash: message.hash,
                 receivedAt: new Date().toISOString()
               };
-              
-              console.log('Manual decode result:', mostRecentTransactions.createAgent);
             } catch (decodeError) {
               console.error('Manual decode failed:', decodeError);
             }
@@ -217,25 +212,24 @@ app.post('/webhook', (req, res) => {
         }
       }
       
-      // Process event logs if available
+      // Process event logs and extract return data
       if (message.logs && message.logs.length > 0) {
         console.log('\n--- DECODED EVENT LOGS ---');
         for (const log of message.logs) {
           const decodedLog = decodeEventLog(log);
           console.log(JSON.stringify(decodedLog, null, 2));
           
-          // Store additional information if this is one of our events
           if (decodedLog.event === 'DeviceRegistered') {
-            // Update the stored transaction with event data
             if (mostRecentTransactions.registerDevice && 
                 mostRecentTransactions.registerDevice.txHash === message.hash) {
-              mostRecentTransactions.registerDevice.eventData = decodedLog;
+              mostRecentTransactions.registerDevice.eventData = decodedLog.params;
+              mostRecentTransactions.registerDevice.returnData = decodedLog.returnData; // Add return data
             }
           } else if (decodedLog.event === 'AgentCreated') {
-            // Update the stored transaction with event data
             if (mostRecentTransactions.createAgent && 
                 mostRecentTransactions.createAgent.txHash === message.hash) {
-              mostRecentTransactions.createAgent.eventData = decodedLog;
+              mostRecentTransactions.createAgent.eventData = decodedLog.params;
+              mostRecentTransactions.createAgent.returnData = decodedLog.returnData; // Add return data
             }
           }
         }
