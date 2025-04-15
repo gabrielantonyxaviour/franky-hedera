@@ -23,6 +23,9 @@ const functionABI = [
   }
 ];
 
+// Store the most recent transaction's decoded details
+let mostRecentTransaction = null;
+
 // Function to decode input data
 function decodeInputData(inputData) {
   try {
@@ -31,7 +34,8 @@ function decodeInputData(inputData) {
     
     return {
       function: decodedData.name,
-      params: decodedData.args
+      params: decodedData.args,
+      timestamp: new Date().toISOString()
     };
   } catch (error) {
     console.error('Error decoding input data:', error);
@@ -51,6 +55,13 @@ app.post('/webhook', (req, res) => {
         const decoded = decodeInputData(message.input);
         console.log(JSON.stringify(decoded, null, 2));
         console.log('-------------------------\n');
+        
+        // Store the most recent transaction's decoded details
+        mostRecentTransaction = {
+          ...decoded,
+          rawInput: message.input,
+          receivedAt: new Date().toISOString()
+        };
       }
     }
   }
@@ -58,9 +69,19 @@ app.post('/webhook', (req, res) => {
   res.status(200).send('Webhook received');
 });
 
+// New endpoint to get the most recent transaction's decoded details
+app.get('/latest-transaction', (req, res) => {
+  if (mostRecentTransaction) {
+    res.json(mostRecentTransaction);
+  } else {
+    res.status(404).json({ message: 'No transactions received yet' });
+  }
+});
+
 // Start the server
 const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
   console.log(`Webhook endpoint: http://localhost:${PORT}/webhook`);
+  console.log(`Latest transaction endpoint: http://localhost:${PORT}/latest-transaction`);
 });
