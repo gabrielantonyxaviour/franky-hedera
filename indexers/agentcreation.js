@@ -1,4 +1,3 @@
-//agent creation
 import io from "socket.io-client";
 
 const messageId = "address_activity_monitor";
@@ -25,7 +24,7 @@ const options = {
   transports: ["websocket", "polling"],
   path: "/v1/websocket/",
   auth: {
-    apiKey: "xxxxxxxxxxxxxxxxxxxxxx",
+    apiKey: "p4CtuYObYH1xoB0eWsz09JbFSVa6gdkB",
   },
   query: {
     protocol: "base",
