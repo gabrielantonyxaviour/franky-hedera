@@ -150,7 +150,7 @@ export default function Home() {
               Build Your AI Agent
             </h1>
             <p className="text-xl md:text-2xl mb-10 text-[#AAAAAA] max-w-3xl mx-auto">
-              Create custom AI agents with DeFi tools integration. Powered by 1inch protocol.
+              Recycle your old mobile devices into AI agents and earn $FRANKY. Built with ZerePy on Celo.
             </p>
             
             <GlowButton href="/create-agent">
