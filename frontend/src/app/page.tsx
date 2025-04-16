@@ -153,9 +153,15 @@ export default function Home() {
               Recycle your old mobile devices into AI agents and earn $FRANKY. Built with ZerePy on Celo.
             </p>
             
-            <GlowButton href="/create-agent">
-              Build Your Agent →
-            </GlowButton>
+            <div className="flex flex-col md:flex-row justify-center gap-6 md:gap-8">
+              <GlowButton href="/marketplace">
+                Host AI Agents →
+              </GlowButton>
+              
+              <GlowButton href="/deploy-device">
+                Deploy Your Device →
+              </GlowButton>
+            </div>
           </motion.div>
         </div>
       </section>
@@ -220,12 +226,18 @@ export default function Home() {
             className="p-12 rounded-2xl border border-[#00FF88] border-opacity-30 bg-black/50 backdrop-blur-sm"
           >
             <h2 className="text-3xl md:text-4xl font-bold mb-6 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
-              Ready to create your own AI agent?
+              Ready to get started?
             </h2>
             
-            <GlowButton href="/create-agent">
-              Start Building Now →
-            </GlowButton>
+            <div className="flex flex-col md:flex-row justify-center gap-6 md:gap-8">
+              <GlowButton href="/marketplace">
+                Host AI Agents →
+              </GlowButton>
+              
+              <GlowButton href="/deploy-device">
+                Deploy Your Device →
+              </GlowButton>
+            </div>
           </motion.div>
         </div>
       </section>
