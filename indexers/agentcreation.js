@@ -45,7 +45,7 @@ const options = {
   transports: ["websocket", "polling"],
   path: "/v1/websocket/",
   auth: {
-    apiKey: "p4CtuYObYH1xoB0eWsz09JbFSVa6gdkB",
+    apiKey: "xxxxxxxxxxxxxxxxxxxxxxxx",
   },
   query: {
     protocol: "base",
