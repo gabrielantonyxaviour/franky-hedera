@@ -147,7 +147,7 @@ export default function Home() {
             transition={{ duration: 0.8 }}
           >
             <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
-              Build Your AI Agent
+              Green AI Agents
             </h1>
             <p className="text-xl md:text-2xl mb-10 text-[#AAAAAA] max-w-3xl mx-auto">
               Recycle your old mobile devices into AI agents and earn $FRANKY. Built with ZerePy on Celo.
