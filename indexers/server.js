@@ -19,7 +19,7 @@ const contractABI = [
     "name": "registerDevice",
     "type": "function",
     "stateMutability": "nonpayable",
-    "outputs": [], // No direct outputs
+    "outputs": [],
     "sighash": "0xbf287b41"
   },
   {
@@ -33,7 +33,7 @@ const contractABI = [
     "name": "createAgent",
     "type": "function",
     "stateMutability": "nonpayable",
-    "outputs": [], // No direct outputs
+    "outputs": [],
     "sighash": "0xd3ea87dc"
   }
 ];
@@ -119,12 +119,16 @@ function decodeInputData(inputData) {
 // Function to decode event logs and extract return data
 function decodeEventLog(log) {
   try {
+    // Create interface for parsing event logs
     const iface = new ethers.utils.Interface(eventABI);
-    const topics = log.topics;
+    
+    // Extract topics and data from the log
+    const topics = log.topics || [];
     const data = log.data;
+    
+    // Parse the log
     const event = iface.parseLog({ topics, data });
     
-    // Define return data based on event type
     let returnData = {};
     if (event.name === 'DeviceRegistered') {
       returnData = {
@@ -138,12 +142,21 @@ function decodeEventLog(log) {
     
     return {
       event: event.name,
-      params: event.args,
-      returnData: returnData, // Explicitly store return data
+      params: Object.keys(event.args).reduce((acc, key) => {
+        if (isNaN(parseInt(key))) { // Skip numeric indices
+          // Format BigNumber values as strings for better readability
+          const value = event.args[key];
+          acc[key] = ethers.BigNumber.isBigNumber(value) ? value.toString() : value;
+        }
+        return acc;
+      }, {}),
+      returnData: returnData,
       timestamp: new Date().toISOString()
     };
   } catch (error) {
     console.error('Error decoding event log:', error);
+    console.error('Topics:', log.topics);
+    console.error('Data:', log.data);
     return {
       error: 'Failed to decode event log',
       topics: log.topics,
@@ -158,7 +171,33 @@ app.post('/webhook', (req, res) => {
   
   if (req.body.event && req.body.event.messages) {
     for (const message of req.body.event.messages) {
-      // Process transaction input data
+      // Process message directly if it contains topics and data (direct log entry)
+      if (message.topics && message.data) {
+        console.log('\n--- DECODED EVENT LOG ---');
+        const decodedLog = decodeEventLog(message);
+        console.log(JSON.stringify(decodedLog, null, 2));
+        
+        // Store in appropriate transaction history
+        if (decodedLog.event === 'DeviceRegistered') {
+          mostRecentTransactions.registerDevice = {
+            eventData: decodedLog.params,
+            returnData: decodedLog.returnData,
+            blockNumber: message.block_number,
+            txHash: message.transaction_hash,
+            receivedAt: new Date().toISOString()
+          };
+        } else if (decodedLog.event === 'AgentCreated') {
+          mostRecentTransactions.createAgent = {
+            eventData: decodedLog.params,
+            returnData: decodedLog.returnData,
+            blockNumber: message.block_number,
+            txHash: message.transaction_hash,
+            receivedAt: new Date().toISOString()
+          };
+        }
+      }
+      
+      // Process transaction input data if available
       if (message.input) {
         console.log('\n--- DECODED INPUT DATA ---');
         const decoded = decodeInputData(message.input);
@@ -180,39 +219,10 @@ app.post('/webhook', (req, res) => {
             txHash: message.hash,
             receivedAt: new Date().toISOString()
           };
-        } else {
-          const functionSig = message.input.slice(0, 10);
-          if (functionSig === '0xd3ea87dc') {
-            try {
-              const data = '0x' + message.input.slice(10);
-              const abiCoder = new ethers.utils.AbiCoder();
-              const decoded = abiCoder.decode(
-                ['string', 'string', 'string', 'bytes32', 'uint256'], 
-                data
-              );
-              
-              mostRecentTransactions.createAgent = {
-                function: 'createAgent',
-                params: {
-                  prefix: decoded[0],
-                  config: decoded[1],
-                  secrets: decoded[2],
-                  secretsHash: decoded[3],
-                  deviceId: decoded[4]
-                },
-                rawInput: message.input,
-                blockNumber: message.block_number,
-                txHash: message.hash,
-                receivedAt: new Date().toISOString()
-              };
-            } catch (decodeError) {
-              console.error('Manual decode failed:', decodeError);
-            }
-          }
         }
       }
       
-      // Process event logs and extract return data
+      // Process event logs if they're in an array
       if (message.logs && message.logs.length > 0) {
         console.log('\n--- DECODED EVENT LOGS ---');
         for (const log of message.logs) {
@@ -223,13 +233,13 @@ app.post('/webhook', (req, res) => {
             if (mostRecentTransactions.registerDevice && 
                 mostRecentTransactions.registerDevice.txHash === message.hash) {
               mostRecentTransactions.registerDevice.eventData = decodedLog.params;
-              mostRecentTransactions.registerDevice.returnData = decodedLog.returnData; // Add return data
+              mostRecentTransactions.registerDevice.returnData = decodedLog.returnData;
             }
           } else if (decodedLog.event === 'AgentCreated') {
             if (mostRecentTransactions.createAgent && 
                 mostRecentTransactions.createAgent.txHash === message.hash) {
               mostRecentTransactions.createAgent.eventData = decodedLog.params;
-              mostRecentTransactions.createAgent.returnData = decodedLog.returnData; // Add return data
+              mostRecentTransactions.createAgent.returnData = decodedLog.returnData;
             }
           }
         }
