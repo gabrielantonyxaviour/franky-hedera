@@ -1,5 +1,13 @@
 import io from "socket.io-client";
 import { ethers } from "ethers";
+import express from "express";
+
+// Create Express app
+const app = express();
+const PORT = 3000;
+
+// Store the last agent details
+let lastAgentDetails = null;
 
 // Nodit WebSocket configuration
 const messageId = "address_activity_monitor";
@@ -48,15 +56,10 @@ const options = {
 // Function to parse the string message into JSON
 function parseNoditMessage(message) {
   try {
-    // The message comes as a string with newlines and indentation
-    // First, remove the newlines and extra spaces
     const cleaned = message.replace(/\n/g, '').replace(/\s+/g, ' ');
-    
-    // Extract the JSON part (after "event: ")
     const jsonStart = cleaned.indexOf('event: {');
     if (jsonStart === -1) return null;
-    
-    const jsonString = cleaned.slice(jsonStart + 7); // +7 to skip "event: "
+    const jsonString = cleaned.slice(jsonStart + 7);
     return JSON.parse(jsonString);
   } catch (error) {
     console.error("Error parsing Nodit message:", error);
@@ -73,14 +76,9 @@ function decodeAgentCreatedEvent(log) {
       data: log.data
     });
 
-    // Convert BigNumber values to strings for better readability
     const decodedArgs = {};
     for (const [key, value] of Object.entries(decodedEvent.args)) {
-      if (ethers.BigNumber.isBigNumber(value)) {
-        decodedArgs[key] = value.toString();
-      } else {
-        decodedArgs[key] = value;
-      }
+      decodedArgs[key] = ethers.BigNumber.isBigNumber(value) ? value.toString() : value;
     }
 
     return {
@@ -100,6 +98,15 @@ function decodeAgentCreatedEvent(log) {
   }
 }
 
+// Simple endpoint to get last agent details
+app.get('/last-agent', (req, res) => {
+  if (lastAgentDetails) {
+    res.json(lastAgentDetails);
+  } else {
+    res.status(404).json({ message: "No agent events received yet" });
+  }
+});
+
 function connectToServer() {
   return new Promise((resolve, reject) => {
     const socket = io(url, options);
@@ -113,8 +120,6 @@ function connectToServer() {
 
       socket.on("subscription_connected", (message) => {
         console.log("Subscription connected:", message);
-
-        // Send subscription request with the parameters
         const params = {
           description: "Monitoring AgentCreated events",
           condition: {
@@ -131,8 +136,6 @@ function connectToServer() {
 
       socket.on("subscription_event", (message) => {
         console.log("\n--- NEW EVENT DETECTED ---");
-        
-        // Parse the string message into JSON
         const parsedMessage = parseNoditMessage(message);
         if (!parsedMessage) {
           console.log("Could not parse message:", message);
@@ -141,7 +144,6 @@ function connectToServer() {
 
         console.log("Parsed message:", JSON.stringify(parsedMessage, null, 2));
         
-        // The actual log data is in parsedMessage.messages[0]
         if (parsedMessage.messages && parsedMessage.messages.length > 0) {
           const log = parsedMessage.messages[0];
           console.log("Event for address:", log.address);
@@ -152,6 +154,7 @@ function connectToServer() {
             console.log("Decoded Event Details:", JSON.stringify(decodedEvent, null, 2));
             
             if (!decodedEvent.error) {
+              lastAgentDetails = decodedEvent;
               console.log("\nExtracted Parameters:");
               console.log("Agent Address:", decodedEvent.args.agentAddress);
               console.log("Device Address:", decodedEvent.args.deviceAddress);
@@ -180,7 +183,13 @@ function connectToServer() {
   });
 }
 
-// Start the connection
+// Start the HTTP server
+app.listen(PORT, () => {
+  console.log(`HTTP server running on port ${PORT}`);
+  console.log(`Access last agent details at: http://localhost:${PORT}/last-agent`);
+});
+
+// Start the WebSocket connection
 connectToServer()
   .then((socket) => {
     console.log("Monitoring AgentCreated events for address:", targetAddress);
