@@ -1,0 +1,33 @@
+{
+  "name": "contracts",
+  "version": "1.0.0",
+  "description": "DeFi deployment for Zircuit and Flow EVM Testnets",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy:zircuit": "hardhat run scripts/01-deploy-factory.js --network zircuit && hardhat run scripts/02-deploy-tokens.js --network zircuit && hardhat run scripts/03-setup-pairs.js --network zircuit && hardhat run scripts/04-mint-tokens.js --network zircuit && hardhat run scripts/05-verify-contracts.js --network zircuit",
+    "deploy:zir": "hardhat run scripts/05-create-pairs.js --network zircuit && hardhat run scripts/06-add-liquid.js --network zircuit",
+    "deploy:zir-test": "hardhat run scripts/07-test-swap.js --network zircuit",
+    "deploy:fl-test": "hardhat run scripts/07-test-swap.js --network flowEvm",
+    "deploy:fl": "hardhat run scripts/05-create-pairs.js --network flowEvm && hardhat run scripts/06-add-liquid.js --network flowEvm",
+    "deploy:flow": "hardhat run scripts/01-deploy-factory.js --network flowEvm && hardhat run scripts/02-deploy-tokens.js --network flowEvm && hardhat run scripts/03-setup-pairs.js --network flowEvm && hardhat run scripts/04-mint-tokens.js --network flowEvm && hardhat run scripts/05-verify-contracts.js --network flowEvm",
+    "test": "hardhat test"
+  },
+  "keywords": [
+    "defi",
+    "uniswap",
+    "zircuit",
+    "flow"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.0.1",
+    "dotenv": "^16.3.1",
+    "hardhat": "^2.19.5"
+  },
+  "dependencies": {
+    "@ensdomains/ens-contracts": "^1.4.0"
+  }
+}
