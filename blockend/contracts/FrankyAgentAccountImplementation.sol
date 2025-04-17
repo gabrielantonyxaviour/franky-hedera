@@ -3,8 +3,12 @@ pragma solidity ^0.8.20;
 import {StringUtils} from "@ensdomains/ens-contracts/contracts/utils/StringUtils.sol";
 import "./interfaces/IL2Registry.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import "./interfaces/IFrankyAgentAccountImplementation.sol";
 
-contract FrankyAgentAccountImplementation is ERC721Holder {
+contract FrankyAgentAccountImplementation is
+    ERC721Holder,
+    IFrankyAgentAccountImplementation
+{
     using StringUtils for string;
 
     string public subname;
@@ -61,17 +65,67 @@ contract FrankyAgentAccountImplementation is ERC721Holder {
         return success;
     }
 
-    function setNgrokUrl(string memory url) external onlyFrankyOrOwner {
+    function setCharacterAndUrl(
+        Character memory character,
+        string memory url
+    ) external onlyFrankyOrOwner {
         require(bytes(url).length > 0, "URL cannot be empty");
+
         if (msg.sender == owner && bytes(deviceNgrokUrl).length > 0)
-            revert("Owner cannot modify url");
-        deviceNgrokUrl = url;
+            deviceNgrokUrl = url;
+
+        bytes32 nameHash = IL2Registry(registry).namehash(
+            string.concat(subname, ".frankyagent.xyz")
+        );
+
         IL2Registry(registry).setText(
             IL2Registry(registry).namehash(
                 string.concat(subname, ".frankyagent.xyz")
             ),
             "url",
             url
+        );
+
+        IL2Registry(registry).setText(nameHash, "name", character.name);
+
+        IL2Registry(registry).setText(
+            nameHash,
+            "description",
+            character.description
+        );
+
+        IL2Registry(registry).setText(
+            nameHash,
+            "personality",
+            character.personality
+        );
+
+        IL2Registry(registry).setText(nameHash, "scenario", character.scenario);
+
+        IL2Registry(registry).setText(
+            nameHash,
+            "first_mes",
+            character.first_mes
+        );
+
+        IL2Registry(registry).setText(
+            nameHash,
+            "mes_example",
+            character.mes_example
+        );
+
+        IL2Registry(registry).setText(
+            nameHash,
+            "creatorcomment",
+            character.creatorcomment
+        );
+
+        IL2Registry(registry).setText(nameHash, "tags", character.tags);
+
+        IL2Registry(registry).setText(
+            nameHash,
+            "talkativeness",
+            character.talkativeness
         );
     }
 
