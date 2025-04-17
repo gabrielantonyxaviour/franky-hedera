@@ -15,8 +15,8 @@ async function main() {
   const network = hre.network.name;
   console.log(`Deploying to ${network}...`);
 
-  const accountImplementation = "0xcA2e15Adca1DF100BB1521469E1AC35b99A0c579";
-  const tokenAddress = "0x7ffbcf270B1c7582fe6f10d47AE91DAf29Ff0B2b";
+  const accountImplementation = "0x699dF6635F536E77231E484c6450aFFf726EeA02";
+  const tokenAddress = "0x486989cd189ED5DB6f519712eA794Cee42d75b29";
   const protocolBps = 1000;
 
   const Franky = await ethers.getContractFactory("Franky");

@@ -20,7 +20,7 @@ async function main() {
 
   // TODO: Replace with actual registry
   const registry = "0xf1f32db0bb3a6beec0c26dade4c79fd6554fef12";
-  const franky = "0xc70465603Ff23dfd25Aa3D0ddea8848D7bb58838";
+  const franky = "0x831822743247cbDf74fA651fceb21B1f9D5CDBfa";
 
   const FrankyENSRegistrar = await ethers.getContractFactory(
     "FrankyENSRegistrar"
