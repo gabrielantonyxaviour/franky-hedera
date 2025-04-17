@@ -1,7 +1,7 @@
 # Franky
 Monetize your old devices by powering efficient AI agents.
 
-![hq720](https://github.com/user-attachments/assets/f3bc02bc-7100-40c8-b2d4-b399c90fd305)
+![image](https://github.com/user-attachments/assets/e903a068-3bea-4c29-9f9c-049ce820ff92)
 
 ## Description
 
