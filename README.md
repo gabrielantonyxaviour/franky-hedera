@@ -32,13 +32,13 @@ And thanks to the Open Intents framework, any dApp can choose to sponsor gas fee
 
 ### Nodit
 
-I’ve built a fully functional Mini App on WorldChain Sepolia that enables World ID–verified users to perform gasless, human-verified transactions across 140+ EVM chains. While the underlying cross-chain execution is powered by Hyperlane and Open Intents, the core user experience is driven by Nodit.
+We have built a fully functional application on Base Mainnet which facilitates to repurpose OLD mobile phones and EARN **$FRANKY** tokens by running local LLM inference and host AI agents in them, providing Affordable Agent compute to everyone
 
-I use Nodit’s Elastic Node, Web3 Data API, Webhooks, and Streams to index and surface multi-chain data directly inside the Mini App. This includes real-time balances, transaction history, and cross-chain activity—all rendered with minimal latency and a smooth, clean UX.
+We use Nodit’s Elastic Node, Web3 Data API, Websockets, and Streams to index and display the various data related to Agent Details, Device Information and User Data. This includes list of Agents and Mobile Devices, real-time balances, Wallet Specific Information, and Event Listeners—all rendered with minimal latency and a smooth, clean UX.
 
-Nodit’s developer-first tooling makes it easy to provide a fast, reliable, and highly responsive multi-chain experience without having to manage complex indexing infrastructure. The result is a lightweight, data-rich Mini App that brings multi-chain visibility and interaction to verified users in a single interface.
+Nodit’s developer-first tooling makes it easy to provide a fast, reliable, and highly responsive experience without having to manage complex indexing infrastructure. The result is a lightweight, data-rich Application that brings a **COMPLETELY** decentralized solution.
 
-Thanks to Nodit, users can instantly see and act on their assets across chains—making the Mini App feel truly seamless and live, no matter which blockchain they’re on.
+Thanks to Nodit, users can list their devices, host their agents quickly and arrive at insights WITHOUT any hassle.
 
 ### Hyperlane
 
@@ -70,7 +70,8 @@ https://github.com/gabrielantonyxaviour/bombardiro-crocodilo/blob/main/README.md
 
 ### Nodit Feedback
 
-Super easy to use and integrate. I have added my feedback here.
+Super easy to use and integrate. Webhooks and Websockets possess a latency which could be reduced
+Under Websockets, LOGs could facilitate listening to various topics in multiple events instead of looking for a bunch of topics under the same event in an address
 
 https://github.com/gabrielantonyxaviour/bombardiro-crocodilo/blob/main/README.md#nodit-feedback
 
