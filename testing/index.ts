@@ -3,6 +3,7 @@ import * as dotenv from "dotenv";
 
 // Load environment variables
 dotenv.config();
+
 async function signMessage(
   messageHash: string,
   privateKey: string
