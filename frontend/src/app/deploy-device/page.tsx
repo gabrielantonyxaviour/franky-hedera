@@ -4,7 +4,46 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Header from '@/components/ui/Header'
 import { FiCopy, FiCheck, FiSmartphone, FiTerminal, FiDownload, FiServer } from 'react-icons/fi'
-import { useAppKit, AppKitProvider } from '@/components/wallet/AppKitProvider'
+// import { useAppKit, AppKitProvider } from '@/components/wallet/AppKitProvider'
+import PrivyProviders from '@/components/PrivyProviders'
+import { usePrivy, useWallets } from '@privy-io/react-auth'
+import { useWriteContract, useWaitForTransactionReceipt, useAccount, useChainId } from 'wagmi'
+import { baseSepolia } from '@/components/baseChains'
+
+// Contract address and ABI
+const CONTRACT_ADDRESS = '0x42F46AeF8d7288B525Ac7160616F7Bc23F583bAA'
+const CONTRACT_ABI = [
+  {
+    "inputs": [
+      {"internalType": "string", "name": "deviceModel", "type": "string"},
+      {"internalType": "string", "name": "ram", "type": "string"},
+      {"internalType": "string", "name": "storageCapacity", "type": "string"},
+      {"internalType": "string", "name": "cpu", "type": "string"},
+      {"internalType": "string", "name": "ngrokLink", "type": "string"},
+      {"internalType": "address", "name": "deviceAddress", "type": "address"},
+      {"internalType": "bytes32", "name": "verificationHash", "type": "bytes32"},
+      {"internalType": "bytes", "name": "signature", "type": "bytes"}
+    ],
+    "name": "registerDevice",
+    "outputs": [{"internalType": "uint256", "name": "deviceId", "type": "uint256"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+] as const
+
+// Helper function to get the block explorer URL based on the chain
+const getExplorerUrl = (chainId: number, hash: string) => {
+  // Base Sepolia
+  if (chainId === baseSepolia.id) {
+    return `https://sepolia.basescan.org/tx/${hash}`
+  }
+  // Ethereum Sepolia
+  if (chainId === 11155111) {
+    return `https://sepolia.etherscan.io/tx/${hash}`
+  }
+  // Ethereum Mainnet (default)
+  return `https://etherscan.io/tx/${hash}`
+}
 
 // CodeBlock component for displaying commands with copy functionality
 const CodeBlock = ({ code }: { code: string }) => {
@@ -159,9 +198,44 @@ const DeviceVerification = () => {
   const [verificationSuccess, setVerificationSuccess] = useState(false)
   const [isClient, setIsClient] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
+  const [walletAddress, setWalletAddress] = useState<string | null>(null)
+  const [walletType, setWalletType] = useState<string | null>(null)
+  const [transactionHash, setTransactionHash] = useState<`0x${string}` | undefined>(undefined)
+  const [transactionError, setTransactionError] = useState<string | null>(null)
   
-  // Get AppKit instance from provider
-  const appKit = useAppKit()
+  // Get chain ID for explorer URL
+  const chainId = useChainId()
+  
+  // Get Privy instance and wallets
+  const privy = usePrivy()
+  const { wallets } = useWallets()
+
+  // Contract interaction hooks
+  const { writeContractAsync, isPending } = useWriteContract()
+  const { data: transactionReceipt, isLoading: isWaitingForTransaction, error: waitError } = 
+    useWaitForTransactionReceipt({
+      hash: transactionHash
+    })
+
+  // Destructure privy values to make TypeScript happy
+  const { 
+    connectWallet, 
+    ready, 
+    authenticated, 
+    user 
+  } = privy
+  
+  // Get wallet connections safely (this might be undefined in some versions of Privy)
+  const walletConnections = (privy as any).walletConnections || []
+
+  // Debug logging - remove in production
+  useEffect(() => {
+    if (isClient) {
+      console.log("Privy auth state:", { authenticated, user });
+      console.log("Wallet connections:", walletConnections);
+      console.log("Wallets:", wallets);
+    }
+  }, [isClient, authenticated, user, walletConnections, wallets]);
 
   // Set isClient to true after component mounts to avoid SSR issues
   useEffect(() => {
@@ -205,29 +279,14 @@ const DeviceVerification = () => {
     }
   }, [isClient])
 
-  // Connect wallet function using REOWN AppKit from provider
-  const connectWallet = async () => {
+  // Connect wallet function using Privy
+  const handleConnectWallet = async () => {
     try {
-      if (!appKit) {
-        console.error('REOWN AppKit not initialized')
-        return
-      }
-      
-      console.log('Connecting wallet with AppKit...')
+      console.log('Connecting wallet with Privy...')
       setIsConnecting(true)
       
-      // Open wallet modal and get connection result
-      const result = await appKit.connect()
-      
-      if (result && result.address) {
-        console.log('Wallet connected:', result)
-        setIsWalletConnected(true)
-        
-        // Only show device modal after successful wallet connection
-        if (deviceDetails) {
-          setShowDeviceModal(true)
-        }
-      }
+      // Open wallet modal and connect
+      await connectWallet()
     } catch (error) {
       console.error('Error connecting wallet:', error)
     } finally {
@@ -235,67 +294,173 @@ const DeviceVerification = () => {
     }
   }
 
-  // Check if wallet is already connected
+  // Check all possible ways wallet might be connected with Privy
   useEffect(() => {
-    if (appKit && appKit.isConnected) {
-      setIsWalletConnected(true)
+    // First check Privy wallets array
+    if (wallets && wallets.length > 0) {
+      // Get the first wallet address
+      const firstWallet = wallets[0];
+      if (firstWallet?.address) {
+        setWalletAddress(firstWallet.address);
+        setWalletType(firstWallet.walletClientType);
+        setIsWalletConnected(true);
+        
+        // Show device modal if we have device details
+        if (deviceDetails && !showDeviceModal) {
+          setShowDeviceModal(true);
+        }
+        
+        console.log('Wallet connected via wallets array:', firstWallet);
+        return;
+      }
+    }
+    
+    // Check wallet connections if wallets array is empty
+    if (walletConnections && walletConnections.length > 0) {
+      const metamaskConnection = walletConnections.find((conn: any) => 
+        conn.walletName?.toLowerCase().includes('metamask') || 
+        conn.walletName?.toLowerCase().includes('injected')
+      );
+      
+      if (metamaskConnection?.address) {
+        setWalletAddress(metamaskConnection.address);
+        setWalletType(metamaskConnection.walletName || "MetaMask");
+        setIsWalletConnected(true);
+        
+        // Show device modal if we have device details
+        if (deviceDetails && !showDeviceModal) {
+          setShowDeviceModal(true);
+        }
+        
+        console.log('Wallet connected via walletConnections:', metamaskConnection);
+        return;
+      }
+    }
+    
+    // Also check the user object as fallback
+    if (authenticated && user?.wallet?.address) {
+      setWalletAddress(user.wallet.address);
+      setWalletType(user.wallet.walletClientType || "Embedded");
+      setIsWalletConnected(true);
       
       // Show device modal if we have device details
       if (deviceDetails && !showDeviceModal) {
-        setShowDeviceModal(true)
+        setShowDeviceModal(true);
       }
+      
+      console.log('Wallet connected via user object:', user.wallet);
+      return;
     }
-  }, [appKit, deviceDetails, showDeviceModal])
+    
+    // No wallet connected in any way
+    setIsWalletConnected(false);
+    setWalletAddress(null);
+    setWalletType(null);
+    
+  }, [wallets, walletConnections, authenticated, user, deviceDetails, showDeviceModal]);
 
   // Handle device verification
   const verifyDevice = async () => {
     try {
       setIsVerifying(true)
+      setTransactionError(null)
       
-      if (!appKit) {
-        console.error('REOWN AppKit not initialized')
+      if (!isWalletConnected || !walletAddress) {
+        console.error('Wallet not connected')
+        setTransactionError('Wallet not connected. Please connect your wallet and try again.')
+        setIsVerifying(false)
         return
       }
       
-      // Check if we have a signature - signature verification is quicker
-      if (deviceDetails?.signature) {
-        console.log('Verifying device with provided signature...')
-        
-        // For signed verification, we would typically:
-        // 1. Verify the signature matches the device data (bytes32Data)
-        // 2. Check that it was signed by the walletAddress
-        // 3. Record the verification on-chain
-        
-        // Simulating quick signature verification
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        console.log('Device verified with signature')
-      } else {
-        console.log('Signing transaction to verify device...')
-        
-        // For unsigned verification, we would typically:
-        // 1. Get the signer from the connected wallet
-        // 2. Create a transaction with the device verification data
-        // 3. Sign and send the transaction
-
-        // Simulating delay for full transaction signing
-        await new Promise(resolve => setTimeout(resolve, 2000)) 
-        
-        console.log('Device verified with transaction')
+      if (!deviceDetails) {
+        console.error('No device details available')
+        setTransactionError('No device details available. Please scan the QR code from your device first.')
+        setIsVerifying(false)
+        return
       }
+
+      console.log('Registering device on smart contract...')
       
-      setVerificationSuccess(true)
+      // Prepare contract call parameters
+      const {
+        deviceModel,
+        ram,
+        storage: storageCapacity,
+        cpu,
+        ngrokLink,
+        walletAddress: deviceAddress,
+        bytes32Data: verificationHash,
+        signature,
+      } = deviceDetails
+
+      // Convert signature from string to bytes if available
+      // If signature is not provided, use an empty bytes array
+      let signatureBytes: `0x${string}` = '0x' 
+      if (signature) {
+        // Make sure signature has 0x prefix
+        signatureBytes = signature.startsWith('0x') 
+          ? signature as `0x${string}` 
+          : `0x${signature}` as `0x${string}`
+      }
+
+      // Make sure verification hash has 0x prefix
+      const verificationHashHex = verificationHash.startsWith('0x') 
+        ? verificationHash as `0x${string}`
+        : `0x${verificationHash}` as `0x${string}`
+
+      // Call the contract's registerDevice function
+      const hash = await writeContractAsync({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: CONTRACT_ABI,
+        functionName: 'registerDevice',
+        args: [
+          deviceModel,
+          ram,
+          storageCapacity,
+          cpu,
+          ngrokLink,
+          deviceAddress as `0x${string}`,
+          verificationHashHex,
+          signatureBytes
+        ]
+      })
       
-      // Close modal after success - optional based on UX preference
-      setTimeout(() => {
-        setShowDeviceModal(false)
-      }, 3000)
-    } catch (error) {
+      // Set transaction hash to track its progress
+      console.log('Transaction submitted:', hash)
+      setTransactionHash(hash)
+      
+    } catch (error: any) {
       console.error('Error verifying device:', error)
-    } finally {
+      setTransactionError(error.message || 'Unknown error occurred')
       setIsVerifying(false)
     }
   }
+
+  // Watch for transaction receipt
+  useEffect(() => {
+    if (transactionReceipt) {
+      console.log('Transaction confirmed:', transactionReceipt)
+      setVerificationSuccess(true)
+      setIsVerifying(false)
+      
+      // Close modal after success
+      setTimeout(() => {
+        setShowDeviceModal(false)
+        
+        // Remove URL parameters after successful verification
+        if (typeof window !== 'undefined') {
+          const baseUrl = window.location.pathname
+          window.history.replaceState({}, document.title, baseUrl)
+        }
+      }, 3000)
+    }
+    
+    if (waitError) {
+      console.error('Transaction wait error:', waitError)
+      setTransactionError(waitError.message || 'Error waiting for transaction confirmation')
+      setIsVerifying(false)
+    }
+  }, [transactionReceipt, waitError])
 
   // Render the 6th step
   return (
@@ -316,8 +481,8 @@ const DeviceVerification = () => {
               {!isWalletConnected ? (
                 <div className="mt-6 flex flex-col items-center">
                   <motion.button
-                    onClick={connectWallet}
-                    disabled={isConnecting}
+                    onClick={handleConnectWallet}
+                    disabled={isConnecting || !ready}
                     className="relative group px-8 py-4 rounded-lg bg-gradient-to-r from-[#00FF88]/20 to-emerald-500/20 border border-[#00FF88] text-[#00FF88] hover:from-[#00FF88]/30 hover:to-emerald-500/30 transition-all duration-300 shadow-lg shadow-emerald-900/30 backdrop-blur-sm min-w-[240px]"
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.98 }}
@@ -343,7 +508,7 @@ const DeviceVerification = () => {
                   </motion.button>
                   
                   <p className="mt-3 text-gray-400 text-sm">
-                    Connect securely using REOWN AppKit
+                    Connect securely using Privy
                   </p>
                 </div>
               ) : (
@@ -356,9 +521,20 @@ const DeviceVerification = () => {
                       <p className="text-[#00FF88] font-medium">
                         Wallet connected successfully!
                       </p>
-                      <p className="text-gray-400 text-sm mt-1">
-                        {appKit?.address ? `Address: ${appKit.address.substring(0, 6)}...${appKit.address.substring(appKit.address.length - 4)}` : ''}
-                      </p>
+                      <div className="text-gray-400 text-sm mt-1">
+                        <p className="mb-1">
+                          <span className="font-medium">Address:</span> {walletAddress ? `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}` : ''}
+                        </p>
+                        {walletType && (
+                          <p className="flex items-center">
+                            <span className="font-medium mr-1">Wallet:</span> 
+                            {walletType.toLowerCase().includes('metamask') && (
+                              <img src="/metamask-icon.svg" alt="MetaMask" className="h-4 w-4 mr-1" onError={(e) => e.currentTarget.style.display = 'none'} />
+                            )}
+                            {walletType}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <p className="mt-4 text-[#00FF88] text-center">
@@ -382,16 +558,38 @@ const DeviceVerification = () => {
                   </p>
                 </div>
               </div>
-              <div className="mt-4 flex justify-center">
-                <motion.button
-                  onClick={connectWallet}
-                  disabled={isConnecting}
-                  className="px-6 py-2 rounded-lg bg-[#00FF88]/10 border border-[#00FF88]/40 text-[#00FF88] hover:bg-[#00FF88]/20 transition-colors"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  {isConnecting ? 'Connecting...' : 'Prepare Your Wallet'}
-                </motion.button>
+              
+              <div className="mt-4">
+                {isWalletConnected ? (
+                  <div className="p-3 rounded-lg bg-[#00FF88]/10 border border-[#00FF88]/30 mb-4">
+                    <div className="flex items-center">
+                      <div className="flex justify-center items-center h-8 w-8 rounded-full bg-[#00FF88]/20 mr-3">
+                        <FiCheck className="text-[#00FF88]" />
+                      </div>
+                      <div>
+                        <p className="text-[#00FF88] text-sm font-medium">
+                          Wallet already connected
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {walletAddress ? `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}` : ''}
+                          {walletType && ` (${walletType})`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-center">
+                    <motion.button
+                      onClick={handleConnectWallet}
+                      disabled={isConnecting || !ready}
+                      className="px-6 py-2 rounded-lg bg-[#00FF88]/10 border border-[#00FF88]/40 text-[#00FF88] hover:bg-[#00FF88]/20 transition-colors"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {isConnecting ? 'Connecting...' : 'Prepare Your Wallet'}
+                    </motion.button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -400,123 +598,234 @@ const DeviceVerification = () => {
       
       {/* Device Verification Modal */}
       {showDeviceModal && deviceDetails && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 overflow-auto">
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="relative max-w-lg w-full rounded-xl border border-[#00FF88] border-opacity-50 bg-black/90 backdrop-blur-sm p-6"
+            className="relative max-w-md w-full rounded-xl border border-[#00FF88] border-opacity-50 bg-black/90 backdrop-blur-sm p-5 max-h-[90vh] overflow-y-auto"
           >
-            <h3 className="text-2xl font-bold bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent mb-4">
-              Verify Device Ownership
+            {/* Close button - moved to top-right corner of the header for better usability */}
+            <button
+              onClick={() => {
+                // Close the modal
+                setShowDeviceModal(false);
+                
+                // Remove URL parameters by replacing current URL with base URL
+                if (typeof window !== 'undefined') {
+                  const baseUrl = window.location.pathname;
+                  window.history.replaceState({}, document.title, baseUrl);
+                  
+                  // Also reset device details state
+                  setDeviceDetails(null);
+                }
+              }}
+              className="absolute top-3 right-3 text-gray-400 hover:text-white h-7 w-7 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/70 transition-colors"
+              aria-label="Close modal"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <h3 className="text-xl font-bold bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent mb-3 pr-8">
+              Verify Device
             </h3>
             
-            <div className="space-y-3 my-6">
-              <div className="flex justify-between p-3 rounded-lg bg-black/50 border border-gray-800">
-                <span className="text-gray-400">Device Model</span>
-                <span className="text-[#00FF88]">{deviceDetails.deviceModel}</span>
-              </div>
-              
-              <div className="flex justify-between p-3 rounded-lg bg-black/50 border border-gray-800">
-                <span className="text-gray-400">RAM</span>
-                <span className="text-[#00FF88]">{deviceDetails.ram}</span>
-              </div>
-              
-              <div className="flex justify-between p-3 rounded-lg bg-black/50 border border-gray-800">
-                <span className="text-gray-400">Storage</span>
-                <span className="text-[#00FF88]">{deviceDetails.storage}</span>
-              </div>
-              
-              <div className="flex justify-between p-3 rounded-lg bg-black/50 border border-gray-800">
-                <span className="text-gray-400">CPU</span>
-                <span className="text-[#00FF88]">{deviceDetails.cpu}</span>
-              </div>
-              
-              <div className="flex justify-between p-3 rounded-lg bg-black/50 border border-gray-800">
-                <span className="text-gray-400">Device Address</span>
-                <span className="text-[#00FF88] text-xs break-all">{deviceDetails.walletAddress}</span>
-              </div>
-              
-              <div className="flex justify-between p-3 rounded-lg bg-black/50 border border-gray-800">
-                <span className="text-gray-400">Connection Link</span>
-                <a href={deviceDetails.ngrokLink} target="_blank" rel="noopener noreferrer" 
-                   className="text-[#00FF88] text-xs underline hover:text-emerald-400 break-all">
-                  {deviceDetails.ngrokLink}
-                </a>
-              </div>
-              
-              <div className="p-3 rounded-lg bg-black/50 border border-gray-800">
-                <div className="flex justify-between mb-1">
-                  <span className="text-gray-400">Verification Data</span>
+            {/* Connected wallet info card - Showing this first as it's most relevant for verification */}
+            <div className="p-3 rounded-lg bg-[#00FF88]/10 border border-[#00FF88]/30 mb-4">
+              <div className="flex items-center mb-1">
+                <div className="flex justify-center items-center h-6 w-6 rounded-full bg-[#00FF88]/20 mr-2">
+                  <FiCheck className="text-[#00FF88] text-sm" />
                 </div>
-                <div className="text-xs text-gray-400 break-all">
-                  {deviceDetails.bytes32Data}
-                </div>
+                <span className="text-[#00FF88] text-sm font-medium">Your Wallet</span>
               </div>
-              
-              {deviceDetails.signature && (
-                <div className="p-3 rounded-lg bg-black/50 border border-gray-800">
-                  <div className="flex justify-between mb-1">
-                    <span className="text-gray-400">Signature</span>
-                    <span className="text-xs text-emerald-400 px-2 py-0.5 rounded bg-emerald-900/30">Verified</span>
+              <div className="text-xs text-gray-400 ml-8">
+                <p className="flex justify-between">
+                  <span className="text-gray-300">Address:</span> 
+                  <span className="text-[#00FF88]">
+                    {walletAddress ? `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}` : 'Not connected'}
+                  </span>
+                </p>
+                {walletType && (
+                  <p className="flex justify-between">
+                    <span className="text-gray-300">Type:</span>
+                    <span className="text-[#00FF88] flex items-center">
+                      {walletType.toLowerCase().includes('metamask') && (
+                        <img src="/metamask-icon.svg" alt="MetaMask" className="h-3 w-3 mr-1" onError={(e) => e.currentTarget.style.display = 'none'} />
+                      )}
+                      {walletType}
+                    </span>
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            {/* Device details in a compact accordion/tabs style */}
+            <div className="space-y-2 mb-4">
+              <details className="group rounded-lg bg-black/50 border border-gray-800 overflow-hidden">
+                <summary className="flex cursor-pointer list-none items-center justify-between p-2 font-medium">
+                  <div className="flex items-center">
+                    <span className="text-emerald-400 mr-2">📱</span>
+                    <span>Device Specs</span>
                   </div>
-                  <div className="text-xs text-gray-400 break-all">
-                    {deviceDetails.signature}
+                  <span className="transition group-open:rotate-180">
+                    <svg fill="none" height="16" width="16" viewBox="0 0 24 24" stroke="currentColor">
+                      <path d="M6 9l6 6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                    </svg>
+                  </span>
+                </summary>
+                <div className="p-2 pt-0 text-xs space-y-1">
+                  <div className="flex justify-between py-1 border-t border-gray-700">
+                    <span className="text-gray-400">Model</span>
+                    <span className="text-[#00FF88]">{deviceDetails.deviceModel}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-t border-gray-700">
+                    <span className="text-gray-400">RAM</span>
+                    <span className="text-[#00FF88]">{deviceDetails.ram}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-t border-gray-700">
+                    <span className="text-gray-400">Storage</span>
+                    <span className="text-[#00FF88]">{deviceDetails.storage}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-t border-gray-700">
+                    <span className="text-gray-400">CPU</span>
+                    <span className="text-[#00FF88]">{deviceDetails.cpu}</span>
                   </div>
                 </div>
-              )}
+              </details>
+              
+              <details className="group rounded-lg bg-black/50 border border-gray-800 overflow-hidden">
+                <summary className="flex cursor-pointer list-none items-center justify-between p-2 font-medium">
+                  <div className="flex items-center">
+                    <span className="text-emerald-400 mr-2">🔗</span>
+                    <span>Connection Details</span>
+                  </div>
+                  <span className="transition group-open:rotate-180">
+                    <svg fill="none" height="16" width="16" viewBox="0 0 24 24" stroke="currentColor">
+                      <path d="M6 9l6 6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                    </svg>
+                  </span>
+                </summary>
+                <div className="p-2 pt-0 text-xs space-y-1">
+                  <div className="flex justify-between py-1 border-t border-gray-700">
+                    <span className="text-gray-400">Device Address</span>
+                    <span className="text-[#00FF88] text-xs break-all">{deviceDetails.walletAddress.substring(0, 8)}...{deviceDetails.walletAddress.substring(deviceDetails.walletAddress.length - 8)}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-t border-gray-700">
+                    <span className="text-gray-400">Link</span>
+                    <a href={deviceDetails.ngrokLink} target="_blank" rel="noopener noreferrer" 
+                      className="text-[#00FF88] text-xs underline hover:text-emerald-400 break-all max-w-[200px] truncate">
+                      {deviceDetails.ngrokLink}
+                    </a>
+                  </div>
+                </div>
+              </details>
+              
+              <details className="group rounded-lg bg-black/50 border border-gray-800 overflow-hidden">
+                <summary className="flex cursor-pointer list-none items-center justify-between p-2 font-medium">
+                  <div className="flex items-center">
+                    <span className="text-emerald-400 mr-2">🔐</span>
+                    <span>Verification Data</span>
+                  </div>
+                  <span className="transition group-open:rotate-180">
+                    <svg fill="none" height="16" width="16" viewBox="0 0 24 24" stroke="currentColor">
+                      <path d="M6 9l6 6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                    </svg>
+                  </span>
+                </summary>
+                <div className="p-2 pt-0 text-xs space-y-1">
+                  <div className="py-1 border-t border-gray-700">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-gray-400">Verification Data</span>
+                    </div>
+                    <div className="text-xs text-gray-400 break-all bg-black/30 p-2 rounded">
+                      {deviceDetails.bytes32Data}
+                    </div>
+                  </div>
+                  
+                  {deviceDetails.signature && (
+                    <div className="py-1 border-t border-gray-700">
+                      <div className="flex justify-between mb-1">
+                        <span className="text-gray-400">Signature</span>
+                        <span className="text-xs text-emerald-400 px-2 py-0.5 rounded bg-emerald-900/30">Verified</span>
+                      </div>
+                      <div className="text-xs text-gray-400 break-all bg-black/30 p-2 rounded">
+                        {deviceDetails.signature}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </details>
             </div>
             
             {verificationSuccess ? (
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="p-4 rounded-lg bg-emerald-900/30 border border-emerald-400/30 text-center"
+                className="p-3 rounded-lg bg-emerald-900/30 border border-emerald-400/30 text-center"
               >
-                <FiCheck className="text-[#00FF88] mx-auto text-2xl mb-2" />
-                <p className="text-[#00FF88] font-medium">Device verification successful!</p>
+                <FiCheck className="text-[#00FF88] mx-auto text-xl mb-1" />
+                <p className="text-[#00FF88] font-medium text-sm">Device verification successful!</p>
                 
-                {deviceDetails.signature && (
-                  <div className="mt-2 text-sm text-emerald-300">
-                    <p className="mb-1">Device signature has been validated on-chain</p>
-                    <p className="text-xs text-emerald-400/70">Transaction hash saved for future reference</p>
+                {transactionHash && (
+                  <div className="mt-1 text-xs text-emerald-300">
+                    <p>Transaction confirmed on-chain</p>
+                    <a 
+                      href={getExplorerUrl(chainId, transactionHash)} 
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#00FF88] underline hover:text-emerald-200 text-xs mt-1 inline-block"
+                    >
+                      View on Explorer
+                    </a>
                   </div>
                 )}
               </motion.div>
             ) : (
-              <div className="flex justify-center">
+              <div className="flex flex-col">
+                {transactionError && (
+                  <div className="p-3 mb-3 rounded-lg bg-red-900/30 border border-red-400/30 text-center text-red-300 text-xs">
+                    <p>{transactionError}</p>
+                  </div>
+                )}
                 <motion.button
                   onClick={verifyDevice}
-                  disabled={isVerifying}
-                  className="px-6 py-3 rounded-lg bg-[#00FF88] bg-opacity-20 border border-[#00FF88] text-[#00FF88] hover:bg-opacity-30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                  whileHover={{ scale: isVerifying ? 1 : 1.05 }}
-                  whileTap={{ scale: isVerifying ? 1 : 0.95 }}
+                  disabled={isVerifying || isPending || isWaitingForTransaction}
+                  className="px-5 py-2 rounded-lg bg-[#00FF88] bg-opacity-20 border border-[#00FF88] text-[#00FF88] hover:bg-opacity-30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm w-full"
+                  whileHover={{ scale: isVerifying ? 1 : 1.03 }}
+                  whileTap={{ scale: isVerifying ? 1 : 0.97 }}
                 >
-                  {isVerifying ? (
+                  {(isVerifying || isPending || isWaitingForTransaction) ? (
                     <>
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-[#00FF88]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-[#00FF88]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      {deviceDetails?.signature ? 'Verifying Signature...' : 'Signing Transaction...'}
+                      {isPending ? 'Waiting for approval...' : 
+                       isWaitingForTransaction ? 'Confirming transaction...' : 
+                       'Registering device...'}
                     </>
                   ) : (
                     <>
-                      {deviceDetails?.signature ? 'Verify Device Signature' : 'Sign Transaction to Verify'}
+                      Register Device on Contract
                     </>
                   )}
                 </motion.button>
+                {transactionHash && !verificationSuccess && (
+                  <p className="text-xs text-center text-gray-400 mt-2">
+                    Transaction pending: 
+                    <a 
+                      href={getExplorerUrl(chainId, transactionHash)} 
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#00FF88] underline hover:text-emerald-200 ml-1"
+                    >
+                      View on Explorer
+                    </a>
+                  </p>
+                )}
               </div>
             )}
-            
-            <button
-              onClick={() => setShowDeviceModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-              aria-label="Close modal"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
           </motion.div>
         </div>
       )}
@@ -524,11 +833,11 @@ const DeviceVerification = () => {
   )
 }
 
-// Wrap the device verification component with AppKit provider
+// Wrap the device verification component with Privy provider
 const WrappedDeviceVerification = () => (
-  <AppKitProvider>
+  <PrivyProviders>
     <DeviceVerification />
-  </AppKitProvider>
+  </PrivyProviders>
 )
 
 export default function DeployDevice() {
