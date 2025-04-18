@@ -1,9 +1,9 @@
 const axios = require("axios");
 const ethers = require("ethers");
 
-const noditAPIKey = "hc7lkqT6G~1HLw~rQUcPPuagh39b1E~K";
+const noditAPIKey = "p4CtuYObYH1xoB0eWsz09JbFSVa6gdkB";
 const axiosInstance = axios.create({
-  baseURL: "https://web3.nodit.io/v1/base/sepolia",
+  baseURL: "https://web3.nodit.io/v1/base/mainnet",
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -11,12 +11,28 @@ const axiosInstance = axios.create({
   },
 });
 
-// Use the correct ABI for the createAgent function based on your first document
+// Updated ABI for the new contract
 const contractABI = [
   {
     "inputs": [
-      {"internalType": "string", "name": "prefix", "type": "string"},
-      {"internalType": "string", "name": "config", "type": "string"},
+      {"internalType": "string", "name": "subname", "type": "string"},
+      {"internalType": "string", "name": "avatar", "type": "string"},
+      {
+        "components": [
+          {"internalType": "string", "name": "name", "type": "string"},
+          {"internalType": "string", "name": "description", "type": "string"},
+          {"internalType": "string", "name": "personality", "type": "string"},
+          {"internalType": "string", "name": "scenario", "type": "string"},
+          {"internalType": "string", "name": "first_mes", "type": "string"},
+          {"internalType": "string", "name": "mes_example", "type": "string"},
+          {"internalType": "string", "name": "creatorcomment", "type": "string"},
+          {"internalType": "string", "name": "tags", "type": "string"},
+          {"internalType": "string", "name": "talkativeness", "type": "string"}
+        ],
+        "internalType": "struct Character",
+        "name": "characterConfig",
+        "type": "tuple"
+      },
       {"internalType": "string", "name": "secrets", "type": "string"},
       {"internalType": "bytes32", "name": "secretsHash", "type": "bytes32"},
       {"internalType": "address", "name": "deviceAddress", "type": "address"},
@@ -33,11 +49,28 @@ const contractABI = [
     "inputs": [
       {"indexed": true, "internalType": "address", "name": "agentAddress", "type": "address"},
       {"indexed": true, "internalType": "address", "name": "deviceAddress", "type": "address"},
-      {"indexed": false, "internalType": "string", "name": "prefix", "type": "string"},
+      {"indexed": false, "internalType": "string", "name": "avatar", "type": "string"},
+      {"indexed": false, "internalType": "string", "name": "subname", "type": "string"},
       {"indexed": false, "internalType": "address", "name": "owner", "type": "address"},
       {"indexed": false, "internalType": "uint256", "name": "perApiCallFee", "type": "uint256"},
       {"indexed": false, "internalType": "bytes32", "name": "secretsHash", "type": "bytes32"},
-      {"indexed": false, "internalType": "string", "name": "character", "type": "string"},
+      {
+        "components": [
+          {"internalType": "string", "name": "name", "type": "string"},
+          {"internalType": "string", "name": "description", "type": "string"},
+          {"internalType": "string", "name": "personality", "type": "string"},
+          {"internalType": "string", "name": "scenario", "type": "string"},
+          {"internalType": "string", "name": "first_mes", "type": "string"},
+          {"internalType": "string", "name": "mes_example", "type": "string"},
+          {"internalType": "string", "name": "creatorcomment", "type": "string"},
+          {"internalType": "string", "name": "tags", "type": "string"},
+          {"internalType": "string", "name": "talkativeness", "type": "string"}
+        ],
+        "indexed": false,
+        "internalType": "struct Character",
+        "name": "characterConfig",
+        "type": "tuple"
+      },
       {"indexed": false, "internalType": "string", "name": "secrets", "type": "string"},
       {"indexed": false, "internalType": "bool", "name": "isPublic", "type": "bool"}
     ],
@@ -47,16 +80,16 @@ const contractABI = [
 ];
 
 const contractInterface = new ethers.utils.Interface(contractABI);
-const contractAddress = "0x18c2e2f87183034700cc2A7cf6D86a71fd209678";
+const contractAddress = "0x486989cd189ED5DB6f519712eA794Cee42d75b29";
 
-// Calculate the correct function selector
+// Calculate the correct function selector for the new createAgent function
 const createAgentSelector = contractInterface.getSighash("createAgent");
 
 async function getAllAgents() {
   try {
     console.log(`🔍 Searching for all agents in contract: ${contractAddress}`);
     
-    // Get all transactions to the contract, similar to original sample code
+    // Get all transactions to the contract
     const txResult = await axiosInstance.post(
       "/blockchain/getTransactionsByAccount",
       {
@@ -66,7 +99,7 @@ async function getAllAgents() {
     );
 
     if (txResult.data?.items?.length > 0) {
-      // Filter to only get createAgent transactions but don't filter by creator address
+      // Filter to only get createAgent transactions
       const agentCreationTxs = txResult.data.items.filter(tx => {
         return tx.functionSelector?.toLowerCase() === createAgentSelector.toLowerCase();
       });
@@ -84,8 +117,16 @@ async function getAllAgents() {
           try {
             const decodedData = contractInterface.parseTransaction({ data: tx.input });
             console.log("\nCreation Parameters:");
-            console.log(`  Prefix: ${decodedData.args.prefix}`);
-            console.log(`  Config: ${decodedData.args.config.substring(0, 50)}...`); // Truncate long configs
+            console.log(`  Subname: ${decodedData.args.subname}`);
+            console.log(`  Avatar: ${decodedData.args.avatar}`);
+            
+            // Log character config details
+            const characterConfig = decodedData.args.characterConfig;
+            console.log(`  Character Config:`);
+            console.log(`    Name: ${characterConfig.name}`);
+            console.log(`    Description: ${characterConfig.description.substring(0, 50)}...`);
+            console.log(`    Personality: ${characterConfig.personality.substring(0, 50)}...`);
+            
             console.log(`  Secrets Hash: ${decodedData.args.secretsHash}`);
             console.log(`  Device Address: ${decodedData.args.deviceAddress}`);
             console.log(`  Per API Call Fee: ${ethers.utils.formatUnits(decodedData.args.perApiCallFee, 'wei')} wei`);
