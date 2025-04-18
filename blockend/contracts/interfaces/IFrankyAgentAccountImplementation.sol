@@ -22,6 +22,7 @@ interface IFrankyAgentAccountImplementation {
     ) external;
     function setCharacterAndUrl(
         Character memory character,
-        string memory url
+        string memory url,
+        string memory avatar
     ) external;
 }
