@@ -1,6 +1,6 @@
 import { defaultWagmiConfig } from '@web3modal/wagmi'
 import { createWeb3Modal } from '@web3modal/wagmi/react'
-import { arbitrum, mainnet, polygon } from 'viem/chains'
+import { base, baseSepolia } from 'viem/chains'
 
 // Get projectId from environment variable
 const projectId = process.env.NEXT_PUBLIC_WALLET_CONNECT_ID || '07ae1f8ae1086fd0dfb5547956caa349'
@@ -15,7 +15,7 @@ const metadata = {
 
 // Create wagmi config with supported chains
 export const wagmiConfig = defaultWagmiConfig({
-  chains: [mainnet, polygon, arbitrum] as const,
+  chains: [base, baseSepolia] as const,
   projectId,
   metadata
 })
