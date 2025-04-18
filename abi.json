@@ -1,0 +1,175 @@
+[{
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "metalUserAddress",
+        "type": "address"
+      }
+    ],
+    "name": "configureMetalWallet",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "deviceModel",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "ram",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "storageCapacity",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "cpu",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "ngrokLink",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "hostingFee",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "deviceAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "verificationHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "registerDevice",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "subname",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "avatar",
+        "type": "string"
+      },
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "personality",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "scenario",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "first_mes",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "mes_example",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "creatorcomment",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "tags",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "talkativeness",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct Character",
+        "name": "characterConfig",
+        "type": "tuple"
+      },
+      {
+        "internalType": "string",
+        "name": "secrets",
+        "type": "string"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "secretsHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "deviceAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "perApiCallFee",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "isPublic",
+        "type": "bool"
+      }
+    ],
+    "name": "createAgent",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "agentAddress",
+        "type": "address"
+      }
+    ],
+    "name": "regenerateApiKey",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]
