@@ -6,6 +6,8 @@ const { ethers } = require("hardhat");
 async function main() {
   const [deployer] = await ethers.getSigners();
 
+  const isMainnet = true;
+
   console.log("Deploying Franky with the account:", deployer.address);
   console.log(
     "Account balance:",
@@ -15,8 +17,12 @@ async function main() {
   const network = hre.network.name;
   console.log(`Deploying to ${network}...`);
 
-  const accountImplementation = "0x699dF6635F536E77231E484c6450aFFf726EeA02";
-  const tokenAddress = "0x486989cd189ED5DB6f519712eA794Cee42d75b29";
+  const accountImplementation = isMainnet
+    ? "0x699dF6635F536E77231E484c6450aFFf726EeA02"
+    : "0x699dF6635F536E77231E484c6450aFFf726EeA02";
+  const tokenAddress = isMainnet
+    ? "0x8340b5250e499df722db353b1680e853511dc1ad"
+    : "0x486989cd189ED5DB6f519712eA794Cee42d75b29";
   const protocolBps = 1000;
 
   const Franky = await ethers.getContractFactory("Franky");

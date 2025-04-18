@@ -6,6 +6,8 @@ const { ethers } = require("hardhat");
 async function main() {
   const [deployer] = await ethers.getSigners();
 
+  const isMainnet = true;
+
   console.log(
     "Deploying FrankyENSRegistrar with the account:",
     deployer.address
@@ -19,8 +21,10 @@ async function main() {
   console.log(`Deploying to ${network}...`);
 
   // TODO: Replace with actual registry
-  const registry = "0xf1f32db0bb3a6beec0c26dade4c79fd6554fef12";
-  const franky = "0x831822743247cbDf74fA651fceb21B1f9D5CDBfa";
+  const registry = isMainnet
+    ? "0xba9f0059500df81eb4ab8ccd16fd3df379ba7c57"
+    : "0xf1f32db0bb3a6beec0c26dade4c79fd6554fef12";
+  const franky = "0x486989cd189ED5DB6f519712eA794Cee42d75b29";
 
   const FrankyENSRegistrar = await ethers.getContractFactory(
     "FrankyENSRegistrar"

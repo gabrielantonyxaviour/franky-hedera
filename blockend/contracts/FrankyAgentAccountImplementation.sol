@@ -67,7 +67,8 @@ contract FrankyAgentAccountImplementation is
 
     function setCharacterAndUrl(
         Character memory character,
-        string memory url
+        string memory url,
+        string memory avatar
     ) external onlyFrankyOrOwner {
         require(bytes(url).length > 0, "URL cannot be empty");
 
@@ -93,6 +94,8 @@ contract FrankyAgentAccountImplementation is
             "description",
             character.description
         );
+
+        IL2Registry(registry).setText(nameHash, "avatar", avatar);
 
         IL2Registry(registry).setText(
             nameHash,

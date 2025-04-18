@@ -76,6 +76,7 @@ contract Franky {
     event AgentCreated(
         address indexed agentAddress,
         address indexed deviceAddress,
+        string avatar,
         string subname,
         address owner,
         uint256 perApiCallFee,
@@ -160,6 +161,7 @@ contract Franky {
 
     function createAgent(
         string calldata subname,
+        string memory avatar,
         Character memory characterConfig,
         string calldata secrets,
         bytes32 secretsHash,
@@ -181,7 +183,8 @@ contract Franky {
         IL2Registrar(frankyENSRegistrar).register(subname, agentAddress);
         IFrankyAgentAccountImplementation(agentAddress).setCharacterAndUrl(
             characterConfig,
-            devices[deviceAddress].ngrokLink
+            devices[deviceAddress].ngrokLink,
+            avatar
         );
         // Create the agent
 
@@ -203,6 +206,7 @@ contract Franky {
         emit AgentCreated(
             agentAddress,
             deviceAddress,
+            avatar,
             subname,
             msg.sender,
             perApiCallFee,

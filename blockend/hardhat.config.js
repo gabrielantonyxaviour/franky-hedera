@@ -19,17 +19,32 @@ module.exports = {
     },
   },
   networks: {
+    base: {
+      url:
+        "https://base-mainnet.g.alchemy.com/v2/" + process.env.ALCHEMY_API_KEY,
+      accounts: [PRIVATE_KEY],
+      chainId: 8453,
+    },
     baseSepolia: {
       url: "https://sepolia.base.org",
       accounts: [PRIVATE_KEY],
-      chainId: 84532, // Update with actual Zircuit Testnet chainId if different
+      chainId: 84532,
     },
   },
   etherscan: {
     apiKey: {
+      base: process.env.BASESCAN_API_KEY,
       baseSepolia: process.env.BASESCAN_API_KEY,
     },
     customChains: [
+      {
+        network: "base",
+        chainId: 8453,
+        urls: {
+          apiURL: "https://api.basescan.org/api",
+          browserURL: "https://basescan.org",
+        },
+      },
       {
         network: "baseSepolia",
         chainId: 84532,
