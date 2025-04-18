@@ -1,9 +1,9 @@
 const axios = require("axios");
 const ethers = require("ethers");
 
-const noditAPIKey = "hc7lkqT6G~1HLw~rQUcPPuagh39b1E~K";
+const noditAPIKey = "p4CtuYObYH1xoB0eWsz09JbFSVa6gdkB";
 const axiosInstance = axios.create({
-  baseURL: "https://web3.nodit.io/v1/base/sepolia",
+  baseURL: "https://web3.nodit.io/v1/base/mainnet",
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -33,8 +33,7 @@ const contractABI = [
 ];
 
 const contractInterface = new ethers.utils.Interface(contractABI);
-// Updated contract address
-const contractAddress = "0x18c2e2f87183034700cc2A7cf6D86a71fd209678";
+const contractAddress = "0x486989cd189ED5DB6f519712eA794Cee42d75b29";
 const registerDeviceSelector = contractInterface.getSighash("registerDevice");
 
 async function getAllDevices(showDebug = false) {
@@ -74,6 +73,11 @@ async function getAllDevices(showDebug = false) {
             console.log(`  Ngrok: ${decodedData.args.ngrokLink}`);
             console.log(`  Hosting Fee: ${ethers.utils.formatUnits(decodedData.args.hostingFee, 0)}`);
             console.log(`  Device Address: ${decodedData.args.deviceAddress}`);
+            
+            // New fields added
+            console.log(`  Verification Hash: ${decodedData.args.verificationHash}`);
+            console.log(`  Signature: 0x${Buffer.from(decodedData.args.signature).toString('hex')}`);
+            
             console.log("----------------------------------------");
           } catch (error) {
             console.log("⚠️ Could not decode device details");
@@ -138,7 +142,7 @@ async function getDeviceDetails(deviceAddress) {
     ];
     
     // Create a provider to interact with the contract
-    const provider = new ethers.providers.JsonRpcProvider("https://sepolia.base.org");
+    const provider = new ethers.providers.JsonRpcProvider("https://mainnet.base.org");
     const contract = new ethers.Contract(contractAddress, deviceGetterABI, provider);
     
     // Check if device is registered
@@ -157,6 +161,11 @@ async function getDeviceDetails(deviceAddress) {
       console.log(`  Hosting Fee: ${deviceDetails.hostingFee.toString()}`);
       console.log(`  Agent Count: ${deviceDetails.agentCount.toString()}`);
       console.log(`  Is Registered: ${deviceDetails.isRegistered}`);
+      
+      // Note: Verification hash and signature are not stored in the contract state,
+      // so they can only be retrieved from the transaction input data
+      console.log(`\nℹ️ Verification hash and signature are only available in the transaction input data`);
+      console.log(`Use getAllDevices() to see these values for each registration transaction`);
     } else {
       console.log(`\n❌ Device ${deviceAddress} is not registered`);
     }
@@ -166,8 +175,8 @@ async function getDeviceDetails(deviceAddress) {
 }
 
 // Example usage:
-// To list all devices:
+// To list all devices with verification hash and signature:
 getAllDevices(); 
 
-// To get details for a specific device (uncomment to use):
+// To get details for a specific device (note: won't show verification hash/signature):
 // getDeviceDetails("0x7a6712718b6fA91bdB77039799665939F21DF8E0");
