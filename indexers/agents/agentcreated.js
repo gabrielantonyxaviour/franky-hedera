@@ -1,7 +1,7 @@
 const axios = require("axios");
 const ethers = require("ethers");
 
-const noditAPIKey = "hc7lkqT6G~1HLw~rQUcPPuagh39b1E~K";
+const noditAPIKey = "xxxxxxxxxxxxxxxx";
 const axiosInstance = axios.create({
   baseURL: "https://web3.nodit.io/v1/base/sepolia",
   headers: {
