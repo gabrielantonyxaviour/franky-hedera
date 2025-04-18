@@ -4,7 +4,7 @@ import express from "express";
 
 // Create Express app
 const app = express();
-const PORT = 3000;
+const PORT = 8000;
 
 // Store the last agent details
 let lastAgentDetails = null;
@@ -15,23 +15,39 @@ const eventType = "LOG";
 const url = "wss://web3.nodit.io/v1/websocket";
 
 // The address we want to monitor
-const targetAddress = "0x18c2e2f87183034700cc2A7cf6D86a71fd209678";
+const targetAddress = "0x486989cd189ED5DB6f519712eA794Cee42d75b29";
 
 // The event signature topic to filter by
-const eventTopic = "0xba52b192ecae0fd01871b85d90659ae0178edec3e43c979eedf0e2a402fa1e04";
+const eventTopic = "0xca02bfe1224dac6011d89e1711daa211b2e13d10d0a2178ad1446f4beef19575";
 
-// ABI for decoding the AgentCreated event
+// Updated ABI for decoding the AgentCreated event
 const contractABI = [
   {
     "anonymous": false,
     "inputs": [
       {"indexed": true, "name": "agentAddress", "type": "address"},
       {"indexed": true, "name": "deviceAddress", "type": "address"},
-      {"indexed": false, "name": "prefix", "type": "string"},
+      {"indexed": false, "name": "avatar", "type": "string"},
+      {"indexed": false, "name": "subname", "type": "string"},
       {"indexed": false, "name": "owner", "type": "address"},
       {"indexed": false, "name": "perApiCallFee", "type": "uint256"},
       {"indexed": false, "name": "secretsHash", "type": "bytes32"},
-      {"indexed": false, "name": "character", "type": "string"},
+      {
+        "components": [
+          {"name": "name", "type": "string"},
+          {"name": "description", "type": "string"},
+          {"name": "personality", "type": "string"},
+          {"name": "scenario", "type": "string"},
+          {"name": "first_mes", "type": "string"},
+          {"name": "mes_example", "type": "string"},
+          {"name": "creatorcomment", "type": "string"},
+          {"name": "tags", "type": "string"},
+          {"name": "talkativeness", "type": "string"}
+        ],
+        "indexed": false,
+        "name": "characterConfig",
+        "type": "tuple"
+      },
       {"indexed": false, "name": "secrets", "type": "string"},
       {"indexed": false, "name": "isPublic", "type": "bool"}
     ],
@@ -45,11 +61,11 @@ const options = {
   transports: ["websocket", "polling"],
   path: "/v1/websocket/",
   auth: {
-    apiKey: "xxxxxxxxxxxxxxxxxxxxxxxx",
+    apiKey: "p4CtuYObYH1xoB0eWsz09JbFSVa6gdkB",
   },
   query: {
     protocol: "base",
-    network: "sepolia",
+    network: "mainnet",
   },
 };
 
@@ -78,7 +94,19 @@ function decodeAgentCreatedEvent(log) {
 
     const decodedArgs = {};
     for (const [key, value] of Object.entries(decodedEvent.args)) {
-      decodedArgs[key] = ethers.BigNumber.isBigNumber(value) ? value.toString() : value;
+      if (ethers.BigNumber.isBigNumber(value)) {
+        decodedArgs[key] = value.toString();
+      } else if (key === "characterConfig") {
+        // Handle the characterConfig tuple separately
+        const characterConfig = {};
+        for (const [charKey, charValue] of Object.entries(value)) {
+          if (!isNaN(parseInt(charKey))) continue; // Skip array indices
+          characterConfig[charKey] = charValue;
+        }
+        decodedArgs[key] = characterConfig;
+      } else {
+        decodedArgs[key] = value;
+      }
     }
 
     return {
@@ -158,11 +186,26 @@ function connectToServer() {
               console.log("\nExtracted Parameters:");
               console.log("Agent Address:", decodedEvent.args.agentAddress);
               console.log("Device Address:", decodedEvent.args.deviceAddress);
-              console.log("Prefix:", decodedEvent.args.prefix);
+              console.log("Avatar:", decodedEvent.args.avatar);
+              console.log("Subname:", decodedEvent.args.subname);
               console.log("Owner:", decodedEvent.args.owner);
               console.log("Per API Call Fee:", decodedEvent.args.perApiCallFee);
               console.log("Secrets Hash:", decodedEvent.args.secretsHash);
-              console.log("Secrets:", decodedEvent.args.secrets);
+              
+              // Display character config details
+              console.log("\nCharacter Config:");
+              const charConfig = decodedEvent.args.characterConfig;
+              console.log("  Name:", charConfig.name);
+              console.log("  Description:", charConfig.description);
+              console.log("  Personality:", charConfig.personality);
+              console.log("  Scenario:", charConfig.scenario);
+              console.log("  First Message:", charConfig.first_mes);
+              console.log("  Message Example:", charConfig.mes_example);
+              console.log("  Creator Comment:", charConfig.creatorcomment);
+              console.log("  Tags:", charConfig.tags);
+              console.log("  Talkativeness:", charConfig.talkativeness);
+              
+              console.log("\nSecrets:", decodedEvent.args.secrets);
               console.log("Is Public:", decodedEvent.args.isPublic);
             }
           }
