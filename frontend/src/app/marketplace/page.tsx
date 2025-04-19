@@ -6,6 +6,24 @@ import Link from 'next/link'
 import Header from '@/components/ui/Header'
 import { useRouter } from 'next/navigation'
 import { FiCpu, FiHardDrive, FiServer, FiLink, FiSmartphone, FiHash } from 'react-icons/fi'
+import { useChainId } from 'wagmi'
+import { base } from 'viem/chains'
+import axios from 'axios'
+// Import ethers and utils directly for compatibility
+import { ethers } from 'ethers'
+
+// Contract information
+const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
+
+// Helper function to get the block explorer URL based on the chain
+const getExplorerUrl = (chainId: number, hash: string) => {
+  // Base Mainnet
+  if (chainId === 8453) {
+    return `https://basescan.org/tx/${hash}`
+  }
+  // Ethereum Mainnet (default)
+  return `https://etherscan.io/tx/${hash}`
+}
 
 // Define device interface
 interface Device {
@@ -16,62 +34,81 @@ interface Device {
   cpu: string
   ngrokLink: string
   walletAddress: string
-  bytes32Data: string
+  hostingFee: string
+  agentCount: number
   status: 'Active' | 'Inactive'
   lastActive: string
+  txHash: string
+  registeredAt: string
 }
 
-// Mock data for deployed devices
-const mockDevices: Device[] = [
+// ABI fragment for the registerDevice function
+const abiFragment = [
   {
-    id: '1',
-    deviceModel: 'Pixel 7',
-    ram: '8GB',
-    storage: '128GB',
-    cpu: 'Snapdragon 888',
-    ngrokLink: 'https://12ab-123-456-789-123.ngrok.app',
-    walletAddress: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
-    bytes32Data: '0x7b2261697075626c69635f6964223a20226c656e6172222c2022656e7669726f6e6d656e74223a20226465762d65786368616e6765227d',
-    status: 'Active',
-    lastActive: '2 minutes ago'
+    "inputs": [
+      {"internalType": "string", "name": "deviceModel", "type": "string"},
+      {"internalType": "string", "name": "ram", "type": "string"},
+      {"internalType": "string", "name": "storageCapacity", "type": "string"},
+      {"internalType": "string", "name": "cpu", "type": "string"},
+      {"internalType": "string", "name": "ngrokLink", "type": "string"},
+      {"internalType": "uint256", "name": "hostingFee", "type": "uint256"},
+      {"internalType": "address", "name": "deviceAddress", "type": "address"},
+      {"internalType": "bytes32", "name": "verificationHash", "type": "bytes32"},
+      {"internalType": "bytes", "name": "signature", "type": "bytes"}
+    ],
+    "name": "registerDevice",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    id: '2',
-    deviceModel: 'Samsung Galaxy S21',
-    ram: '12GB',
-    storage: '256GB',
-    cpu: 'Exynos 2100',
-    ngrokLink: 'https://34cd-234-567-890-234.ngrok.app',
-    walletAddress: '0x912d35Cc6634C0532925a3b844Bc454e4438f77a',
-    bytes32Data: '0x8c3372697075626c69635f6964223a20226c756e61222c2022656e7669726f6e6d656e74223a20226465762d73746167696e67227d',
-    status: 'Active',
-    lastActive: '5 minutes ago'
-  },
-  {
-    id: '3',
-    deviceModel: 'OnePlus 10 Pro',
-    ram: '16GB',
-    storage: '512GB',
-    cpu: 'Snapdragon 8 Gen 1',
-    ngrokLink: 'https://56ef-345-678-901-345.ngrok.app',
-    walletAddress: '0xa42d35Cc6634C0532925a3b844Bc454e4438f12b',
-    bytes32Data: '0x9d4483697075626c69635f6964223a20227465727261222c2022656e7669726f6e6d656e74223a20226465762d70726f64227d',
-    status: 'Inactive',
-    lastActive: '2 days ago'
-  },
-  {
-    id: '4',
-    deviceModel: 'Xiaomi Mi 11',
-    ram: '8GB',
-    storage: '128GB',
-    cpu: 'Snapdragon 888',
-    ngrokLink: 'https://78gh-456-789-012-456.ngrok.app',
-    walletAddress: '0xc32d35Cc6634C0532925a3b844Bc454e4438f34d',
-    bytes32Data: '0xae5594697075626c69635f6964223a20226e6f7661222c2022656e7669726f6e6d656e74223a20226465762d74657374227d',
-    status: 'Active',
-    lastActive: '1 hour ago'
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "internalType": "address", "name": "deviceAddress", "type": "address"},
+      {"indexed": true, "internalType": "address", "name": "owner", "type": "address"},
+      {"indexed": false, "internalType": "string", "name": "deviceModel", "type": "string"},
+      {"indexed": false, "internalType": "string", "name": "ram", "type": "string"},
+      {"indexed": false, "internalType": "string", "name": "storageCapacity", "type": "string"},
+      {"indexed": false, "internalType": "string", "name": "cpu", "type": "string"},
+      {"indexed": false, "internalType": "string", "name": "ngrokLink", "type": "string"},
+      {"indexed": false, "internalType": "uint256", "name": "hostingFee", "type": "uint256"}
+    ],
+    "name": "DeviceRegistered",
+    "type": "event"
   }
-]
+];
+
+// Helper function to add delay between requests
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper function for exponential backoff retry
+const retryWithBackoff = async (
+  fn: () => Promise<any>,
+  retries = 3,
+  initialDelay = 1000,
+  maxDelay = 10000
+) => {
+  let currentDelay = initialDelay;
+  
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      if (i === retries || (error.response?.status !== 429 && error.status !== 429)) {
+        throw error;
+      }
+      
+      // Get retry delay from response header or use exponential backoff
+      const retryAfter = error.response?.headers?.['retry-after'];
+      const delayTime = retryAfter ? parseInt(retryAfter) * 1000 : Math.min(currentDelay, maxDelay);
+      
+      await delay(delayTime);
+      
+      // Increase delay for next attempt (exponential backoff)
+      currentDelay *= 2;
+    }
+  }
+};
 
 // Background animation component
 const Background = () => {
@@ -189,6 +226,20 @@ const DeviceCard = ({ device, onClick }: { device: Device, onClick: () => void }
             {device.ngrokLink}
           </span>
         </div>
+
+        <div className="flex items-center text-[#CCCCCC]">
+          <FiHash className="mr-2 text-[#00FF88]" />
+          <span>Address: <span className="text-[#00FF88] font-medium">{`${device.walletAddress.slice(0, 6)}...${device.walletAddress.slice(-4)}`}</span></span>
+        </div>
+        
+        <div className="flex items-center text-[#CCCCCC]">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-[#00FF88]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Hosting Fee: <span className="text-[#00FF88] font-medium">
+            {parseInt(device.hostingFee) > 0 ? `${device.hostingFee} $FRANKY` : 'Free'}
+          </span></span>
+        </div>
       </div>
       
       <div className="mt-4 pt-4 border-t border-[#00FF88] border-opacity-20">
@@ -197,6 +248,22 @@ const DeviceCard = ({ device, onClick }: { device: Device, onClick: () => void }
           <span className="text-xs text-[#00FF88]">
             {`${device.walletAddress.slice(0, 6)}...${device.walletAddress.slice(-4)}`}
           </span>
+        </div>
+        <div className="flex items-center justify-between mt-1">
+          <span className="text-xs text-gray-400">Registration Tx</span>
+          <a 
+            href={`https://basescan.org/tx/${device.txHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-[#00FF88] hover:underline"
+            onClick={(e) => e.stopPropagation()} // Prevent card click when clicking the link
+          >
+            View
+          </a>
+        </div>
+        <div className="flex items-center justify-between mt-1">
+          <span className="text-xs text-gray-400">Registered At</span>
+          <span className="text-xs text-[#00FF88]">{device.registeredAt}</span>
         </div>
       </div>
       
@@ -213,43 +280,248 @@ const DeviceCard = ({ device, onClick }: { device: Device, onClick: () => void }
 
 export default function MarketplacePage() {
   const [isClient, setIsClient] = useState(false)
-  const [devices, setDevices] = useState(mockDevices)
-  const [loading, setLoading] = useState(false)
+  const [devices, setDevices] = useState<Device[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const chainId = useChainId()
+  const isMainnet = chainId === 8453 // Base mainnet
   
   // Set isClient to true after component mounts to avoid SSR issues
   useEffect(() => {
     setIsClient(true)
-    
-    // Simulate fetching devices from blockchain
-    // This is where you would integrate with Nodit indexer in the future
-    const fetchDevices = async () => {
-      setLoading(true)
-      
-      // Simulating API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // In a real implementation, you would fetch data from a blockchain indexer
-      // const response = await fetch('your-nodit-indexer-endpoint');
-      // const data = await response.json();
-      // setDevices(data);
-      
-      setLoading(false)
-    }
-    
-    fetchDevices()
   }, [])
+  
+  // Fetch devices using Nodit API
+  useEffect(() => {
+    if (!isClient) return;
+    
+    const fetchDevicesFromNodit = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // Nodit API configuration
+        const noditAPIKey = process.env.NEXT_PUBLIC_NODIT_API_KEY || ""; // Use environment variable
+        if (!noditAPIKey) {
+          console.error("Nodit API key is not configured");
+          setError("API configuration error. Please check the application setup.");
+          setLoading(false);
+          return;
+        }
+        
+        const axiosInstance = axios.create({
+          baseURL: "https://web3.nodit.io/v1/base/mainnet",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "X-API-KEY": noditAPIKey,
+          },
+        });
+        
+        axiosInstance.interceptors.response.use(
+          response => response,
+          async error => {
+            if (error.response?.status === 429) {
+              console.log('Rate limit exceeded. Request will be retried with backoff strategy.');
+            }
+            return Promise.reject(error);
+          }
+        );
+        
+        // Dynamically import ethers to support both v5 and v6
+        const { ethers } = await import('ethers');
+        
+        // Create ethers interface for decoding transaction data
+        const ethersInterface = new ethers.Interface(abiFragment);
+        
+        // Get function selector as a string for comparison
+        const registerDeviceFunction = ethersInterface.getFunction("registerDevice");
+        const registerDeviceSelector = registerDeviceFunction ? registerDeviceFunction.selector.toString() : "";
+        
+        // Look for event signatures when checking transaction logs - update for new contract
+        const deviceRegisteredTopic = ethers.id(
+          "DeviceRegistered(address,address,string,string,string,string,string,uint256)"
+        );
+        
+        console.log(`🔍 Searching for all devices registered in contract: ${CONTRACT_ADDRESS}`);
+        console.log(`Using function selector: ${registerDeviceSelector}`);
+        console.log(`Using event topic: ${deviceRegisteredTopic}`);
+        
+        // Fetch transactions for the contract with retry mechanism - A SINGLE API CALL
+        const txResult = await retryWithBackoff(async () => {
+          return await axiosInstance.post(
+            "/blockchain/getTransactionsByAccount",
+            {
+              accountAddress: CONTRACT_ADDRESS,
+              withDecode: true,
+              fromBlock: 0 // Start from the beginning to get all devices
+            }
+          );
+        });
+        
+        if (txResult.data && txResult.data.items && txResult.data.items.length > 0) {
+          // Filter for device registration transactions (using the function selector)
+          const filteredTransactions = txResult.data.items.filter(
+            (tx: any) => tx.functionSelector && 
+                        tx.functionSelector.toLowerCase() === registerDeviceSelector.toLowerCase()
+          );
+          
+          console.log(`✅ Found ${filteredTransactions.length} device registration transactions`);
+          
+          if (filteredTransactions.length > 0) {
+            // Process all transactions in one go (no additional API calls needed)
+            const devicesArray: Device[] = [];
+            
+            // First, collect all transactions with their timestamps
+            const transactionsWithTimestamps: Array<{
+              txData: any;
+              timestamp: number;
+            }> = [];
+            
+            // Process each transaction and collect timestamp info
+            filteredTransactions.forEach((tx: any) => {
+              try {
+                // Skip if transaction input is missing
+                if (!tx || !tx.input) {
+                  console.log("Skipping transaction with missing input data");
+                  return;
+                }
+                
+                // Get transaction timestamp with fallback
+                const timestamp = typeof tx.timestamp === 'number' ? tx.timestamp : Date.now() / 1000;
+                
+                // Store transaction with its timestamp
+                transactionsWithTimestamps.push({
+                  txData: tx,
+                  timestamp: timestamp
+                });
+              } catch (error) {
+                console.error(`Error processing transaction timestamp:`, error);
+              }
+            });
+            
+            // Sort transactions by timestamp (oldest first)
+            transactionsWithTimestamps.sort((a, b) => a.timestamp - b.timestamp);
+            
+            // Now process the sorted transactions and assign chronological IDs
+            transactionsWithTimestamps.forEach((item, index) => {
+              try {
+                const tx = item.txData;
+                const timestamp = item.timestamp;
+                
+                // Transaction hash handling with fallback
+                const txHash = tx.transactionHash || 'unknown';
+                
+                try {
+                  // Decode the transaction input data
+                  const decodedData = ethersInterface.parseTransaction({ data: tx.input }) as any;
+                  
+                  // Format timestamp for display
+                  const txDate = new Date(timestamp * 1000);
+                  const formattedDate = txDate.toLocaleDateString();
+                  const formattedTime = txDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  
+                  // Calculate a pseudo-random "last active" time for UI purposes
+                  const randomMinutes = Math.floor(Math.random() * 60);
+                  const lastActive = randomMinutes < 5 ? 'Just now' : 
+                                  randomMinutes < 15 ? 'A few minutes ago' : 
+                                  randomMinutes < 30 ? 'Less than 30 minutes ago' : 
+                                  randomMinutes < 50 ? 'About an hour ago' : 
+                                  'A few hours ago';
+                  
+                  // Assign sequential ID (starting from 1) based on chronological order
+                  const deviceId = (index + 1).toString();
+                  
+                  // Extract decoded data from the transaction
+                  if (decodedData && decodedData.args) {
+                    const args = decodedData.args;
+                    const deviceModel = String(args[0] || 'Unknown Model');
+                    const ram = String(args[1] || 'Unknown RAM');
+                    const storage = String(args[2] || 'Unknown Storage');
+                    const cpu = String(args[3] || 'Unknown CPU');
+                    const ngrokLink = String(args[4] || 'No Link Available');
+                    const hostingFee = args[5] ? args[5].toString() : '0';
+                    const deviceAddress = String(args[6] || '');
+                    
+                    // Check if the ngrok link exists and is valid
+                    const isActive = ngrokLink.includes('ngrok') && ngrokLink.toLowerCase() !== 'no link available';
+                    
+                    // Create device object with decoded data
+                    devicesArray.push({
+                      id: deviceId,
+                      deviceModel,
+                      ram,
+                      storage,
+                      cpu,
+                      ngrokLink,
+                      walletAddress: deviceAddress,
+                      hostingFee,
+                      agentCount: 0, // We don't have this info from txn data
+                      status: isActive ? 'Active' : 'Inactive',
+                      lastActive,
+                      txHash,
+                      registeredAt: `${formattedDate} ${formattedTime}`
+                    });
+                  }
+                } catch (parseError) {
+                  console.error(`Error parsing transaction ${txHash}:`, parseError);
+                }
+              } catch (error) {
+                console.error(`Error processing transaction:`, error);
+              }
+            });
+            
+            // Sort devices by timestamp (newest first) for display
+            devicesArray.sort((a, b) => {
+              const aDate = new Date(a.registeredAt);
+              const bDate = new Date(b.registeredAt);
+              return bDate.getTime() - aDate.getTime();
+            });
+            
+            // Update the state with found devices
+            setDevices(devicesArray);
+            
+          } else {
+            console.log("No device registration transactions found");
+            setDevices([]);
+          }
+        } else {
+          console.log("No transactions found for this contract");
+          setDevices([]);
+        }
+      } catch (error: any) {
+        console.error("Error fetching devices from Nodit:", error);
+        // Add more specific error message for rate limiting
+        if (error.response?.status === 429 || error.status === 429) {
+          setError(`Rate limit exceeded when fetching device data. Please try again later.`);
+        } else {
+          setError(`Error fetching device data: ${error.message || 'Unknown error'}`);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchDevicesFromNodit();
+  }, [isClient]);
   
   // Handle device selection
   const handleDeviceSelect = (device: Device) => {
-    console.log('Selected device:', device)
+    console.log('Selected device:', device);
+    
+    // Check if we're on the right network before proceeding
+    if (!isMainnet) {
+      alert('Please switch to Base Mainnet to interact with devices');
+      return;
+    }
     
     // Pass device information to the create-agent page using query parameters
-    router.push(`/create-agent?deviceId=${device.id}&deviceModel=${encodeURIComponent(device.deviceModel)}&deviceStatus=${device.status}&deviceAddress=${device.walletAddress}&ngrokLink=${encodeURIComponent(device.ngrokLink)}`)
-  }
+    router.push(`/create-agent?deviceModel=${encodeURIComponent(device.deviceModel)}&deviceStatus=${device.status}&deviceAddress=${device.walletAddress}&ngrokLink=${encodeURIComponent(device.ngrokLink)}&hostingFee=${encodeURIComponent(device.hostingFee)}`);
+  };
   
   if (!isClient) {
-    return null // Avoid rendering during SSR
+    return null; // Avoid rendering during SSR
   }
   
   return (
@@ -269,9 +541,12 @@ export default function MarketplacePage() {
               <h1 className="text-4xl md:text-6xl font-bold mb-8 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
                 Device Marketplace
               </h1>
-              <p className="text-xl mb-12 text-[#AAAAAA] max-w-4xl mx-auto">
+              <p className="text-xl mb-6 text-[#AAAAAA] max-w-4xl mx-auto">
                 Browse and select from available deployed devices to host your AI agents. 
                 These devices have been registered on-chain and are ready to run your agents.
+              </p>
+              <p className="text-lg mb-12 text-emerald-400 max-w-4xl mx-auto">
+                Each device shows its hosting fee in $FRANKY tokens - this is what you'll pay to deploy your agent to the device.
               </p>
             </motion.div>
           </div>
@@ -281,8 +556,16 @@ export default function MarketplacePage() {
         <section className="py-10 px-6">
           <div className="container mx-auto">
             {loading ? (
-              <div className="flex justify-center items-center py-20">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#00FF88]"></div>
+              <div className="flex flex-col justify-center items-center py-20">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#00FF88] mb-4"></div>
+                <p className="text-[#AAAAAA]">Loading devices from blockchain...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-20 px-4">
+                <div className="p-6 rounded-xl border border-red-500 border-opacity-30 bg-black/50 backdrop-blur-sm max-w-2xl mx-auto">
+                  <p className="text-xl text-red-400 mb-4">Error loading devices</p>
+                  <p className="text-[#AAAAAA]">{error}</p>
+                </div>
               </div>
             ) : devices.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -296,7 +579,16 @@ export default function MarketplacePage() {
               </div>
             ) : (
               <div className="text-center py-20">
-                <p className="text-xl text-[#AAAAAA]">No devices available at the moment.</p>
+                <p className="text-xl text-[#AAAAAA] mb-3">No devices available.</p>
+                <Link href="/deploy-device">
+                  <motion.button
+                    className="px-6 py-2 rounded-lg bg-[#00FF88]/20 border border-[#00FF88]/50 text-[#00FF88] hover:bg-[#00FF88]/30 transition-colors"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    Be the first to deploy a device!
+                  </motion.button>
+                </Link>
               </div>
             )}
           </div>
@@ -312,7 +604,7 @@ export default function MarketplacePage() {
               className="p-8 rounded-xl border border-[#00FF88] border-opacity-30 bg-black/50 backdrop-blur-sm text-center"
             >
               <h2 className="text-2xl md:text-3xl font-bold mb-4 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
-                Want to add your own device?
+                Start Earning Money Now!
               </h2>
               <p className="text-[#AAAAAA] mb-6">
                 Deploy your idle mobile devices and earn $FRANKY by providing computing resources for AI agents.

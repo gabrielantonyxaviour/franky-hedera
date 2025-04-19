@@ -3,8 +3,8 @@
 import Header from '@/components/ui/Header'
 import { useState, useEffect, Suspense } from 'react'
 import { motion } from 'framer-motion'
-import { FiCpu, FiServer, FiSmartphone, FiLink, FiUploadCloud, FiCheck, FiX, FiAlertTriangle, FiCopy, FiKey } from 'react-icons/fi'
-import { uploadJsonToPinata } from '@/utils/pinata'
+import { FiCpu, FiServer, FiSmartphone, FiLink, FiUploadCloud, FiCheck, FiX, FiAlertTriangle, FiCopy, FiKey, FiImage } from 'react-icons/fi'
+import { uploadImageToPinata } from '@/utils/pinata'
 import { useWriteContract, useWaitForTransactionReceipt, useChainId, useAccount, useSignMessage } from 'wagmi'
 import { encrypt } from '@/utils/lit'
 import { getApiKey } from '@/utils/apiKey'
@@ -14,7 +14,7 @@ import { useAppKit, useAppKitAccount } from '@reown/appkit/react'
 import { modal } from '@/components/ReownProviders'
 import { normalize } from "viem/ens"
 import { createPublicClient, http } from "viem"
-import { sepolia } from "viem/chains"
+import { sepolia, mainnet } from "viem/chains"
 import { useRouter, useSearchParams } from 'next/navigation'
 
 // Define tool types
@@ -371,7 +371,7 @@ function JsonDisplay({
           </div>
           
           {uploadDetails.length > 0 && (
-            <div className="mt-3 border-t border-[#00FF88]/20 pt-2">
+            <div className="mt-3 border-t border-[#00FF88] border-opacity-20 pt-2">
               <div className="flex justify-between items-center mb-1">
                 <p className="text-xs text-gray-400">Upload Details:</p>
                 <button 
@@ -396,13 +396,24 @@ function JsonDisplay({
 }
 
 // Contract information
-const CONTRACT_ADDRESS = '0x18c2e2f87183034700cc2A7cf6D86a71fd209678'
+const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
 
 const CONTRACT_ABI = [
   {
     "inputs": [
-      {"internalType": "string", "name": "prefix", "type": "string"},
-      {"internalType": "string", "name": "config", "type": "string"},
+      {"internalType": "string", "name": "subname", "type": "string"},
+      {"internalType": "string", "name": "avatar", "type": "string"},
+      {"internalType": "tuple", "name": "characterConfig", "type": "tuple", "components": [
+        {"internalType": "string", "name": "name", "type": "string"},
+        {"internalType": "string", "name": "description", "type": "string"},
+        {"internalType": "string", "name": "personality", "type": "string"},
+        {"internalType": "string", "name": "scenario", "type": "string"},
+        {"internalType": "string", "name": "first_mes", "type": "string"},
+        {"internalType": "string", "name": "mes_example", "type": "string"},
+        {"internalType": "string", "name": "creatorcomment", "type": "string"},
+        {"internalType": "string", "name": "tags", "type": "string"},
+        {"internalType": "string", "name": "talkativeness", "type": "string"}
+      ]},
       {"internalType": "string", "name": "secrets", "type": "string"},
       {"internalType": "bytes32", "name": "secretsHash", "type": "bytes32"},
       {"internalType": "address", "name": "deviceAddress", "type": "address"},
@@ -416,17 +427,15 @@ const CONTRACT_ABI = [
   }
 ] as const
 
-
-
 // Helper function to get explorer URL
 const getExplorerUrl = (chainId: number, hash: string) => {
-  // Base Sepolia
-  if (chainId === 84532) {
-    return `https://sepolia.basescan.org/tx/${hash}`
-  }
   // Base Mainnet
   if (chainId === 8453) {
     return `https://basescan.org/tx/${hash}`
+  }
+  // Base Sepolia
+  if (chainId === sepolia.id) {
+    return `https://sepolia.basescan.org/tx/${hash}`
   }
   // Fallback to Ethereum mainnet
   return `https://etherscan.io/tx/${hash}`
@@ -436,7 +445,7 @@ const getExplorerUrl = (chainId: number, hash: string) => {
 async function checkEnsAvailability(name: string): Promise<{ available: boolean; error?: string }> {
   try {
     const publicClient = createPublicClient({
-      chain: sepolia,
+      chain: mainnet,
       transport: http(),
     });
 
@@ -460,24 +469,26 @@ function ConfirmationModal({
   onConfirm,
   deviceInfo,
   agentName,
-  ipfsUri,
+  characterData,
   isMainnet,
   isPending,
   walletAddress,
   perApiCallFee,
-  isPublic
+  isPublic,
+  avatarUrl
 }: {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
   deviceInfo: DeviceInfo | null;
   agentName: string;
-  ipfsUri: string | null;
+  characterData: CharacterData | null;
   isMainnet: boolean;
   isPending: boolean;
   walletAddress: string | null | undefined;
   perApiCallFee: string;
   isPublic: boolean;
+  avatarUrl: string;
 }) {
   if (!isOpen) return null;
   
@@ -503,48 +514,39 @@ function ConfirmationModal({
         
         <div className="space-y-4">
           <div>
-            <p className="text-gray-400 text-sm">Agent Name</p>
-            <p className="text-[#00FF88] font-medium">{agentName}</p>
+            <h3 className="text-[#00FF88] text-sm mb-1">Agent Name</h3>
+            <p className="text-white text-lg font-medium">{agentName}.frankyagent.xyz</p>
           </div>
           
-          {deviceInfo && (
+          {characterData && (
             <div>
-              <p className="text-gray-400 text-sm">Selected Device</p>
-              <div>
-                <p className="text-[#00FF88] font-medium">{deviceInfo.deviceModel}</p>
-                <div className="flex items-center mt-1 text-xs text-gray-400">
-                  <span>Status: {deviceInfo.deviceStatus}</span>
-                </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  Device Address: <span className="text-[#00FF88]">{deviceInfo.deviceAddress}</span>
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Hosting Fee: <span className="text-[#00FF88]">{deviceInfo.hostingFee} $FRANKY</span>
-                </p>
+              <h3 className="text-[#00FF88] text-sm mb-1">Character Details</h3>
+              <div className="bg-black/50 rounded-lg p-3 space-y-2">
+                <p className="text-white"><span className="text-gray-400">Name:</span> {characterData.name}</p>
+                <p className="text-white"><span className="text-gray-400">Description:</span> {characterData.description}</p>
+                <p className="text-white"><span className="text-gray-400">Tags:</span> {characterData.tags.join(', ')}</p>
               </div>
             </div>
           )}
-
-          <div>
-            <p className="text-gray-400 text-sm">Per API Call Fee</p>
-            <p className="text-[#00FF88] font-medium">{perApiCallFee} $FRANKY</p>
-          </div>
-
-          <div>
-            <p className="text-gray-400 text-sm">Access Type</p>
-            <p className="text-[#00FF88] font-medium">{isPublic ? 'Public (Anyone can use)' : 'Private (Only you can use)'}</p>
-          </div>
+          
+          {deviceInfo && (
+            <div>
+              <h3 className="text-[#00FF88] text-sm mb-1">Selected Device</h3>
+              <div className="bg-black/50 rounded-lg p-3 space-y-2">
+                <p className="text-white"><span className="text-gray-400">Model:</span> {deviceInfo.deviceModel}</p>
+                <p className="text-white"><span className="text-gray-400">Address:</span> {deviceInfo.deviceAddress}</p>
+                <p className="text-white"><span className="text-gray-400">Hosting Fee:</span> {deviceInfo.hostingFee} $FRANKY</p>
+              </div>
+            </div>
+          )}
           
           <div>
-            <p className="text-gray-400 text-sm">Character Data</p>
-            <p className="text-[#00FF88] font-medium break-all">{ipfsUri}</p>
-          </div>
-          
-          <div>
-            <p className="text-gray-400 text-sm">Connected Wallet</p>
-            <p className="text-[#00FF88] font-medium">
-              {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Not connected'}
-            </p>
+            <h3 className="text-[#00FF88] text-sm mb-1">Configuration</h3>
+            <div className="bg-black/50 rounded-lg p-3 space-y-2">
+              <p className="text-white"><span className="text-gray-400">Per API Call Fee:</span> {perApiCallFee} $FRANKY</p>
+              <p className="text-white"><span className="text-gray-400">Visibility:</span> {isPublic ? 'Public' : 'Private'}</p>
+              <p className="text-white"><span className="text-gray-400">Network:</span> {isMainnet ? 'Base Mainnet' : 'Base Sepolia'}</p>
+            </div>
           </div>
           
           <div className="pt-4 border-t border-[#00FF88] border-opacity-20">
@@ -678,6 +680,9 @@ function SuccessModal({
 function CreateAgentContent() {
   const [selectedTools, setSelectedTools] = useState<Tool[]>([])
   const [agentName, setAgentName] = useState('')
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string>('')
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [isCheckingName, setIsCheckingName] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
   const [isNameAvailable, setIsNameAvailable] = useState(false)
@@ -705,6 +710,7 @@ function CreateAgentContent() {
   const [uploadDetails, setUploadDetails] = useState<string[]>([])
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [transactionHash, setTransactionHash] = useState<`0x${string}` | undefined>(undefined)
+  const [transactionError, setTransactionError] = useState<string | null>(null)
   const [agentCreated, setAgentCreated] = useState(false)
   const [agentId, setAgentId] = useState<string | null>(null)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
@@ -816,6 +822,41 @@ function CreateAgentContent() {
     return () => clearTimeout(timeoutId);
   }, [agentName]);
   
+  // Add avatar upload function
+  const handleAvatarUpload = async () => {
+    if (!avatarFile) {
+      alert('Please select an image file first');
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      
+      const ipfsUrl = await uploadImageToPinata(avatarFile);
+      if (ipfsUrl) {
+        setAvatarUrl(ipfsUrl);
+        alert('Avatar uploaded successfully!');
+      }
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      alert('Failed to upload avatar. Please try again.');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  // Add avatar input change handler
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.type.startsWith('image/')) {
+        setAvatarFile(file);
+      } else {
+        alert('Please select an image file');
+      }
+    }
+  };
+  
   // Update handleCreateAgent to use the validated name
   async function handleCreateAgent() {
     // Check if wallet is connected first - ONLY check for connected wallet
@@ -824,132 +865,75 @@ function CreateAgentContent() {
       return;
     }
     
-    if (!agentName.trim() || !isNameAvailable) {
-      alert('Please enter a valid and available agent name')
-      return
+    if (!agentName) {
+      alert('Please enter a valid agent name');
+      return;
     }
     
     if (!constructedCharacter) {
-      alert('Please construct your character first')
-      return
+      alert('Please construct your character first');
+      return;
     }
     
     if (!deviceInfo?.deviceAddress) {
-      alert('No device selected. Please select a device from the marketplace.')
-      return
+      alert('No device selected. Please select a device from the marketplace.');
+      return;
     }
 
     // Validate perApiCallFee
     if (!perApiCallFee.trim() || isNaN(Number(perApiCallFee)) || Number(perApiCallFee) < 0) {
-      alert('Please enter a valid non-negative number for the per API call fee')
-      return
+      alert('Please enter a valid non-negative number for the per API call fee');
+      return;
     }
 
-    setIsUploading(true)
-    setUploadDetails([`Starting upload at ${new Date().toLocaleTimeString()}`])
-    
-    try {
-      let encryptedSecretsString = '';
+    // If secrets are provided, encrypt them
+    if (secrets.trim()) {
+      setIsEncrypting(true);
       
-      // Encrypt secrets if provided
-      if (secrets.trim()) {
-        setIsEncrypting(true)
-        setUploadDetails(prev => [...prev, `Encrypting secrets with Lit Protocol...`])
-        
-        try {
-          const { ciphertext, dataToEncryptHash } = await encrypt(secrets.trim(), isMainnet);
-          encryptedSecretsString = ciphertext;
-          setEncryptedSecrets(ciphertext);
-          setDataToEncryptHash(dataToEncryptHash);
-          setUploadDetails(prev => [...prev, `✅ Secrets encrypted successfully`])
-        } catch (encryptError: any) {
-          console.error('Error encrypting secrets:', encryptError);
-          setUploadDetails(prev => [...prev, `❌ ERROR encrypting secrets: ${encryptError.message || 'Unknown error'}`])
-          alert('Failed to encrypt secrets. Please try again or continue without secrets.');
-          // Continue without secrets if encryption fails
-        } finally {
-          setIsEncrypting(false)
-        }
+      try {
+        const { ciphertext, dataToEncryptHash } = await encrypt(secrets.trim(), isMainnet);
+        setEncryptedSecrets(ciphertext);
+        setDataToEncryptHash(dataToEncryptHash);
+      } catch (encryptError: any) {
+        console.error('Error encrypting secrets:', encryptError);
+        alert('Failed to encrypt secrets. Please try again or continue without secrets.');
+        setIsEncrypting(false);
+        return;
       }
       
-      // Create character data for upload
-      const characterDataForUpload = {
-        ...constructedCharacter,
-        creator: walletAddress || 'anonymous',
-        createdAt: new Date().toISOString(),
-      }
-      
-      // Add log entry
-      setUploadDetails(prev => [...prev, `Prepared character data for upload`])
-      
-      // Intercept console.log to capture upload details
-      const originalConsoleLog = console.log;
-      const originalConsoleError = console.error;
-      
-      const logs: string[] = [];
-      
-      console.log = (...args) => {
-        originalConsoleLog(...args);
-        logs.push(args.map(arg => 
-          typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-        ).join(' '));
-        setUploadDetails(prev => [...prev, ...logs]);
-      };
-      
-      console.error = (...args) => {
-        originalConsoleError(...args);
-        logs.push(`ERROR: ${args.map(arg => 
-          typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-        ).join(' ')}`);
-        setUploadDetails(prev => [...prev, ...logs]);
-      };
-      
-      // Upload to Pinata using our utility
-      setUploadDetails(prev => [...prev, `Calling Pinata upload utility...`])
-      const url = await uploadJsonToPinata(characterDataForUpload);
-      setUploadUrl(url);
-      
-      // Add final success logs
-      setUploadDetails(prev => [...prev, `✅ Upload complete!`, `✅ URL: ${url}`])
-      console.log('Character data uploaded to IPFS:', url);
-      
-      // Restore original console methods
-      console.log = originalConsoleLog;
-      console.error = originalConsoleError;
-      
-      // Show confirmation modal after upload
-      setShowConfirmModal(true);
-      
-    } catch (error: any) {
-      console.error('Error uploading to Pinata:', error);
-      setUploadDetails(prev => [...prev, `❌ UPLOAD FAILED: ${error.message || 'Unknown error'}`])
-      alert('Failed to upload character data to IPFS. Please try again.');
-    } finally {
-      setIsUploading(false);
+      setIsEncrypting(false);
     }
+
+    // Show confirmation modal
+    setShowConfirmModal(true);
   }
   
-  // Update handleConfirmCreateAgent to use the validated name
+  // Update handleConfirmCreateAgent to include avatar
   async function handleConfirmCreateAgent() {
-    if (!uploadUrl || !deviceInfo?.deviceAddress || !isNameAvailable) {
+    if (!deviceInfo?.deviceAddress || !isNameAvailable || !constructedCharacter) {
       alert('Missing required information to create agent');
+      return;
+    }
+
+    if (!avatarUrl) {
+      alert('Please upload an avatar image first');
       return;
     }
     
     // Check if we're on the right network
-    const requiredChainId = 84532 // Base Sepolia
+    const requiredChainId = 8453 // Base Mainnet
     if (chainId !== requiredChainId) {
       console.log(`Currently on chain ${chainId}, need to switch to ${requiredChainId}`);
-      alert(`Please switch to Base Sepolia network (Chain ID: ${requiredChainId}) to continue`);
+      alert(`Please switch to Base Mainnet network (Chain ID: ${requiredChainId}) to continue`);
       return;
     }
     
     try {
-      // Use the validated name as the prefix instead of random string
-      const prefix = agentName.toLowerCase();
+      // Use the validated name as the subname
+      const subname = agentName.toLowerCase();
       
-      // Always use Base Sepolia chainId since our contract is deployed there
-      const currentChainId = 84532  // Base Sepolia
+      // Always use Base Mainnet chainId
+      const currentChainId = 8453  // Base Mainnet
       console.log('Using chain ID:', currentChainId);
       
       try {
@@ -969,15 +953,29 @@ function CreateAgentContent() {
           console.warn('Could not open Reown modal:', modalError);
           // Continue anyway as the modal might already be open
         }
+
+        // Prepare character config
+        const characterConfig = {
+          name: constructedCharacter.name,
+          description: constructedCharacter.description,
+          personality: constructedCharacter.personality,
+          scenario: constructedCharacter.scenario,
+          first_mes: constructedCharacter.first_mes,
+          mes_example: constructedCharacter.mes_example,
+          creatorcomment: constructedCharacter.creatorcomment,
+          tags: constructedCharacter.tags.join(','), // Convert array to comma-separated string
+          talkativeness: constructedCharacter.talkativeness.toString() // Convert to string
+        };
         
-        // Create transaction params
+        // Create transaction params with avatar
         const txParams = {
           address: CONTRACT_ADDRESS as `0x${string}`,
           abi: CONTRACT_ABI,
           functionName: 'createAgent' as const,
           args: [
-            prefix,                                  // Use validated name instead of random prefix
-            uploadUrl,                               // IPFS URI with character config
+            subname,                                  // Use validated name as subname
+            avatarUrl,                               // Add avatar URL
+            characterConfig,                          // Direct character config
             encryptedSecrets || '',                  // Encrypted secrets (or empty string)
             dataToEncryptHash ? `0x${dataToEncryptHash}` as `0x${string}` : `0x${'0'.repeat(64)}` as `0x${string}`, // secretsHash
             deviceInfo.deviceAddress as `0x${string}`,  // Device address
@@ -985,8 +983,7 @@ function CreateAgentContent() {
             isPublic                                 // Is public flag
           ] as const,
           chainId: currentChainId,
-          // Simple gas configuration to avoid issues
-          gas: BigInt(6000000)  // 6M gas limit to ensure plenty of room
+          gas: BigInt(10000000)  // 6M gas limit to ensure plenty of room
         };
         
         console.log('Sending transaction...');
@@ -995,23 +992,24 @@ function CreateAgentContent() {
         // Set transaction hash to track progress
         setTransactionHash(data);
         console.log('Transaction submitted:', data);
+        
       } catch (error: any) {
         console.error('Transaction signing error:', error);
         
         // Simple error handling
         if (error.message?.includes('Request was aborted')) {
-          alert('Transaction was aborted. Please ensure you are connected to Base Sepolia network and try again.');
+          setTransactionError('Transaction was aborted. Please ensure you are connected to Base Mainnet network and try again.');
         } else if (error.message?.includes('user rejected') || error.message?.includes('User denied')) {
-          alert('Transaction was rejected. Please approve the transaction in your wallet.');
+          setTransactionError('Transaction was rejected. Please approve the transaction in your wallet.');
         } else {
-          alert(`Failed to sign transaction: ${error.message || 'Unknown error'}`);
+          setTransactionError(error.message || 'Failed to sign transaction');
         }
         
         setShowConfirmModal(false);
       }
     } catch (error: any) {
-      console.error('Error creating agent on contract:', error);
-      alert(`Failed to create agent: ${error.message || 'Unknown error'}`);
+      console.error('Error creating agent:', error);
+      alert(`Error creating agent: ${error.message || 'Unknown error'}`);
       setShowConfirmModal(false);
     }
   }
@@ -1289,6 +1287,76 @@ function CreateAgentContent() {
           </div>
         )}
         
+        {/* Add Avatar Upload Section */}
+        <motion.div 
+          className="mb-8"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div className="bg-black/30 backdrop-blur-sm p-5 rounded-xl border border-[#00FF88]/20">
+            <h2 className="text-xl font-semibold text-[#00FF88] mb-4">Agent Avatar</h2>
+            
+            <div className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <label className="flex-1">
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                    />
+                    <div className="flex items-center justify-center w-full p-4 border-2 border-dashed border-[#00FF88]/30 rounded-lg hover:border-[#00FF88]/60 transition-colors cursor-pointer">
+                      <div className="text-center">
+                        <FiImage className="mx-auto h-8 w-8 text-[#00FF88]/60 mb-2" />
+                        <p className="text-sm text-gray-300">
+                          {avatarFile ? avatarFile.name : 'Click to select image'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+                
+                <button
+                  onClick={handleAvatarUpload}
+                  disabled={!avatarFile || isUploadingAvatar}
+                  className="px-4 py-2 rounded-lg bg-[#00FF88]/20 border border-[#00FF88]/30 text-[#00FF88] hover:bg-[#00FF88]/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {isUploadingAvatar ? (
+                    <>
+                      <FiUploadCloud className="animate-bounce" />
+                      <span>Uploading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiUploadCloud />
+                      <span>Upload</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              
+              {avatarUrl && (
+                <div className="p-3 rounded-lg bg-[#00FF88]/10 border border-[#00FF88]/30">
+                  <div className="flex items-center">
+                    <FiCheck className="text-[#00FF88] mr-2" />
+                    <p className="text-sm text-[#00FF88]">Avatar uploaded successfully!</p>
+                  </div>
+                  <a 
+                    href={avatarUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-[#00FF88]/80 hover:text-[#00FF88] underline mt-1 block break-all"
+                  >
+                    {avatarUrl}
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.div>
+        
         <motion.div 
           className="mt-12 text-center"
           initial={{ opacity: 0 }}
@@ -1370,12 +1438,13 @@ function CreateAgentContent() {
         onConfirm={handleConfirmCreateAgent}
         deviceInfo={deviceInfo}
         agentName={agentName}
-        ipfsUri={uploadUrl}
+        characterData={constructedCharacter}
         isMainnet={isMainnet}
         isPending={isPending || isWaitingForTransaction}
         walletAddress={walletAddress}
         perApiCallFee={perApiCallFee}
         isPublic={isPublic}
+        avatarUrl={avatarUrl}
       />
       
       {/* Success Modal */}

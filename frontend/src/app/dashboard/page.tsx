@@ -5,10 +5,27 @@ import { useAccount } from 'wagmi'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import HeaderWalletWrapper from '@/components/wallet/HeaderWalletWrapper'
+import { useAppKitAccount } from '@reown/appkit/react'
 
 export default function DashboardPage() {
   const { address } = useAccount()
   const [mounted, setMounted] = useState(false)
+  const { embeddedWalletInfo } = useAppKitAccount();
+
+  // Get user info from Google auth if available
+  const isGoogleUser = embeddedWalletInfo?.authProvider === 'google';
+  const userEmail = embeddedWalletInfo?.user?.email;
+  const userName = embeddedWalletInfo?.user?.username;
+
+  // Debug logs
+  useEffect(() => {
+    if (mounted) {
+      console.log('Embedded Wallet Info:', embeddedWalletInfo);
+      console.log('Is Google User:', isGoogleUser);
+      console.log('User Email:', userEmail);
+      console.log('User Name:', userName);
+    }
+  }, [mounted, embeddedWalletInfo, isGoogleUser, userEmail, userName]);
 
   // Fix hydration issues by waiting for component to mount
   useEffect(() => {
@@ -62,10 +79,33 @@ export default function DashboardPage() {
                   <path d="M20 21C20 16.5817 16.4183 13 12 13C7.58172 13 4 16.5817 4 21" stroke="#00FF88" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
               </div>
+              
+
+
+              {/* Modified condition to show user info */}
+              {embeddedWalletInfo?.user && (
+                <motion.div 
+                  className="mb-4 space-y-1"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.2 }}
+                >
+                  {embeddedWalletInfo.user.username && (
+                    <h3 className="text-lg font-medium text-[#00FF88]">
+                      {embeddedWalletInfo.user.username}
+                    </h3>
+                  )}
+                  {embeddedWalletInfo.user.email && (
+                    <p className="text-[#00FF88]/70 text-lg">
+                      {embeddedWalletInfo.user.email}
+                    </p>
+                  )}
+                </motion.div>
+              )}
+
               <div className="flex justify-center">
                 <HeaderWalletWrapper />
               </div>
-
             </div>
 
             {address && (

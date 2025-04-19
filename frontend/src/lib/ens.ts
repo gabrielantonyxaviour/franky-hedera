@@ -16,8 +16,8 @@ const FRANKY_ABI = [
   "event AgentCreated(address indexed agentAddress, address indexed deviceAddress, string prefix, address owner, uint256 perApiCallFee, bytes32 secretsHash, string character, string secrets, bool isPublic)"
 ]
 
-const FRANKY_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_FRANKY_CONTRACT_ADDRESS!
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL!
+const FRANKY_CONTRACT_ADDRESS = '0x18c2e2f87183034700cc2A7cf6D86a71fd209678'
+const RPC_URL = `https://base-sepolia.nodit.io/${process.env.NEXT_PUBLIC_NODIT_API_KEY}`
 
 // In-memory cache of subdomain to agent address mappings
 const subdomainCache = new Map<string, string>()

@@ -7,19 +7,30 @@ import Header from '@/components/ui/Header'
 import { useRouter } from 'next/navigation'
 import { FiCpu, FiServer, FiLink, FiHash, FiDollarSign, FiUser, FiUserCheck, FiX, FiCopy, FiCheck } from 'react-icons/fi'
 import { useChainId, useAccount, useSignMessage } from 'wagmi'
-import { baseSepolia } from '@/components/baseChains'
+import { base } from 'viem/chains'
 import axios from 'axios'
 import { ethers } from 'ethers'
 import { getApiKey } from '@/utils/apiKey'
 
-// Contract information
-const CONTRACT_ADDRESS = '0x18c2e2f87183034700cc2A7cf6D86a71fd209678'
+// Updated contract information for Base Mainnet
+const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
 
 const CONTRACT_ABI = [
   {
     "inputs": [
-      {"internalType": "string", "name": "prefix", "type": "string"},
-      {"internalType": "string", "name": "config", "type": "string"},
+      {"internalType": "string", "name": "subname", "type": "string"},
+      {"internalType": "string", "name": "avatar", "type": "string"},
+      {"components":[
+        {"internalType":"string","name":"name","type":"string"},
+        {"internalType":"string","name":"description","type":"string"},
+        {"internalType":"string","name":"personality","type":"string"},
+        {"internalType":"string","name":"scenario","type":"string"},
+        {"internalType":"string","name":"first_mes","type":"string"},
+        {"internalType":"string","name":"mes_example","type":"string"},
+        {"internalType":"string","name":"creatorcomment","type":"string"},
+        {"internalType":"string","name":"tags","type":"string"},
+        {"internalType":"string","name":"talkativeness","type":"string"}
+      ],"internalType":"struct Character","name":"characterConfig","type":"tuple"},
       {"internalType": "string", "name": "secrets", "type": "string"},
       {"internalType": "bytes32", "name": "secretsHash", "type": "bytes32"},
       {"internalType": "address", "name": "deviceAddress", "type": "address"},
@@ -36,11 +47,22 @@ const CONTRACT_ABI = [
     "inputs": [
       {"indexed": true, "internalType": "address", "name": "agentAddress", "type": "address"},
       {"indexed": true, "internalType": "address", "name": "deviceAddress", "type": "address"},
-      {"indexed": false, "internalType": "string", "name": "prefix", "type": "string"},
+      {"indexed": false, "internalType": "string", "name": "avatar", "type": "string"},
+      {"indexed": false, "internalType": "string", "name": "subname", "type": "string"},
       {"indexed": false, "internalType": "address", "name": "owner", "type": "address"},
       {"indexed": false, "internalType": "uint256", "name": "perApiCallFee", "type": "uint256"},
       {"indexed": false, "internalType": "bytes32", "name": "secretsHash", "type": "bytes32"},
-      {"indexed": false, "internalType": "string", "name": "character", "type": "string"},
+      {"components":[
+        {"internalType":"string","name":"name","type":"string"},
+        {"internalType":"string","name":"description","type":"string"},
+        {"internalType":"string","name":"personality","type":"string"},
+        {"internalType":"string","name":"scenario","type":"string"},
+        {"internalType":"string","name":"first_mes","type":"string"},
+        {"internalType":"string","name":"mes_example","type":"string"},
+        {"internalType":"string","name":"creatorcomment","type":"string"},
+        {"internalType":"string","name":"tags","type":"string"},
+        {"internalType":"string","name":"talkativeness","type":"string"}
+      ],"indexed":false,"internalType":"struct Character","name":"characterConfig","type":"tuple"},
       {"indexed": false, "internalType": "string", "name": "secrets", "type": "string"},
       {"indexed": false, "internalType": "bool", "name": "isPublic", "type": "bool"}
     ],
@@ -48,17 +70,6 @@ const CONTRACT_ABI = [
     "type": "event"
   }
 ] as const
-
-// Helper function to get explorer URL
-const getExplorerUrl = (chainId: number, hash: string) => {
-  if (chainId === baseSepolia.id) {
-    return `https://sepolia.basescan.org/tx/${hash}`
-  }
-  if (chainId === 11155111) {
-    return `https://sepolia.etherscan.io/tx/${hash}`
-  }
-  return `https://etherscan.io/tx/${hash}`
-}
 
 // Define agent interface
 interface Agent {
@@ -68,112 +79,57 @@ interface Agent {
   deviceAddress: string
   owner: string
   perApiCallFee: string
-  character: string
+  character: string // Will be used as avatar URL
   isPublic: boolean
   txHash: string
   blockNumber: number
   timestamp: number
-  name?: string
-  description?: string
+  name: string
+  description: string
+  avatar?: string // Alias for character for better naming
 }
 
-// Helper function to add delay between requests
+// Helper function to get the block explorer URL based on the chain
+const getExplorerUrl = (chainId: number, hash: string) => {
+  // Base Mainnet
+  if (chainId === 8453) {
+    return `https://basescan.org/tx/${hash}`
+  }
+  // Ethereum Mainnet (default)
+  return `https://etherscan.io/tx/${hash}`
+}
+
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-// Helper function for exponential backoff retry
 const retryWithBackoff = async (
   fn: () => Promise<any>,
   retries = 3,
   initialDelay = 1000,
   maxDelay = 10000
 ) => {
-  let currentDelay = initialDelay
+  let currentDelay = initialDelay;
   
   for (let i = 0; i <= retries; i++) {
     try {
-      return await fn()
+      return await fn();
     } catch (error: any) {
       if (i === retries || (error.response?.status !== 429 && error.status !== 429)) {
-        throw error
+        throw error;
       }
       
-      const retryAfter = error.response?.headers?.['retry-after']
-      const delayTime = retryAfter ? parseInt(retryAfter) * 1000 : Math.min(currentDelay, maxDelay)
+      // Get retry delay from response header or use exponential backoff
+      const retryAfter = error.response?.headers?.['retry-after'];
+      const delayTime = retryAfter ? parseInt(retryAfter) * 1000 : Math.min(currentDelay, maxDelay);
       
-      await delay(delayTime)
+      await delay(delayTime);
       
-      currentDelay *= 2
+      // Increase delay for next attempt (exponential backoff)
+      currentDelay *= 2;
     }
   }
-}
+};
 
-// Helper function to extract IPFS hash from config URL
-const extractIPFSHash = (configUrl: string): string => {
-  if (!configUrl) return '';
-  
-  // If it's already just a hash
-  if (configUrl.indexOf('/') === -1) return configUrl;
-  
-  // Extract the hash from IPFS URL format
-  const parts = configUrl.split('/ipfs/');
-  if (parts.length > 1) {
-    return parts[1].trim();
-  }
-  
-  return '';
-}
-
-// Function to fetch character data from IPFS
-const fetchCharacterData = async (configUrl: string) => {
-  const hash = extractIPFSHash(configUrl);
-  if (!hash) {
-    console.error("Could not extract IPFS hash from config URL");
-    return null;
-  }
-  
-  try {
-    // Try the Pinata gateway from environment variables first
-    const pinataGateway = process.env.NEXT_PUBLIC_PINATA_GATEWAY;
-    
-    const gateways = [
-      pinataGateway ? `https://${pinataGateway}/ipfs/${hash}` : null,
-      `https://ipfs.io/ipfs/${hash}`,
-      `https://cloudflare-ipfs.com/ipfs/${hash}`,
-      `https://gateway.pinata.cloud/ipfs/${hash}`,
-    ].filter(Boolean) as string[];
-    
-    for (const gateway of gateways) {
-      try {
-        console.log(`Trying to fetch character data from ${gateway}...`);
-        
-        const response = await fetch(gateway);
-        if (!response.ok) {
-          throw new Error(`Gateway responded with ${response.status}: ${response.statusText}`);
-        }
-        
-        const text = await response.text();
-        try {
-          const data = JSON.parse(text);
-          console.log(`Successfully fetched character data from ${gateway}`);
-          return data;
-        } catch (jsonError) {
-          console.error("Error parsing JSON:", jsonError);
-          throw new Error("Invalid JSON response from gateway");
-        }
-      } catch (err: any) {
-        console.log(`Failed with ${gateway}: ${err.message}`);
-        // Continue to next gateway
-      }
-    }
-    
-    throw new Error('Failed to retrieve content from any gateway');
-  } catch (error: any) {
-    console.error("Error fetching character data:", error);
-    return null;
-  }
-}
-
-// Background component (reused from device marketplace)
+// Background animation component
 const Background = () => {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden">
@@ -247,9 +203,23 @@ const AgentCard = ({ agent, onClick }: { agent: Agent, onClick: () => void }) =>
       transition={{ duration: 0.5 }}
     >
       <div className="flex items-center mb-4">
-        <div className="flex justify-center items-center h-12 w-12 rounded-full bg-[#00FF88] bg-opacity-20 text-[#00FF88] mr-4">
-          <FiUserCheck className="text-2xl" />
-        </div>
+        {agent.character ? (
+          <div className="h-12 w-12 rounded-full overflow-hidden mr-4">
+            <img 
+              src={agent.character} 
+              alt={agent.name || agent.prefix} 
+              className="h-full w-full object-cover"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = 'https://placehold.co/100x100/00FF88/1A1A1A?text=AI&font=Roboto';
+              }}
+            />
+          </div>
+        ) : (
+          <div className="flex justify-center items-center h-12 w-12 rounded-full bg-[#00FF88] bg-opacity-20 text-[#00FF88] mr-4">
+            <FiUserCheck className="text-2xl" />
+          </div>
+        )}
         <div className="flex-1">
           <h3 className="text-xl font-bold bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
             {agent.prefix}
@@ -295,7 +265,7 @@ const AgentCard = ({ agent, onClick }: { agent: Agent, onClick: () => void }) =>
         <div className="flex items-center justify-between mt-1">
           <span className="text-xs text-gray-400">Registration Tx</span>
           <a 
-            href={`https://sepolia.basescan.org/tx/${agent.txHash}`}
+            href={getExplorerUrl(8453, agent.txHash)}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-[#00FF88] hover:underline"
@@ -321,159 +291,243 @@ const AgentCard = ({ agent, onClick }: { agent: Agent, onClick: () => void }) =>
 // Preview Modal Component
 const PreviewModal = ({ 
   agent, 
-  characterData, 
   isOpen, 
   onClose 
 }: { 
   agent: Agent | null
-  characterData: any
   isOpen: boolean
   onClose: () => void
 }) => {
-  const [apiKey, setApiKey] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const { address } = useAccount()
-  const { signMessageAsync } = useSignMessage()
-
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [isGeneratingKey, setIsGeneratingKey] = useState(false);
+  const [keyError, setKeyError] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const account = useAccount();
+  const chainId = useChainId();
+  const isMainnet = chainId === 8453; // Base Mainnet
+  
   const handlePurchase = async () => {
-    if (!agent || !address) return
-
-    setLoading(true)
-    setError(null)
+    if (!agent || !account.address) return;
+    
     try {
-      // Create a signer function that matches the create agent page implementation
+      setIsPurchasing(true);
+      
+      // Sign message to generate API key
       const signer = async (message: string): Promise<`0x${string}`> => {
-        try {
-          console.log('Raw message to sign:', message)
-          
-          // Handle the message format
-          let messageToSign: string
-          if (typeof message === 'string') {
-            messageToSign = message.startsWith('0x') ? message : `0x${Buffer.from(message).toString('hex')}`
-          } else {
-            // If message is not a string, convert it to string first
-            messageToSign = `0x${Buffer.from(String(message)).toString('hex')}`
-          }
-          
-          console.log('Formatted message for signing:', messageToSign)
-          
-          const signature = await signMessageAsync({
-            message: messageToSign as `0x${string}`
-          })
-          
-          console.log('Signature received:', signature)
-          return signature
-        } catch (err: any) {
-          console.error('Error in signing process:', err)
-          if (err.code === 4001) {
-            throw new Error('User rejected signing')
-          }
-          throw new Error(`Error signing message: ${err.message || 'Unknown error'}`)
-        }
-      }
-
-      console.log('Generating API key for agent:', agent.agentAddress)
+        // Use wagmi's useSignMessage hook
+        const { signMessageAsync } = useSignMessage();
+        return await signMessageAsync({ message });
+      };
+      
+      // Generate API key
       const key = await getApiKey(
         agent.agentAddress,
         { signMessage: signer },
-        false // isMainnet
-      )
-      console.log('API key generated successfully')
-      setApiKey(key)
-    } catch (err: any) {
-      console.error('Error in handlePurchase:', err)
-      setError(err.message || 'Failed to generate API key')
+        isMainnet
+      );
+      
+      setApiKey(key);
+      setKeyError(null);
+    } catch (error: any) {
+      console.error('Error generating API key:', error);
+      setKeyError(error.message || 'Error generating API key');
     } finally {
-      setLoading(false)
+      setIsPurchasing(false);
     }
-  }
-
+  };
+  
   const copyApiKey = async () => {
-    if (!apiKey) return
+    if (!apiKey) return;
+    
     try {
-      await navigator.clipboard.writeText(apiKey)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      console.error('Failed to copy API key:', err)
+      await navigator.clipboard.writeText(apiKey);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
     }
-  }
-
-  if (!isOpen || !agent) return null
-
+  };
+  
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-black/90 border border-[#00FF88]/30 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative"
-      >
-        <button 
-          onClick={onClose}
-          className="absolute top-4 right-4 text-white/60 hover:text-white"
+    <AnimatePresence>
+      {isOpen && agent && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
         >
-          <FiX size={24} />
-        </button>
-
-        <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
-          {agent.prefix}
-        </h2>
-
-        {/* Character Data */}
-        <div className="mb-6 space-y-4">
-          {characterData && Object.entries(characterData).map(([key, value]) => (
-            <div key={key} className="border-l-2 border-[#00FF88]/30 pl-3">
-              <h3 className="text-[#00FF88] text-sm uppercase mb-1">{key}</h3>
-              <p className="text-white/80 text-sm whitespace-pre-wrap">{String(value)}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* API Key Section */}
-        <div className="border-t border-[#00FF88]/20 pt-4 mt-4">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-white/80">Price per API Call:</span>
-            <span className="text-[#00FF88] font-bold">{agent.perApiCallFee} $FRANKY</span>
-          </div>
-
-          {apiKey ? (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-white/80">Your API Key:</span>
-                <button
-                  onClick={copyApiKey}
-                  className="text-[#00FF88] hover:text-[#00FF88]/80 flex items-center"
-                >
-                  {copied ? <FiCheck className="mr-1" /> : <FiCopy className="mr-1" />}
-                  {copied ? 'Copied!' : 'Copy'}
-                </button>
-              </div>
-              <div className="bg-black/50 p-2 rounded border border-[#00FF88]/20 break-all font-mono text-sm text-white/90">
-                {apiKey}
-              </div>
-            </div>
-          ) : (
-            <motion.button
-              onClick={handlePurchase}
-              className="w-full py-3 rounded-lg bg-[#00FF88] text-black font-bold hover:bg-[#00FF88]/90 disabled:opacity-50 disabled:cursor-not-allowed"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              disabled={loading || !address}
+          {/* Backdrop */}
+          <motion.div 
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={onClose}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          />
+          
+          {/* Modal content */}
+          <motion.div
+            className="bg-black/90 border border-[#00FF88]/30 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto z-10"
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            transition={{ type: "spring", duration: 0.5 }}
+          >
+            {/* Close button */}
+            <button 
+              onClick={onClose}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white"
             >
-              {loading ? 'Generating API Key...' : !address ? 'Connect Wallet' : 'View API Key'}
-            </motion.button>
-          )}
-
-          {error && (
-            <p className="mt-2 text-red-400 text-sm">{error}</p>
-          )}
-        </div>
-      </motion.div>
-    </div>
-  )
+              <FiX className="text-xl" />
+            </button>
+            
+            {/* Agent details */}
+            <div className="mb-6 flex items-center">
+              {agent.character ? (
+                <div className="h-16 w-16 rounded-full overflow-hidden mr-4">
+                  <img 
+                    src={agent.character} 
+                    alt={agent.name || agent.prefix}
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = 'https://placehold.co/100x100/00FF88/1A1A1A?text=AI&font=Roboto';
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="flex justify-center items-center h-16 w-16 rounded-full bg-[#00FF88] bg-opacity-20 text-[#00FF88] mr-4">
+                  <FiUserCheck className="text-3xl" />
+                </div>
+              )}
+              <div>
+                <h2 className="text-2xl font-bold text-white">{agent.prefix}</h2>
+                {agent.name && (
+                  <p className="text-[#00FF88]">{agent.name}</p>
+                )}
+              </div>
+            </div>
+            
+            {/* Description */}
+            {agent.description && (
+              <div className="mb-6 bg-[#00FF88]/5 border border-[#00FF88]/20 rounded-lg p-4">
+                <p className="text-gray-200">{agent.description}</p>
+              </div>
+            )}
+            
+            {/* Agent Details */}
+            <div className="mb-6 space-y-3">
+              <div className="flex items-center text-[#CCCCCC]">
+                <FiDollarSign className="mr-2 text-[#00FF88]" />
+                <span>Fee per API Call: <span className="text-[#00FF88] font-medium">{agent.perApiCallFee} $FRANKY</span></span>
+              </div>
+              
+              <div className="flex items-center text-[#CCCCCC]">
+                <FiHash className="mr-2 text-[#00FF88]" />
+                <span>Agent: <span className="text-[#00FF88] font-medium">{agent.agentAddress}</span></span>
+              </div>
+              
+              <div className="flex items-center text-[#CCCCCC]">
+                <FiCpu className="mr-2 text-[#00FF88]" />
+                <span>Device: <span className="text-[#00FF88] font-medium">{agent.deviceAddress}</span></span>
+              </div>
+              
+              <div className="flex items-center text-[#CCCCCC]">
+                <FiUser className="mr-2 text-[#00FF88]" />
+                <span>Owner: <span className="text-[#00FF88] font-medium">{agent.owner}</span></span>
+              </div>
+            </div>
+            
+            {/* API Key Section */}
+            <div className="mt-8">
+              <h3 className="text-xl font-bold mb-4 text-white">Generate API Key</h3>
+              
+              {apiKey ? (
+                <div className="mb-6">
+                  <div className="flex">
+                    <input
+                      type="text"
+                      value={apiKey}
+                      readOnly
+                      className="py-2 px-4 rounded-l-lg bg-gray-900 text-white border border-[#00FF88]/50 flex-grow"
+                    />
+                    <button
+                      onClick={copyApiKey}
+                      className="py-2 px-4 rounded-r-lg bg-[#00FF88]/20 text-[#00FF88] hover:bg-[#00FF88]/30 flex items-center"
+                    >
+                      {isCopied ? <FiCheck className="text-lg" /> : <FiCopy className="text-lg" />}
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-400 mt-2">
+                    This API key gives you access to interact with the agent.
+                  </p>
+                </div>
+              ) : keyError ? (
+                <div className="mb-6 p-4 rounded-lg bg-red-500/20 border border-red-500/40 text-red-300">
+                  <p>{keyError}</p>
+                  <button
+                    onClick={handlePurchase}
+                    className="mt-3 py-2 px-4 rounded-lg bg-[#00FF88]/20 text-[#00FF88] hover:bg-[#00FF88]/30"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              ) : (
+                <div className="mb-6">
+                  <p className="mb-4 text-gray-300">
+                    Generate an API key to interact with this agent. Your wallet must be connected to Base Mainnet.
+                  </p>
+                  <button
+                    onClick={handlePurchase}
+                    disabled={!account.address || !isMainnet || isPurchasing}
+                    className={`py-2 px-6 rounded-lg text-center 
+                      ${(!account.address || !isMainnet) 
+                        ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
+                        : 'bg-[#00FF88]/20 text-[#00FF88] hover:bg-[#00FF88]/30'
+                      } transition-colors flex items-center justify-center`}
+                  >
+                    {isPurchasing ? (
+                      <>
+                        <span className="animate-spin w-5 h-5 border-t-2 border-r-2 border-[#00FF88] rounded-full mr-2"></span>
+                        Generating...
+                      </>
+                    ) : (
+                      'Generate API Key'
+                    )}
+                  </button>
+                  
+                  {!account.address && (
+                    <p className="text-sm text-yellow-400 mt-2">
+                      Your wallet must be connected to generate an API key.
+                    </p>
+                  )}
+                  
+                  {account.address && !isMainnet && (
+                    <p className="text-sm text-yellow-400 mt-2">
+                      Please switch to Base Mainnet to generate an API key.
+                    </p>
+                  )}
+                </div>
+              )}
+              
+              <div className="mt-8 text-center">
+                <a
+                  href={getExplorerUrl(8453, agent.txHash)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#00FF88] hover:underline"
+                >
+                  View on Block Explorer
+                </a>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 }
 
 export default function AgentMarketplacePage() {
@@ -482,7 +536,6 @@ export default function AgentMarketplacePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
-  const [characterData, setCharacterData] = useState<any>(null)
   const router = useRouter()
   const chainId = useChainId()
   
@@ -491,7 +544,7 @@ export default function AgentMarketplacePage() {
     setIsClient(true)
   }, [])
   
-  // Fetch agents using Nodit API
+  // Fetch agents using API
   useEffect(() => {
     if (!isClient) return
     
@@ -513,35 +566,26 @@ export default function AgentMarketplacePage() {
         // Log raw response for debugging
         console.log('Agent Marketplace Response:', data)
         
-        const agentsArray = await Promise.all(data.agents.map(async (agent: any, index: number) => {
-          const agentData: Agent = {
+        // Process agents - map response to our Agent interface
+        const agentsArray = data.agents.map((agent: any, index: number) => {
+          return {
             id: index + 1,
-            prefix: agent.prefix,
-            agentAddress: agent.agentAddress,
-            deviceAddress: agent.deviceAddress,
-            owner: agent.owner,
-            perApiCallFee: agent.perApiCallFee,
-            character: agent.character,
-            isPublic: agent.isPublic,
-            txHash: agent.txHash,
-            blockNumber: agent.blockNumber,
-            timestamp: agent.timestamp
-          }
-          
-          // Fetch character data from IPFS
-          try {
-            const characterData = await fetchCharacterData(agent.character)
-            if (characterData) {
-              agentData.name = characterData.name
-              agentData.description = characterData.description
-              console.log(`Character data fetched for agent ${agent.agentAddress}:`, characterData)
-            }
-          } catch (error) {
-            console.error(`Error fetching character data for agent ${agent.agentAddress}:`, error)
-          }
-          
-          return agentData
-        }))
+            prefix: agent.prefix || '',
+            agentAddress: agent.agentAddress || '',
+            deviceAddress: agent.deviceAddress || '',
+            owner: agent.owner || '',
+            perApiCallFee: agent.perApiCallFee || '0',
+            character: agent.character || '', // This is the avatar URL
+            avatar: agent.character || '',    // Alias for consistency
+            isPublic: Boolean(agent.isPublic),
+            txHash: agent.txHash || '',
+            blockNumber: agent.blockNumber || 0,
+            timestamp: agent.timestamp || Date.now() / 1000,
+            // Directly use name and description from API response
+            name: agent.name || '',
+            description: agent.description || ''
+          };
+        });
         
         // Sort agents by timestamp (newest first)
         agentsArray.sort((a: Agent, b: Agent) => b.timestamp - a.timestamp)
@@ -564,17 +608,10 @@ export default function AgentMarketplacePage() {
   // Handle agent selection
   const handleAgentSelect = async (agent: Agent) => {
     setSelectedAgent(agent)
-    try {
-      const data = await fetchCharacterData(agent.character)
-      setCharacterData(data)
-    } catch (error) {
-      console.error('Error fetching character data:', error)
-    }
   }
 
   const closeModal = () => {
     setSelectedAgent(null)
-    setCharacterData(null)
   }
   
   if (!isClient) {
@@ -657,7 +694,6 @@ export default function AgentMarketplacePage() {
         {selectedAgent && (
           <PreviewModal
             agent={selectedAgent}
-            characterData={characterData}
             isOpen={!!selectedAgent}
             onClose={closeModal}
           />

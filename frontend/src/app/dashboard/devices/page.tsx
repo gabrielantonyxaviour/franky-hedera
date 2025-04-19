@@ -45,7 +45,7 @@ const emptyStateStyle = "text-white/60 italic text-center mt-12"
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 // Contract information
-const CONTRACT_ADDRESS = '0x18c2e2f87183034700cc2A7cf6D86a71fd209678'
+const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
 
 const CONTRACT_ABI = [
   {
@@ -120,7 +120,7 @@ export default function DevicesPage() {
       console.log(`🔍 Searching for devices registered by: ${ownerAddress}`);
       const noditAPIKey = process.env.NEXT_PUBLIC_NODIT_API_KEY
       const axiosInstance = axios.create({
-        baseURL: "https://web3.nodit.io/v1/base/sepolia",
+        baseURL: "https://web3.nodit.io/v1/base/mainnet",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
@@ -306,6 +306,7 @@ export default function DevicesPage() {
 
         {address && loading && (
           <div className="text-center py-20 text-white/70">
+            <div className="w-12 h-12 border-4 border-[#00FF88]/20 border-t-[#00FF88] rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-xl">Loading your devices...</p>
           </div>
         )}
@@ -406,7 +407,6 @@ export default function DevicesPage() {
                       </div>
                       
                       <div className="flex justify-between mt-3">
-                        <span className={idStyle}>ID: {device.id}</span>
                         <span className="text-xs text-white/40">
                           Registered: {new Date(device.timestamp * 1000).toLocaleString()}
                         </span>

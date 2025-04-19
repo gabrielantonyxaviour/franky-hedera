@@ -12,7 +12,7 @@ import { useAppKitAccount } from '@reown/appkit/react'
 import { modal } from '@/components/ReownProviders'
 
 // Contract address and ABI
-const CONTRACT_ADDRESS = '0x18c2e2f87183034700cc2A7cf6D86a71fd209678'
+const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
 
 const CONTRACT_ABI = [
   {
@@ -31,11 +31,30 @@ const CONTRACT_ABI = [
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "internalType": "address", "name": "deviceAddress", "type": "address"},
+      {"indexed": true, "internalType": "address", "name": "owner", "type": "address"},
+      {"indexed": false, "internalType": "string", "name": "deviceModel", "type": "string"},
+      {"indexed": false, "internalType": "string", "name": "ram", "type": "string"},
+      {"indexed": false, "internalType": "string", "name": "storageCapacity", "type": "string"},
+      {"indexed": false, "internalType": "string", "name": "cpu", "type": "string"},
+      {"indexed": false, "internalType": "string", "name": "ngrokLink", "type": "string"},
+      {"indexed": false, "internalType": "uint256", "name": "hostingFee", "type": "uint256"}
+    ],
+    "name": "DeviceRegistered",
+    "type": "event"
   }
 ] as const
 
 // Helper function to get the block explorer URL based on the chain
 const getExplorerUrl = (chainId: number, hash: string) => {
+  // Base Mainnet
+  if (chainId === 8453) {
+    return `https://basescan.org/tx/${hash}`
+  }
   // Base Sepolia
   if (chainId === baseSepolia.id) {
     return `https://sepolia.basescan.org/tx/${hash}`
@@ -327,10 +346,10 @@ const DeviceVerification = () => {
       }
 
       // Check if we're on the right network
-      const requiredChainId = 84532 // Base Sepolia
+      const requiredChainId = 8453 // Base Mainnet
       if (chainId !== requiredChainId) {
         console.log(`Currently on chain ${chainId}, need to switch to ${requiredChainId}`)
-        setTransactionError(`Please switch to Base Sepolia network (Chain ID: ${requiredChainId}) to continue`)
+        setTransactionError(`Please switch to Base Mainnet network (Chain ID: ${requiredChainId}) to continue`)
         setIsVerifying(false)
         return
       }
@@ -364,8 +383,8 @@ const DeviceVerification = () => {
         ? verificationHash as `0x${string}`
         : `0x${verificationHash}` as `0x${string}`
 
-      // Always use Base Sepolia chainId
-      const currentChainId = 84532  // Base Sepolia
+      // Always use Base Mainnet chainId
+      const currentChainId = 8453  // Base Mainnet
       console.log('Using chain ID:', currentChainId)
 
       try {
@@ -406,8 +425,7 @@ const DeviceVerification = () => {
             signatureBytes
           ] as const,
           chainId: currentChainId,
-          // Simple gas configuration to avoid issues
-          gas: BigInt(6000000)  // 6M gas limit to ensure plenty of room
+          gas: BigInt(6000000)
         }
         
         console.log('Sending transaction...');
@@ -422,7 +440,7 @@ const DeviceVerification = () => {
         
         // Simple error handling
         if (error.message?.includes('Request was aborted')) {
-          setTransactionError('Transaction was aborted. Please ensure you are connected to Base Sepolia network and try again.');
+          setTransactionError('Transaction was aborted. Please ensure you are connected to Base Mainnet network and try again.');
         } else if (error.message?.includes('user rejected') || error.message?.includes('User denied')) {
           setTransactionError('Transaction was rejected. Please approve the transaction in your wallet.');
         } else {

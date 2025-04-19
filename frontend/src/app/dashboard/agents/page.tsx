@@ -14,15 +14,25 @@ interface Agent {
   blockNumber: number
   timestamp: number
   prefix: string
-  config?: string
-  secrets?: string
-  secretsHash?: string
+  agentAddress: string
   deviceAddress: string
   perApiCallFee: string
   isPublic: boolean
-  agentAddress: string
   owner: string
-  error?: boolean
+  avatar?: string
+  name?: string
+  description?: string
+  characterConfig: {
+    name: string
+    description: string
+    personality: string
+    scenario: string
+    first_mes: string
+    mes_example: string
+    creatorcomment: string
+    tags: string
+    talkativeness: string
+  }
 }
 
 interface Transaction {
@@ -35,14 +45,6 @@ interface Transaction {
   functionSelector?: string
 }
 
-interface CharacterData {
-  name?: string
-  personality?: string
-  backstory?: string
-  appearance?: string
-  [key: string]: any // For other possible fields
-}
-
 // Shared styles
 const cardStyle = "bg-black/30 backdrop-blur-sm border border-[#00FF88]/20 rounded-lg p-4 mb-4 hover:border-[#00FF88]/40 transition-all cursor-pointer"
 const labelStyle = "text-[#00FF88] text-sm"
@@ -53,14 +55,26 @@ const emptyStateStyle = "text-white/60 italic text-center mt-12"
 // Helper function to add delay between requests
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-// Contract information
-const CONTRACT_ADDRESS = '0x18c2e2f87183034700cc2A7cf6D86a71fd209678'
+// Contract information - updated to match the new contract
+const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
 
+// Updated ABI to match the new contract
 const CONTRACT_ABI = [
   {
     "inputs": [
-      {"internalType": "string", "name": "prefix", "type": "string"},
-      {"internalType": "string", "name": "config", "type": "string"},
+      {"internalType": "string", "name": "subname", "type": "string"},
+      {"internalType": "string", "name": "avatar", "type": "string"},
+      {"components":[
+        {"internalType":"string","name":"name","type":"string"},
+        {"internalType":"string","name":"description","type":"string"},
+        {"internalType":"string","name":"personality","type":"string"},
+        {"internalType":"string","name":"scenario","type":"string"},
+        {"internalType":"string","name":"first_mes","type":"string"},
+        {"internalType":"string","name":"mes_example","type":"string"},
+        {"internalType":"string","name":"creatorcomment","type":"string"},
+        {"internalType":"string","name":"tags","type":"string"},
+        {"internalType":"string","name":"talkativeness","type":"string"}
+      ],"internalType":"struct Character","name":"characterConfig","type":"tuple"},
       {"internalType": "string", "name": "secrets", "type": "string"},
       {"internalType": "bytes32", "name": "secretsHash", "type": "bytes32"},
       {"internalType": "address", "name": "deviceAddress", "type": "address"},
@@ -71,22 +85,6 @@ const CONTRACT_ABI = [
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {"indexed": true, "internalType": "address", "name": "agentAddress", "type": "address"},
-      {"indexed": true, "internalType": "address", "name": "deviceAddress", "type": "address"},
-      {"indexed": false, "internalType": "string", "name": "prefix", "type": "string"},
-      {"indexed": false, "internalType": "address", "name": "owner", "type": "address"},
-      {"indexed": false, "internalType": "uint256", "name": "perApiCallFee", "type": "uint256"},
-      {"indexed": false, "internalType": "bytes32", "name": "secretsHash", "type": "bytes32"},
-      {"indexed": false, "internalType": "string", "name": "character", "type": "string"},
-      {"indexed": false, "internalType": "string", "name": "secrets", "type": "string"},
-      {"indexed": false, "internalType": "bool", "name": "isPublic", "type": "bool"}
-    ],
-    "name": "AgentCreated",
-    "type": "event"
   }
 ] as const
 
@@ -96,14 +94,7 @@ export default function AgentsPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
-  const [debugInfo, setDebugInfo] = useState<{
-    functionSelector: string;
-    allSelectors: {selector: string, from: string}[];
-  } | null>(null)
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
-  const [characterData, setCharacterData] = useState<CharacterData | null>(null)
-  const [characterLoading, setCharacterLoading] = useState(false)
-  const [characterError, setCharacterError] = useState<string | null>(null)
   
   // Fix hydration issues by waiting for component to mount
   useEffect(() => {
@@ -113,259 +104,72 @@ export default function AgentsPage() {
   useEffect(() => {
     if (mounted && address) {
       setLoading(true)
-      fetchAgents(address)
+      fetchAgents()
     }
   }, [address, mounted])
 
-  // When an agent is selected, fetch its character data
-  useEffect(() => {
-    if (selectedAgent && selectedAgent.config) {
-      fetchCharacterData(selectedAgent.config)
-    }
-  }, [selectedAgent])
-
-  const fetchAgents = async (walletAddress: string) => {
+  const fetchAgents = async () => {
+    if (!address) return
+    
     setLoading(true)
     setError(null)
-    setDebugInfo(null)
     
     try {
-      const agentsData = await getAgentsByCreator(walletAddress, true)
-      setAgents(agentsData.agents)
-      if (agentsData.debug) {
-        setDebugInfo(agentsData.debug)
+      // Fetch all agents from our API
+      const response = await fetch('/api/agents')
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      if (data.error) {
+        throw new Error(data.error)
+      }
+      
+      // Filter agents by the current user's address only, regardless of visibility
+      const userAgents = data.agents
+        .filter((agent: any) => agent.owner.toLowerCase() === address.toLowerCase())
+        .map((agent: any, index: number) => ({
+          id: index + 1,
+          txHash: agent.txHash || '',
+          blockNumber: agent.blockNumber || 0,
+          timestamp: agent.timestamp || 0,
+          prefix: agent.prefix || '',
+          agentAddress: agent.agentAddress || '',
+          deviceAddress: agent.deviceAddress || '',
+          perApiCallFee: agent.perApiCallFee || '0',
+          isPublic: Boolean(agent.isPublic),
+          owner: agent.owner || '',
+          avatar: agent.character || '', // character field is used as avatar in the API
+          name: agent.name || '',
+          description: agent.description || '',
+          characterConfig: {
+            name: agent.name || '',
+            description: agent.description || '',
+            personality: '',  // These fields might not be available in the current API response
+            scenario: '',
+            first_mes: '',
+            mes_example: '',
+            creatorcomment: '',
+            tags: '',
+            talkativeness: ''
+          }
+        }))
+      
+      // Sort agents by timestamp (newest first)
+      userAgents.sort((a: Agent, b: Agent) => b.timestamp - a.timestamp)
+      
+      setAgents(userAgents)
+      
+      // Log the first agent for debugging
+      if (userAgents.length > 0) {
+        console.log('First agent data:', userAgents[0]);
       }
     } catch (error: any) {
       console.error("Error fetching agents:", error)
       setError(error?.message || "Failed to load agents data")
     } finally {
       setLoading(false)
-    }
-  }
-
-  // Function to extract IPFS hash from config URL
-  const extractIPFSHash = (configUrl: string): string => {
-    if (!configUrl) return '';
-    
-    // If it's already just a hash
-    if (configUrl.indexOf('/') === -1) return configUrl;
-    
-    // Extract the hash from IPFS URL format
-    const parts = configUrl.split('/ipfs/');
-    if (parts.length > 1) {
-      return parts[1].trim();
-    }
-    
-    return '';
-  }
-
-  // Function to fetch character data from IPFS
-  const fetchCharacterData = async (configUrl: string) => {
-    setCharacterLoading(true)
-    setCharacterError(null)
-    setCharacterData(null)
-    
-    const hash = extractIPFSHash(configUrl);
-    if (!hash) {
-      setCharacterError("Could not extract IPFS hash from config URL");
-      setCharacterLoading(false);
-      return;
-    }
-    
-    try {
-      // Try the Pinata gateway from environment variables first
-      const pinataGateway = process.env.NEXT_PUBLIC_PINATA_GATEWAY;
-      
-      const gateways = [
-        pinataGateway ? `https://${pinataGateway}/ipfs/${hash}` : null,
-        `https://ipfs.io/ipfs/${hash}`,
-        `https://cloudflare-ipfs.com/ipfs/${hash}`,
-        `https://gateway.pinata.cloud/ipfs/${hash}`,
-      ].filter(Boolean) as string[];
-      
-      let fetchSuccess = false;
-      
-      for (const gateway of gateways) {
-        try {
-          console.log(`Trying to fetch character data from ${gateway}...`);
-          
-          const response = await fetch(gateway);
-          if (!response.ok) {
-            throw new Error(`Gateway responded with ${response.status}: ${response.statusText}`);
-          }
-          
-          const text = await response.text();
-          try {
-            const data = JSON.parse(text);
-            console.log(`Successfully fetched character data from ${gateway}`);
-            setCharacterData(data);
-            fetchSuccess = true;
-            break;
-          } catch (jsonError) {
-            console.error("Error parsing JSON:", jsonError);
-            throw new Error("Invalid JSON response from gateway");
-          }
-        } catch (err: any) {
-          console.log(`Failed with ${gateway}: ${err.message}`);
-          // Continue to next gateway
-        }
-      }
-      
-      if (!fetchSuccess) {
-        throw new Error('Failed to retrieve content from any gateway');
-      }
-    } catch (error: any) {
-      console.error("Error fetching character data:", error);
-      setCharacterError(error.message || "Failed to load character data");
-    } finally {
-      setCharacterLoading(false);
-    }
-  }
-
-  // Function to close the modal
-  const closeModal = () => {
-    setSelectedAgent(null);
-    setCharacterData(null);
-    setCharacterError(null);
-  }
-
-  async function getAgentsByCreator(creatorAddress: string, showDebug = false): Promise<{
-    agents: Agent[],
-    debug?: {
-      functionSelector: string;
-      allSelectors: {selector: string, from: string}[];
-    }
-  }> {
-    try {
-      console.log(`🔍 Searching for agents created by: ${creatorAddress}`);
-      const noditAPIKey = process.env.NEXT_PUBLIC_NODIT_API_KEY
-      const axiosInstance = axios.create({
-        baseURL: "https://web3.nodit.io/v1/base/sepolia",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "X-API-KEY": noditAPIKey,
-        },
-      })
-
-      // Create interface using ethers
-      const contractInterface = new ethers.Interface(CONTRACT_ABI)
-      const createAgentFunction = contractInterface.getFunction("createAgent")
-      if (!createAgentFunction) {
-        throw new Error("Could not find createAgent function in ABI")
-      }
-      const createAgentSelector = createAgentFunction.selector
-
-      const txResult = await axiosInstance.post(
-        "/blockchain/getTransactionsByAccount",
-        {
-          accountAddress: CONTRACT_ADDRESS,
-          withDecode: true,
-        }
-      )
-
-      if (!txResult.data?.items?.length) {
-        console.log("\nℹ️ No transactions found for this contract")
-        return { agents: [] }
-      }
-
-      const agentCreationTxs = txResult.data.items.filter((tx: Transaction) => {
-        return tx.functionSelector?.toLowerCase() === createAgentSelector.toLowerCase() && 
-               tx.from?.toLowerCase() === creatorAddress.toLowerCase()
-      })
-
-      if (agentCreationTxs.length > 0) {
-        console.log(`✅ Found ${agentCreationTxs.length} agent(s) created by this address:\n`)
-        
-        const parsedAgents = agentCreationTxs.map((tx: Transaction, index: number) => {
-          console.log(`🤖 Agent #${index + 1}`)
-          console.log(`- TX Hash: ${tx.transactionHash}`)
-          console.log(`- Block: ${tx.blockNumber}`)
-          console.log(`- Date: ${new Date(tx.timestamp * 1000).toLocaleString()}`)
-          
-          try {
-            const decodedData = contractInterface.parseTransaction({ data: tx.input })
-            if (!decodedData || !decodedData.args) {
-              throw new Error("Failed to decode transaction data")
-            }
-            
-            console.log("\nCreation Parameters:")
-            console.log(`  Prefix: ${decodedData.args.prefix}`)
-            console.log(`  Config: ${decodedData.args.config}`)
-            console.log(`  Secrets: ${decodedData.args.secrets}`)
-            console.log(`  Secrets Hash: ${decodedData.args.secretsHash}`)
-            console.log(`  Device Address: ${decodedData.args.deviceAddress}`)
-            console.log(`  Per API Call Fee: ${decodedData.args.perApiCallFee.toString()}`)
-            console.log(`  Is Public: ${decodedData.args.isPublic}`)
-            console.log("----------------------------------------")
-            
-            return {
-              id: index + 1,
-              txHash: tx.transactionHash,
-              blockNumber: tx.blockNumber,
-              timestamp: tx.timestamp,
-              prefix: decodedData.args.prefix,
-              config: decodedData.args.config,
-              secrets: decodedData.args.secrets,
-              secretsHash: decodedData.args.secretsHash,
-              deviceAddress: decodedData.args.deviceAddress,
-              perApiCallFee: decodedData.args.perApiCallFee.toString(),
-              isPublic: decodedData.args.isPublic,
-              agentAddress: tx.to,
-              owner: tx.from
-            }
-          } catch (error) {
-            console.log("⚠️ Could not decode agent details")
-            return {
-              id: index + 1,
-              txHash: tx.transactionHash,
-              blockNumber: tx.blockNumber,
-              timestamp: tx.timestamp,
-              prefix: "Unknown",
-              deviceAddress: "Unknown",
-              perApiCallFee: "0",
-              isPublic: false,
-              agentAddress: tx.to,
-              owner: tx.from,
-              error: true
-            }
-          }
-        })
-        
-        return { agents: parsedAgents }
-      } else {
-        console.log("\n❌ No agents found for this wallet address")
-        
-        if (showDebug) {
-          console.log("\nDebug Info:")
-          console.log(`Looking for function selector: ${createAgentSelector}`)
-          console.log(`All function selectors found:`)
-          
-          const allSelectors = txResult.data.items.map((tx: Transaction) => {
-            console.log(`- ${tx.functionSelector} (from: ${tx.from})`)
-            return { 
-              selector: tx.functionSelector || 'unknown', 
-              from: tx.from 
-            }
-          })
-          
-          return { 
-            agents: [],
-            debug: {
-              functionSelector: createAgentSelector,
-              allSelectors
-            }
-          }
-        }
-        
-        return { agents: [] }
-      }
-    } catch (error: any) {
-      console.error("\n⛔ Error:", error.message)
-      if (error.response) {
-        console.error("API Error:", error.response.data)
-      }
-      throw error
     }
   }
 
@@ -425,6 +229,7 @@ export default function AgentsPage() {
 
         {address && loading && (
           <div className="text-center py-20 text-white/70">
+            <div className="w-12 h-12 border-4 border-[#00FF88]/20 border-t-[#00FF88] rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-xl">Loading your agents...</p>
           </div>
         )}
@@ -434,7 +239,7 @@ export default function AgentsPage() {
             <p className="text-xl">Error loading agents</p>
             <p className="text-sm mt-2">{error}</p>
             <button 
-              onClick={() => fetchAgents(address)}
+              onClick={fetchAgents}
               className="mt-4 px-4 py-2 bg-[#00FF88]/20 text-[#00FF88] rounded-lg hover:bg-[#00FF88]/30 transition-colors"
             >
               Try Again
@@ -444,7 +249,6 @@ export default function AgentsPage() {
 
         {address && !loading && !error && (
           <div className="max-w-3xl mx-auto">
-            {/* Agents List */}
             <motion.div
               className="space-y-4"
               initial={{ opacity: 0, y: 20 }}
@@ -453,7 +257,7 @@ export default function AgentsPage() {
             >
               <div className="bg-black/30 backdrop-blur-sm border border-[#00FF88]/20 rounded-lg p-6 mb-6">
                 <h2 className="text-2xl font-bold text-white mb-2">Your Registered Agents</h2>
-                <p className="text-white/70">Here are all the agents you've registered on the network. Click on an agent to view its character details.</p>
+                <p className="text-white/70">Here are all the agents you've registered on the network.</p>
               </div>
               
               {agents.length === 0 ? (
@@ -463,23 +267,6 @@ export default function AgentsPage() {
                   </svg>
                   <p className={emptyStateStyle}>No agents registered yet</p>
                   <p className="text-white/50 text-sm mt-2 mb-6">Create a new agent to get started.</p>
-                  
-                  {debugInfo && (
-                    <div className="mt-8 bg-black/50 p-4 rounded-lg text-left overflow-auto max-h-64">
-                      <h3 className="text-[#00FF88] font-mono text-sm mb-2">Debug Information</h3>
-                      <p className="text-white/70 text-xs font-mono mb-2">
-                        Looking for function selector: {debugInfo.functionSelector}
-                      </p>
-                      <p className="text-white/70 text-xs font-mono mb-1">All function selectors found:</p>
-                      <ul className="text-white/50 text-xs font-mono">
-                        {debugInfo.allSelectors.map((item, idx) => (
-                          <li key={idx} className="mb-0.5">
-                            - {item.selector} (from: {item.from.substring(0, 10)}...)
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
                 </div>
               ) : (
                 agents.map((agent) => (
@@ -491,8 +278,48 @@ export default function AgentsPage() {
                     onClick={() => setSelectedAgent(agent)}
                   >
                     <div className="flex flex-col">
-                      <span className={labelStyle}>Agent Prefix</span>
-                      <span className={valueStyle}>{agent.prefix || "Unknown"}</span>
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center">
+                          {agent.avatar ? (
+                            <div className="h-12 w-12 rounded-full overflow-hidden mr-4">
+                              <img 
+                                src={agent.avatar} 
+                                alt={agent.prefix}
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.onerror = null;
+                                  e.currentTarget.src = 'https://placehold.co/100x100/00FF88/1A1A1A?text=AI&font=Roboto';
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex justify-center items-center h-12 w-12 rounded-full bg-[#00FF88]/20 text-[#00FF88] mr-4">
+                              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                          )}
+                          <div>
+                            <span className={labelStyle}>Agent Name</span>
+                            <span className={valueStyle + " block"}>{agent.prefix || "Unknown"}</span>
+                            {agent.name && (
+                              <span className="text-[#00FF88]/60 text-sm">{agent.name}</span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <a
+                            href={`https://basescan.org/address/${agent.agentAddress}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2.5 rounded-lg bg-[#00FF88]/10 hover:bg-[#00FF88]/20 transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <img src="/etherscan.svg" alt="View on Etherscan" className="w-5 h-5" />
+                          </a>
+                        </div>
+                      </div>
                       
                       <div className="grid grid-cols-2 gap-4 mt-3">
                         <div>
@@ -507,7 +334,7 @@ export default function AgentsPage() {
 
                       <div className="grid grid-cols-2 gap-4 mt-3">
                         <div>
-                          <span className={labelStyle}>API Call Fee</span>
+                          <span className={labelStyle}>Per API Call Fee</span>
                           <p className="text-white/80 text-sm">{agent.perApiCallFee} $FRANKY</p>
                         </div>
                         <div>
@@ -516,12 +343,10 @@ export default function AgentsPage() {
                         </div>
                       </div>
                       
-                      {agent.secretsHash && (
+                      {agent.description && (
                         <div className="mt-3">
-                          <span className={labelStyle}>Secrets Hash</span>
-                          <p className="text-white/80 text-sm font-mono text-xs overflow-hidden text-ellipsis">
-                            {agent.secretsHash.substring(0, 16)}...
-                          </p>
+                          <span className={labelStyle}>Description</span>
+                          <p className="text-white/80 text-sm line-clamp-2">{agent.description}</p>
                         </div>
                       )}
                       
@@ -530,24 +355,6 @@ export default function AgentsPage() {
                           Created: {new Date(agent.timestamp * 1000).toLocaleString()}
                         </span>
                       </div>
-                      
-                      {agent.config && (
-                        <div className="mt-3 flex justify-end">
-                          <span className="text-xs text-[#00FF88]/60 flex items-center">
-                            <svg 
-                              className="w-4 h-4 mr-1" 
-                              fill="none" 
-                              viewBox="0 0 24 24" 
-                              strokeWidth={1.5} 
-                              stroke="currentColor"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            View Character
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </motion.div>
                 ))
@@ -564,7 +371,7 @@ export default function AgentsPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={closeModal}
+              onClick={() => setSelectedAgent(null)}
             >
               <motion.div
                 className="bg-black/90 backdrop-blur-md border border-[#00FF88]/30 rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
@@ -573,12 +380,39 @@ export default function AgentsPage() {
                 exit={{ scale: 0.95, y: 20 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
-                    {selectedAgent.prefix || "Agent"} Character
-                  </h2>
+                <div className="flex justify-between items-center mb-6">
+                  <div className="flex items-center">
+                    {selectedAgent.avatar ? (
+                      <div className="h-16 w-16 rounded-full overflow-hidden mr-4">
+                        <img 
+                          src={selectedAgent.avatar} 
+                          alt={selectedAgent.prefix}
+                          className="h-full w-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = 'https://placehold.co/100x100/00FF88/1A1A1A?text=AI&font=Roboto';
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex justify-center items-center h-16 w-16 rounded-full bg-[#00FF88]/20 text-[#00FF88] mr-4">
+                        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
+                    <div>
+                      <h2 className="text-2xl font-bold bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
+                        {selectedAgent.prefix || 'Unknown'}
+                      </h2>
+                      {selectedAgent.name && (
+                        <p className="text-[#00FF88]/80">{selectedAgent.name}</p>
+                      )}
+                    </div>
+                  </div>
+                  
                   <button 
-                    onClick={closeModal}
+                    onClick={() => setSelectedAgent(null)}
                     className="text-white/60 hover:text-white"
                   >
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -587,96 +421,80 @@ export default function AgentsPage() {
                   </button>
                 </div>
                 
-                {characterLoading && (
-                  <div className="py-20 text-center">
-                    <div className="w-12 h-12 border-4 border-[#00FF88]/20 border-t-[#00FF88] rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-white/70">Loading character data...</p>
-                  </div>
-                )}
-                
-                {!characterLoading && characterError && (
-                  <div className="py-10 text-center">
-                    <svg className="w-12 h-12 mx-auto mb-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <p className="text-red-400 font-medium mb-2">Error loading character data</p>
-                    <p className="text-white/60 text-sm">{characterError}</p>
-                    
-                    {selectedAgent.config && (
-                      <div className="mt-6 border-t border-white/10 pt-4">
-                        <p className="text-white/70 text-sm mb-2">Config URL:</p>
-                        <p className="text-white/90 text-sm font-mono break-all">{selectedAgent.config}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                {!characterLoading && !characterError && characterData && (
-                  <div className="space-y-6">
-                    {/* Character Name */}
-                    {characterData.name && (
-                      <div>
-                        <h3 className="text-[#00FF88] text-sm mb-1">Name</h3>
-                        <p className="text-white text-xl font-medium">{characterData.name}</p>
-                      </div>
-                    )}
-                    
-                    {/* Character Personality */}
-                    {characterData.personality && (
-                      <div>
-                        <h3 className="text-[#00FF88] text-sm mb-1">Personality</h3>
-                        <p className="text-white/90">{characterData.personality}</p>
-                      </div>
-                    )}
-                    
-                    {/* Character Backstory */}
-                    {characterData.backstory && (
-                      <div>
-                        <h3 className="text-[#00FF88] text-sm mb-1">Backstory</h3>
-                        <p className="text-white/90">{characterData.backstory}</p>
-                      </div>
-                    )}
-                    
-                    {/* Character Appearance */}
-                    {characterData.appearance && (
-                      <div>
-                        <h3 className="text-[#00FF88] text-sm mb-1">Appearance</h3>
-                        <p className="text-white/90">{characterData.appearance}</p>
-                      </div>
-                    )}
-                    
-                    {/* Other Fields */}
-                    {Object.entries(characterData)
-                      .filter(([key]) => !['name', 'personality', 'backstory', 'appearance'].includes(key))
-                      .map(([key, value]) => (
-                        <div key={key}>
-                          <h3 className="text-[#00FF88] text-sm mb-1 capitalize">{key.replace(/_/g, ' ')}</h3>
-                          <p className="text-white/90">
-                            {typeof value === 'object' 
-                              ? JSON.stringify(value, null, 2)
-                              : String(value)
-                            }
-                          </p>
-                        </div>
-                      ))
-                    }
-                    
-                    {/* Raw JSON View */}
-                    <div className="mt-8 pt-4 border-t border-white/10">
-                      <div className="flex justify-between items-center mb-2">
-                        <h3 className="text-[#00FF88] font-mono text-sm">Raw JSON Data</h3>
-                        {selectedAgent.config && (
-                          <p className="text-xs text-white/50">
-                            IPFS Hash: {extractIPFSHash(selectedAgent.config)}
-                          </p>
-                        )}
-                      </div>
-                      <pre className="text-white/70 text-xs font-mono bg-black/50 p-4 rounded-lg overflow-x-auto">
-                        {JSON.stringify(characterData, null, 2)}
-                      </pre>
+                <div className="space-y-6">
+                  {/* Character Description */}
+                  {selectedAgent.description && (
+                    <div>
+                      <h3 className="text-[#00FF88] text-sm mb-1">Description</h3>
+                      <p className="text-white/90">{selectedAgent.description}</p>
                     </div>
-                  </div>
-                )}
+                  )}
+                  
+                  {/* Character Personality */}
+                  {selectedAgent.characterConfig.personality && (
+                    <div>
+                      <h3 className="text-[#00FF88] text-sm mb-1">Personality</h3>
+                      <p className="text-white/90">{selectedAgent.characterConfig.personality}</p>
+                    </div>
+                  )}
+                  
+                  {/* Character Scenario */}
+                  {selectedAgent.characterConfig.scenario && (
+                    <div>
+                      <h3 className="text-[#00FF88] text-sm mb-1">Scenario</h3>
+                      <p className="text-white/90">{selectedAgent.characterConfig.scenario}</p>
+                    </div>
+                  )}
+                  
+                  {/* First Message */}
+                  {selectedAgent.characterConfig.first_mes && (
+                    <div>
+                      <h3 className="text-[#00FF88] text-sm mb-1">First Message</h3>
+                      <p className="text-white/90">{selectedAgent.characterConfig.first_mes}</p>
+                    </div>
+                  )}
+                  
+                  {/* Message Example */}
+                  {selectedAgent.characterConfig.mes_example && (
+                    <div>
+                      <h3 className="text-[#00FF88] text-sm mb-1">Message Example</h3>
+                      <p className="text-white/90">{selectedAgent.characterConfig.mes_example}</p>
+                    </div>
+                  )}
+                  
+                  {/* Creator Comment */}
+                  {selectedAgent.characterConfig.creatorcomment && (
+                    <div>
+                      <h3 className="text-[#00FF88] text-sm mb-1">Creator Comment</h3>
+                      <p className="text-white/90">{selectedAgent.characterConfig.creatorcomment}</p>
+                    </div>
+                  )}
+                  
+                  {/* Tags */}
+                  {selectedAgent.characterConfig.tags && (
+                    <div>
+                      <h3 className="text-[#00FF88] text-sm mb-1">Tags</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedAgent.characterConfig.tags.split(',').map((tag, index) => (
+                          <span 
+                            key={index}
+                            className="px-2 py-1 bg-[#00FF88]/10 text-[#00FF88] rounded-md text-sm"
+                          >
+                            {tag.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Talkativeness */}
+                  {selectedAgent.characterConfig.talkativeness && (
+                    <div>
+                      <h3 className="text-[#00FF88] text-sm mb-1">Talkativeness</h3>
+                      <p className="text-white/90">{selectedAgent.characterConfig.talkativeness}</p>
+                    </div>
+                  )}
+                </div>
               </motion.div>
             </motion.div>
           )}
