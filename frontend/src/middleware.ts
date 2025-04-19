@@ -1,20 +1,14 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { ethers } from 'ethers'
-import { getAgentAddressFromSubdomain } from './lib/ens'
 
-// Contract ABI - we only need the relevant functions
-const FRANKY_ABI = [
-  "function getAgent(address agentAddress) external view returns (tuple(address agentAddress, address deviceAddress, string prefix, string config, string secrets, bytes32 secretsHash, address owner, uint256 perApiCallFee, uint8 status))",
-  "function getDevice(address deviceAddress) external view returns (tuple(string deviceModel, string ram, string storageCapacity, string cpu, string ngrokLink, address deviceAddress, uint256 hostingFee, uint256 agentCount, bool isRegistered))"
-]
-
+// Contract ABI for getting ngrok URL from agent contract
 const AGENT_ACCOUNT_ABI = [
   "function getNgrokUrl() external view returns (string)"
 ]
 
-const FRANKY_CONTRACT_ADDRESS = '0x18c2e2f87183034700cc2A7cf6D86a71fd209678'
-const RPC_URL = `https://base-sepolia.nodit.io/${process.env.NEXT_PUBLIC_NODIT_API_KEY}`
+// RPC URL for the Base mainnet
+const RPC_URL = `https://base-mainnet.nodit.io/${process.env.NEXT_PUBLIC_NODIT_API_KEY}`
 
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl
@@ -31,33 +25,60 @@ export async function middleware(request: NextRequest) {
     }
     
     try {
-      // Get the agent's address from the subdomain
-      const agentAddress = await getAgentAddressFromSubdomain(subdomain)
+      console.log(`Processing request for subdomain: ${subdomain}`)
       
-      if (!agentAddress) {
+      // Fetch agent data from our API
+      const apiResponse = await fetch(`${url.protocol}//${url.host}/api/agents`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      if (!apiResponse.ok) {
+        console.error(`API response error: ${apiResponse.status}`)
+        return new NextResponse('Failed to fetch agent data', { status: 500 })
+      }
+      
+      const apiData = await apiResponse.json()
+      
+      if (!apiData.agents || !Array.isArray(apiData.agents)) {
+        console.error('Invalid API response format', apiData)
+        return new NextResponse('Invalid API response format', { status: 500 })
+      }
+      
+      // Find the agent with matching prefix/subname
+      const matchingAgent = apiData.agents.find(
+        (agent: any) => agent.prefix === subdomain || agent.subname === subdomain
+      )
+      
+      if (!matchingAgent) {
+        console.error(`Agent not found for subdomain: ${subdomain}`)
         return new NextResponse('Agent not found', { status: 404 })
       }
-
-      // Connect to the blockchain
+      
+      console.log(`Found agent: ${matchingAgent.agentAddress} for subdomain: ${subdomain}`)
+      
+      // Connect to the blockchain to get the current ngrok URL
       const provider = new ethers.JsonRpcProvider(RPC_URL)
-      const frankyContract = new ethers.Contract(FRANKY_CONTRACT_ADDRESS, FRANKY_ABI, provider)
+      const agentAccount = new ethers.Contract(matchingAgent.agentAddress, AGENT_ACCOUNT_ABI, provider)
       
-      // Get the agent's details from the contract
-      const agent = await frankyContract.getAgent(agentAddress)
-      
-      // Get the device details
-      const device = await frankyContract.getDevice(agent.deviceAddress)
-      
-      // Get the agent's account contract to get the current ngrok URL
-      const agentAccount = new ethers.Contract(agentAddress, AGENT_ACCOUNT_ABI, provider)
-      const ngrokUrl = await agentAccount.getNgrokUrl()
-      
-      if (!ngrokUrl) {
-        return new NextResponse('Ngrok URL not found', { status: 404 })
+      try {
+        const ngrokUrl = await agentAccount.getNgrokUrl()
+        
+        if (!ngrokUrl) {
+          console.error(`Ngrok URL not found for agent: ${matchingAgent.agentAddress}`)
+          return new NextResponse('Ngrok URL not found', { status: 404 })
+        }
+        
+        console.log(`Redirecting to ngrok URL: ${ngrokUrl}`)
+        
+        // Forward the request to the ngrok URL
+        return NextResponse.rewrite(new URL(ngrokUrl + url.pathname + url.search))
+      } catch (error) {
+        console.error(`Error fetching ngrok URL from contract: ${error}`)
+        return new NextResponse('Failed to get ngrok URL', { status: 500 })
       }
-
-      // Forward the request to the ngrok URL
-      return NextResponse.rewrite(new URL(ngrokUrl + url.pathname + url.search))
     } catch (error) {
       console.error('Error processing agent request:', error)
       return new NextResponse('Internal Server Error', { status: 500 })

@@ -85,6 +85,33 @@ const CONTRACT_ABI = [
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "internalType": "address", "name": "agentAddress", "type": "address"},
+      {"indexed": true, "internalType": "address", "name": "deviceAddress", "type": "address"},
+      {"indexed": false, "internalType": "string", "name": "avatar", "type": "string"},
+      {"indexed": false, "internalType": "string", "name": "subname", "type": "string"},
+      {"indexed": false, "internalType": "address", "name": "owner", "type": "address"},
+      {"indexed": false, "internalType": "uint256", "name": "perApiCallFee", "type": "uint256"},
+      {"indexed": false, "internalType": "bytes32", "name": "secretsHash", "type": "bytes32"},
+      {"components":[
+        {"internalType":"string","name":"name","type":"string"},
+        {"internalType":"string","name":"description","type":"string"},
+        {"internalType":"string","name":"personality","type":"string"},
+        {"internalType":"string","name":"scenario","type":"string"},
+        {"internalType":"string","name":"first_mes","type":"string"},
+        {"internalType":"string","name":"mes_example","type":"string"},
+        {"internalType":"string","name":"creatorcomment","type":"string"},
+        {"internalType":"string","name":"tags","type":"string"},
+        {"internalType":"string","name":"talkativeness","type":"string"}
+      ],"indexed":false,"internalType":"struct Character","name":"characterConfig","type":"tuple"},
+      {"indexed": false, "internalType": "string", "name": "secrets", "type": "string"},
+      {"indexed": false, "internalType": "bool", "name": "isPublic", "type": "bool"}
+    ],
+    "name": "AgentCreated",
+    "type": "event"
   }
 ] as const
 
@@ -143,10 +170,10 @@ export default function AgentsPage() {
           avatar: agent.character || '', // character field is used as avatar in the API
           name: agent.name || '',
           description: agent.description || '',
-          characterConfig: {
+          characterConfig: agent.characterConfig || {
             name: agent.name || '',
             description: agent.description || '',
-            personality: '',  // These fields might not be available in the current API response
+            personality: '',
             scenario: '',
             first_mes: '',
             mes_example: '',
@@ -431,7 +458,7 @@ export default function AgentsPage() {
                   )}
                   
                   {/* Character Personality */}
-                  {selectedAgent.characterConfig.personality && (
+                  {selectedAgent.characterConfig?.personality && (
                     <div>
                       <h3 className="text-[#00FF88] text-sm mb-1">Personality</h3>
                       <p className="text-white/90">{selectedAgent.characterConfig.personality}</p>
@@ -439,7 +466,7 @@ export default function AgentsPage() {
                   )}
                   
                   {/* Character Scenario */}
-                  {selectedAgent.characterConfig.scenario && (
+                  {selectedAgent.characterConfig?.scenario && (
                     <div>
                       <h3 className="text-[#00FF88] text-sm mb-1">Scenario</h3>
                       <p className="text-white/90">{selectedAgent.characterConfig.scenario}</p>
@@ -447,7 +474,7 @@ export default function AgentsPage() {
                   )}
                   
                   {/* First Message */}
-                  {selectedAgent.characterConfig.first_mes && (
+                  {selectedAgent.characterConfig?.first_mes && (
                     <div>
                       <h3 className="text-[#00FF88] text-sm mb-1">First Message</h3>
                       <p className="text-white/90">{selectedAgent.characterConfig.first_mes}</p>
@@ -455,7 +482,7 @@ export default function AgentsPage() {
                   )}
                   
                   {/* Message Example */}
-                  {selectedAgent.characterConfig.mes_example && (
+                  {selectedAgent.characterConfig?.mes_example && (
                     <div>
                       <h3 className="text-[#00FF88] text-sm mb-1">Message Example</h3>
                       <p className="text-white/90">{selectedAgent.characterConfig.mes_example}</p>
@@ -463,7 +490,7 @@ export default function AgentsPage() {
                   )}
                   
                   {/* Creator Comment */}
-                  {selectedAgent.characterConfig.creatorcomment && (
+                  {selectedAgent.characterConfig?.creatorcomment && (
                     <div>
                       <h3 className="text-[#00FF88] text-sm mb-1">Creator Comment</h3>
                       <p className="text-white/90">{selectedAgent.characterConfig.creatorcomment}</p>
@@ -471,7 +498,7 @@ export default function AgentsPage() {
                   )}
                   
                   {/* Tags */}
-                  {selectedAgent.characterConfig.tags && (
+                  {selectedAgent.characterConfig?.tags && (
                     <div>
                       <h3 className="text-[#00FF88] text-sm mb-1">Tags</h3>
                       <div className="flex flex-wrap gap-2">
@@ -488,7 +515,7 @@ export default function AgentsPage() {
                   )}
                   
                   {/* Talkativeness */}
-                  {selectedAgent.characterConfig.talkativeness && (
+                  {selectedAgent.characterConfig?.talkativeness && (
                     <div>
                       <h3 className="text-[#00FF88] text-sm mb-1">Talkativeness</h3>
                       <p className="text-white/90">{selectedAgent.characterConfig.talkativeness}</p>

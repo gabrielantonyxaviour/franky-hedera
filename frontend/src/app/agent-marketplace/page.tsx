@@ -87,6 +87,17 @@ interface Agent {
   name: string
   description: string
   avatar?: string // Alias for character for better naming
+  characterConfig?: {
+    name: string
+    description: string
+    personality: string
+    scenario: string
+    first_mes: string
+    mes_example: string
+    creatorcomment: string
+    tags: string
+    talkativeness: string
+  }
 }
 
 // Helper function to get the block explorer URL based on the chain
@@ -306,6 +317,7 @@ const PreviewModal = ({
   const account = useAccount();
   const chainId = useChainId();
   const isMainnet = chainId === 8453; // Base Mainnet
+  const { signMessageAsync } = useSignMessage();
   
   const handlePurchase = async () => {
     if (!agent || !account.address) return;
@@ -313,25 +325,29 @@ const PreviewModal = ({
     try {
       setIsPurchasing(true);
       
-      // Sign message to generate API key
-      const signer = async (message: string): Promise<`0x${string}`> => {
-        // Use wagmi's useSignMessage hook
-        const { signMessageAsync } = useSignMessage();
-        return await signMessageAsync({ message });
-      };
-      
-      // Generate API key
-      const key = await getApiKey(
-        agent.agentAddress,
-        { signMessage: signer },
-        isMainnet
-      );
-      
-      setApiKey(key);
-      setKeyError(null);
+      try {
+        console.log('Generating API key for agent:', agent.agentAddress);
+        
+        // Generate API key using the agent address and wallet address
+        const key = await getApiKey(
+          agent.agentAddress,
+          { address: account.address },
+          isMainnet,
+          // Pass the signMessage function as a separate parameter
+          async (message: string): Promise<`0x${string}`> => {
+            return await signMessageAsync({ message });
+          }
+        );
+        
+        setApiKey(key);
+        setKeyError(null);
+      } catch (error: any) {
+        console.error('Error generating API key:', error);
+        setKeyError(error.message || 'Error generating API key');
+      }
     } catch (error: any) {
       console.error('Error generating API key:', error);
-      setKeyError(error.message || 'Error generating API key');
+      setKeyError(error.message || 'Failed to generate API key');
     } finally {
       setIsPurchasing(false);
     }
@@ -414,6 +430,78 @@ const PreviewModal = ({
             {agent.description && (
               <div className="mb-6 bg-[#00FF88]/5 border border-[#00FF88]/20 rounded-lg p-4">
                 <p className="text-gray-200">{agent.description}</p>
+              </div>
+            )}
+            
+            {/* Character Configuration Details */}
+            {agent.characterConfig && (
+              <div className="mb-6 space-y-4">
+                <h3 className="text-xl font-bold text-white border-b border-[#00FF88]/20 pb-2">Character Details</h3>
+                
+                {/* Personality */}
+                {agent.characterConfig.personality && (
+                  <div>
+                    <h4 className="text-[#00FF88] text-sm mb-1">Personality</h4>
+                    <p className="text-gray-200">{agent.characterConfig.personality}</p>
+                  </div>
+                )}
+                
+                {/* Scenario */}
+                {agent.characterConfig.scenario && (
+                  <div>
+                    <h4 className="text-[#00FF88] text-sm mb-1">Scenario</h4>
+                    <p className="text-gray-200">{agent.characterConfig.scenario}</p>
+                  </div>
+                )}
+                
+                {/* First Message */}
+                {agent.characterConfig.first_mes && (
+                  <div>
+                    <h4 className="text-[#00FF88] text-sm mb-1">First Message</h4>
+                    <p className="text-gray-200">{agent.characterConfig.first_mes}</p>
+                  </div>
+                )}
+                
+                {/* Message Example */}
+                {agent.characterConfig.mes_example && (
+                  <div>
+                    <h4 className="text-[#00FF88] text-sm mb-1">Message Example</h4>
+                    <p className="text-gray-200">{agent.characterConfig.mes_example}</p>
+                  </div>
+                )}
+                
+                {/* Creator Comment */}
+                {agent.characterConfig.creatorcomment && (
+                  <div>
+                    <h4 className="text-[#00FF88] text-sm mb-1">Creator Comment</h4>
+                    <p className="text-gray-200">{agent.characterConfig.creatorcomment}</p>
+                  </div>
+                )}
+                
+                {/* Tags */}
+                {agent.characterConfig.tags && (
+                  <div>
+                    <h4 className="text-[#00FF88] text-sm mb-1">Tags</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {agent.characterConfig.tags.split(',').map((tag, index) => (
+                        <span 
+                          key={index}
+                          className="px-2 py-1 bg-[#00FF88]/10 text-[#00FF88] rounded-md text-sm"
+                        >
+                          {tag.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Talkativeness */}
+                {agent.characterConfig.talkativeness && (
+                  <div>
+                    <h4 className="text-[#00FF88] text-sm mb-1">Talkativeness</h4>
+                    <p className="text-gray-200">{agent.characterConfig.talkativeness}</p>
+                  </div>
+                )}
               </div>
             )}
             
@@ -583,7 +671,8 @@ export default function AgentMarketplacePage() {
             timestamp: agent.timestamp || Date.now() / 1000,
             // Directly use name and description from API response
             name: agent.name || '',
-            description: agent.description || ''
+            description: agent.description || '',
+            characterConfig: agent.characterConfig || undefined
           };
         });
         

@@ -357,7 +357,7 @@ create_wallet() {
     fi
 
     # Construct the full URL with URL-encoded parameters
-    FULL_URL="https://franky-six.vercel.app/deploy-device?deviceModel=${ENCODED_DEVICE_MODEL}&ram=${ENCODED_RAM}&storage=${ENCODED_STORAGE}&cpu=${ENCODED_CPU}&ngrokLink=${NGROK_URL}&walletAddress=${WALLET_ADDRESS}&bytes32Data=${DEVICE_BYTES32}&signature=${ENCODED_SIGNATURE}"
+    FULL_URL="https://frankyagent.xyz/deploy-device?deviceModel=${ENCODED_DEVICE_MODEL}&ram=${ENCODED_RAM}&storage=${ENCODED_STORAGE}&cpu=${ENCODED_CPU}&ngrokLink=${NGROK_URL}&walletAddress=${WALLET_ADDRESS}&bytes32Data=${DEVICE_BYTES32}&signature=${ENCODED_SIGNATURE}"
 
     # Print out all details for verification
     echo "=== Wallet Details ==="
