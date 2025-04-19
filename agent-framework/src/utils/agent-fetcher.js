@@ -34,27 +34,48 @@ async function fetchIPFSData(hash) {
 }
 
 export async function getAgentCharacter(agentId) {
+    const startTime = new Date();
+    console.log(`\n🔍 [${startTime.toISOString()}] AGENT FETCH: Starting agent data fetch for ID: ${agentId}`);
+    
     try {
-        console.log(`\n🔍 Fetching agent data for ID: ${agentId}`);
-        
-        // Create client for contract interaction
+        // Step 1: Initialize blockchain client
+        console.log(`🔗 [${new Date().toISOString()}] AGENT FETCH: Initializing blockchain client...`);
         const client = createPublicClient({
-            chain: isMainnet ? base : baseSepolia,
+            chain: base,
             transport: http()
         });
+        console.log(`✅ [${new Date().toISOString()}] AGENT FETCH: Client initialized for ${isMainnet ? 'mainnet (Base)' : 'testnet (Base Sepolia)'}`);
 
+        // Step 2: Fetch agents from API
+        console.log(`🌐 [${new Date().toISOString()}] AGENT FETCH: Requesting data from https://frankyagent.xyz/api/agents`);
+        const apiStartTime = new Date();
         const request = await fetch(`https://frankyagent.xyz/api/agents`);
+        
+        // Step 3: Parse API response
+        console.log(`📊 [${new Date().toISOString()}] AGENT FETCH: Parsing API response (Status: ${request.status})`);
         const { agents } = await request.json();
+        const apiEndTime = new Date();
+        const apiDuration = apiEndTime.getTime() - apiStartTime.getTime();
+        console.log(`📋 [${new Date().toISOString()}] AGENT FETCH: Retrieved ${agents.length} agents in ${apiDuration}ms`);
 
-        // Find the agent by address (case insensitive)
+        // Step 4: Find specific agent by address
+        console.log(`🔎 [${new Date().toISOString()}] AGENT FETCH: Searching for agent with address: ${agentId}`);
         const agent = agents.find(a => a.agentAddress.toLowerCase() === agentId.toLowerCase());
         
+        // Step 5: Validate agent exists
         if (!agent) {
+            console.error(`❌ [${new Date().toISOString()}] AGENT FETCH: Agent not found with address ${agentId}`);
             throw new Error(`Agent with address ${agentId} not found`);
         }
         
-        // Return comprehensive agent data
-        return {
+        console.log(`✅ [${new Date().toISOString()}] AGENT FETCH: Found agent "${agent.name}" (prefix: ${agent.prefix})`);
+        console.log(`👤 [${new Date().toISOString()}] AGENT FETCH: Owner address: ${agent.owner || 'UNDEFINED'}`);
+        
+        // Step 6: Process agent data for return
+        console.log(`🔄 [${new Date().toISOString()}] AGENT FETCH: Processing agent data...`);
+        
+        // Create return object with comprehensive agent data
+        const agentData = {
             // Basic agent info
             prefix: agent.prefix,
             name: agent.name,
@@ -79,8 +100,34 @@ export async function getAgentCharacter(agentId) {
             // Original character URL if needed
             characterUrl: agent.character
         };
+
+        if (!agentData.owner) {
+            console.error(`⚠️ [${new Date().toISOString()}] AGENT FETCH: WARNING - Owner field is undefined or null in processed data`);
+            console.log(`🔍 [${new Date().toISOString()}] AGENT FETCH: Raw agent data:`, JSON.stringify(agent));
+        } else {
+            console.log(`✅ [${new Date().toISOString()}] AGENT FETCH: Owner field verified: ${agentData.owner}`);
+        }
+        
+        // Step 7: Log completion and return data
+        const endTime = new Date();
+        const totalDuration = endTime.getTime() - startTime.getTime();
+        console.log(`✅ [${endTime.toISOString()}] AGENT FETCH: Completed agent fetch in ${totalDuration}ms`);
+        
+        // Log selected important fields for debugging
+        console.log(`📌 AGENT FETCH SUMMARY:
+  - Name: ${agentData.name}
+  - Address: ${agentData.agentAddress}
+  - Owner: ${agentData.owner}
+  - API Fee: ${agentData.perApiCallAmount}
+  - Character Config: ${JSON.stringify(agentData.character.name || {})}
+`);
+        
+        return agentData;
     } catch (error) {
-        console.error('❌ Error fetching agent character:', error);
+        const endTime = new Date();
+        const totalDuration = endTime.getTime() - startTime.getTime();
+        console.error(`❌ [${endTime.toISOString()}] AGENT FETCH ERROR (${totalDuration}ms):`, error);
+        console.error(`❌ AGENT FETCH STACK: ${error.stack}`);
         throw error;
     }
 } 
