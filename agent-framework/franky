@@ -4,10 +4,10 @@
 # Usage: franky start
 
 # Webhook URLs for different events
-DEVICE_WEBHOOK_URL="https://b750-111-235-226-130.ngrok-free.app"
-AGENT_WEBHOOK_URL="https://a01b-111-235-226-130.ngrok-free.app"
+DEVICE_WEBHOOK_URL="https://693f-111-235-226-130.ngrok-free.app"
+AGENT_WEBHOOK_URL="https://2b55-111-235-226-130.ngrok-free.app"
 
-# Function to setup dependencies and configuration
+# Function to setup dependencies and configuration    
 setup_dependencies() {
     # Install all dependencies
     echo "📦 Installing dependencies..."
