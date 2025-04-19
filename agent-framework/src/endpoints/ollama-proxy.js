@@ -49,6 +49,7 @@ import {
   tokenPriceTool,
   tokenPriceQueryPatterns
 } from '../tools/token-price-tool.js';
+import { FRANKY_TOKEN_ADDRESS } from '../constants.js';
 
 export const router = express.Router();
 
@@ -72,11 +73,13 @@ router.post('/generate', async (request, response) => {
     }
 
     // Verify API key
-    const isValid = await isCallerOwner(agentId, apiKey);
-    if (!isValid) {
+    const {status, caller} = await isCallerOwner(agentId, apiKey);
+    if (status==0) {
       console.error('❌ Invalid API key or agent ID');
       return response.status(401).send({ error: 'Invalid API key or agent ID' });
     }
+
+   
 
     // Get the prompt and chat history from request body
     const { prompt, chat_history = [] } = request.body;
@@ -88,7 +91,8 @@ router.post('/generate', async (request, response) => {
     let character_data;
     try {
       character_data = await getAgentCharacter(agentId);
-      console.log(`🎭 Using character "${character_data.name}" from IPFS`);
+
+      console.log(`🎭 Using character "${character_data.character.name}" from IPFS`);
     } catch (error) {
       console.error('❌ Failed to fetch character data:', error);
       return response.status(500).send({ error: 'Failed to fetch character data from IPFS' });
@@ -167,8 +171,9 @@ router.post('/roleplay-character', async (request, response) => {
     }
 
     // Verify API key
-    const isValid = await isCallerOwner(agentId, apiKey);
-    if (!isValid) {
+    const {status, caller} = await isCallerOwner(agentId, apiKey);
+
+    if (status==0) {
       console.error('❌ Invalid API key or agent ID');
       return response.status(401).send({ error: 'Invalid API key or agent ID' });
     }
@@ -182,7 +187,47 @@ router.post('/roleplay-character', async (request, response) => {
     // Fetch character data from IPFS based on agent ID
     let character_data;
     try {
-      character_data = await getAgentCharacter(agentId);
+       const return_data = await getAgentCharacter(agentId);
+       const character_data=return_data.character
+      const perApiCallAmount=  return_data.perApiCallAmount
+      const agentOwner = return_data.agentOwner
+      if(status==1){
+        const withdrawResponse = await fetch(
+          `https://api.metal.build/holder/${caller}/withdraw`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': 'YOUR-API-KEY',
+            },
+            body: JSON.stringify({
+                tokenAddress: FRANKY_TOKEN_ADDRESS,
+                amount: perApiCallAmount*0.90,
+                toAddress: agentOwner,
+              }),
+          }
+        )
+        
+        const {success: withdrawSuccess} = await withdrawResponse.json()
+
+        const spendResponse = await fetch(
+          `https://api.metal.build/holder/${caller}/spend`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': 'YOUR-API-KEY',
+            },
+            body: JSON.stringify({
+              tokenAddress: FRANKY_TOKEN_ADDRESS,
+              amount: perApiCallAmount*0.10,
+            }),
+          }
+        )
+        
+        const {success: spendSuccess} = await spendResponse.json()
+        
+      }
       console.log(`🎭 Using character "${character_data.name}" from IPFS`);
     } catch (error) {
       console.error('❌ Failed to fetch character data:', error);

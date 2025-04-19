@@ -8,6 +8,9 @@ export const PUBLIC_DIRECTORIES = {
 
 export const SETTINGS_FILE = 'settings.json';
 
+
+export const FRANKY_TOKEN_ADDRESS="0x834000F1FC470e878b2b20db274fe5ebb963E895"
+
 /**
  * @type {import('./users.js').UserDirectoryList}
  * @readonly

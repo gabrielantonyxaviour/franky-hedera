@@ -114,9 +114,9 @@ export async function isCallerOwner(agentAddress, apiKey, ownerKeyHash) {
     const isCallerOwner = await client.readContract({
         address: FRANKY_ADDRESS,
         abi: ownershipAbi,
-        functionName: 'isAgentOwned',
+        functionName: 'allowApiCall',
         args: [ownerAddress, agentAddress]
     });
 
-    return isCallerUser ? 1 : isCallerOwner ? 2 : 0;
+    return {status: isCallerUser ? 1 : isCallerOwner ? 2 : 0, caller: isCallerOwner?ownerAddress:address};
 } 

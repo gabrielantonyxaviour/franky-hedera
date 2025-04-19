@@ -45,73 +45,10 @@ export async function getAgentCharacter(agentId) {
 
         const request = await fetch(`https://frankyagent.xyz/api/agents`)
         const {agents}= await request.json();
-        // TODO: To call Nodit 
 
-
-        // const request = await fetch(`https://web3.nodit.io/v1/ethereum/mainnet/ens/getEnsRecordsByAccount`,{
-        //     method: 'POST',
-        //     headers: {
-        //         'Content-Type': 'application/json',
-        //         'X-API-KEY': 'Bearer ' + process.env.NODIT_API_KEY,
-        //         accept: "application/json"
-        //     },
-        //     body: JSON.stringify({
-        //         account: agentId
-        //     })
-        // });
-
-        // const reponse =request.json();
-
-        // console.log(reponse);
-        
-        // Get the agent data from contract
-        console.log("📝 Getting agent config from contract...");
-        const result = await client.readContract({
-            address: FRANKY_ADDRESS,
-            abi: agentAbi,
-            functionName: 'getAgent',
-            args: [BigInt(agentId)]
-        });
-        
-        // Log the raw result for debugging
-        console.log('Raw contract result:', result);
-        
-        // // The result should be an object with the Agent struct fields
-        // // We know config is the third field in the struct
-        // let config;
-        // if (result && typeof result === 'object') {
-        //     if ('config' in result) {
-        //         config = result.config;
-        //     } else if (Array.isArray(result)) {
-        //         config = result[2];
-        //     }
-        // }
-        
-        // if (typeof config !== 'string') {
-        //     throw new Error('Invalid config data received from contract');
-        // }
-        
-        // // Extract IPFS hash from config URL
-        // const configUrl = config;
-        // console.log(`📋 Agent config URL: ${configUrl}`);
-        
-        // const ipfsHash = configUrl.split('/ipfs/')[1];
-        // if (!ipfsHash) {
-        //     throw new Error('Invalid IPFS URL format');
-        // }
-        
-        // // Fetch character data from IPFS
-        // console.log(`📥 Fetching character data from IPFS (hash: ${ipfsHash})...`);
-        // const characterJson = await fetchIPFSData(ipfsHash);
-        
-        // // Parse and validate character data
-        // const characterData = JSON.parse(characterJson);
-        // if (!characterData.name || !characterData.personality) {
-        //     throw new Error('Invalid character data format');
-        // }
-        
-        // console.log(`✅ Successfully fetched character data for "${characterData.name}"`);
-        return characterData;
+        const agent = agents.filter(a=>a.agentAddress==agentId)[0]
+       
+        return {character:agent.characterConfig, perApiCallAmount: parseFloat(agent.perApiCallFee), agentOwner: agent.owner};
     } catch (error) {
         console.error('❌ Error fetching agent character:', error);
         throw error;
