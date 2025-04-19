@@ -47,6 +47,7 @@ import { router as scaleAltRouter } from './endpoints/backends/scale-alt.js';
 import { router as speechRouter } from './endpoints/speech.js';
 import { router as azureRouter } from './endpoints/azure.js';
 import { router as ollamaProxyRouter } from './endpoints/ollama-proxy.js';
+import { router as logApiRouter } from './endpoints/log-api.js';
 
 /**
  * @typedef {object} ServerStartupResult
@@ -175,6 +176,7 @@ export function setupPrivateEndpoints(app) {
     app.use('/api/speech', speechRouter);
     app.use('/api/azure', azureRouter);
     app.use('/api/ollama-proxy', ollamaProxyRouter);
+    app.use('/api', logApiRouter);
 }
 
 /**

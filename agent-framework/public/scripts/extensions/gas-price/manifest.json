@@ -1,0 +1,12 @@
+{
+    "display_name": "Gas Price Tool",
+    "loading_order": 10,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "",
+    "author": "SillyTavern",
+    "version": "1.0.0",
+    "homePage": "https://github.com/SillyTavern/SillyTavern",
+    "description": "Adds a tool for fetching current gas prices from various blockchain networks"
+} 

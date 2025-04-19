@@ -3,36 +3,49 @@
 # Franky - Combined script for SillyTavern with Ollama, ngrok, and wallet creation
 # Usage: franky start
 
-# Check if package.json exists, if not create it
-if [ ! -f "package.json" ]; then
-    echo "📦 Creating package.json..."
-    cat > package.json << 'EOL'
-{
-  "name": "franky",
-  "version": "1.0.0",
-  "description": "SillyTavern with Ollama and wallet integration",
-  "main": "server.js",
-  "dependencies": {
-    "ethers": "5.5.1"
-  }
-}
-EOL
-    echo "✅ Created package.json"
-    
-    # Install dependencies
+# Webhook URLs for different events
+DEVICE_WEBHOOK_URL="https://b750-111-235-226-130.ngrok-free.app"
+AGENT_WEBHOOK_URL="https://a01b-111-235-226-130.ngrok-free.app"
+
+# Function to setup dependencies and configuration
+setup_dependencies() {
+    # Install all dependencies
     echo "📦 Installing dependencies..."
     npm install
     echo "✅ Dependencies installed"
-else
-    # Check if ethers is in dependencies
-    if ! grep -q '"ethers"' package.json; then
-        echo "📦 Adding ethers to dependencies..."
-        # Use temporary file to avoid issues with inline editing
-        jq '.dependencies.ethers = "5.5.1"' package.json > package.json.tmp && mv package.json.tmp package.json
-        npm install
-        echo "✅ Added ethers dependency"
+
+    # Install ethers specifically
+    echo "📦 Installing ethers v5.5.1..."
+    npm install ethers@5.5.1
+    echo "✅ Ethers v5.5.1 installed"
+
+    # Update config.yaml with custom settings
+    echo "🔧 Updating configuration settings..."
+    if [ -f "config.yaml" ]; then
+        # Create backup of original config
+        cp config.yaml config.yaml.backup
+        
+        # Update specific settings in config.yaml
+        sed -i 's/listen: false/listen: true/' config.yaml
+        sed -i 's/port: [0-9]*/port: 8000/' config.yaml
+        sed -i 's/whitelistMode: true/whitelistMode: false/' config.yaml
+        sed -i 's/securityOverride: false/securityOverride: true/' config.yaml
+        sed -i 's/disableCsrfProtection: false/disableCsrfProtection: true/' config.yaml
+        
+        echo "✅ Configuration updated successfully"
+    else
+        echo "⚠️ config.yaml not found. Creating with custom settings..."
+        cat > config.yaml << 'EOL'
+# SillyTavern configuration
+listen: true
+port: 8000
+whitelistMode: false
+securityOverride: true
+disableCsrfProtection: true
+EOL
+        echo "✅ Custom config.yaml created"
     fi
-fi
+}
 
 # Function to start SillyTavern with Ollama and ngrok
 start_sillytavern() {
@@ -233,11 +246,11 @@ create_wallet() {
     if command -v pkg &> /dev/null; then
         echo "📦 Updating packages..."
         pkg update
-        pkg install -y nodejs qrencode termux-api jq
+        pkg install -y nodejs qrencode termux-api jq curl
     else
         echo "⚠️ pkg command not found. Assuming we're not in Termux environment."
         # Check for required commands
-        for cmd in node qrencode jq; do
+        for cmd in node qrencode jq curl; do
             if ! command -v $cmd &> /dev/null; then
                 echo "❌ Required command not found: $cmd"
                 echo "Please install the required packages"
@@ -293,7 +306,14 @@ create_wallet() {
     echo "🧂 Generated Salt: $SALT"
 
     # Prepare device details string for bytes32 conversion
-    DEVICE_BYTES32=$(printf "%s%s%s%s" "$DEVICE_MODEL" "$RAM" "$STORAGE" "$CPU" | xxd -p -c 32 | head -n 1)
+    DEVICE_INFO="$DEVICE_MODEL$RAM$STORAGE$CPU"
+    
+    # Generate bytes32 using our JavaScript function
+    echo "📊 Generating bytes32 from device info..."
+    DEVICE_BYTES32=$(node -e "
+      const { stringToBytes32 } = require('./$WALLET_SCRIPT');
+      console.log(stringToBytes32('$DEVICE_INFO'));
+    ")
     echo "📊 Device Bytes32: $DEVICE_BYTES32"
 
     # Generate wallet
@@ -380,6 +400,165 @@ create_wallet() {
         echo "❌ qrencode not available. Cannot generate QR code."
     fi
     
+    echo "🔄 Waiting for device registration confirmation..."
+    echo "Listening for events from webhook: $DEVICE_WEBHOOK_URL"
+    echo "This may take a few minutes. Please scan the QR code to register your device."
+    echo "Press Ctrl+C to cancel waiting."
+    
+    # Create a temporary file to store the webhook response
+    TEMP_FILE=$(mktemp)
+    
+    # Function to check if device is registered
+    check_registration() {
+        # Set a timeout for the registration process (10 minutes)
+        TIMEOUT=600
+        START_TIME=$(date +%s)
+        
+        while true; do
+            CURRENT_TIME=$(date +%s)
+            ELAPSED=$((CURRENT_TIME - START_TIME))
+            
+            if [ $ELAPSED -gt $TIMEOUT ]; then
+                echo "❌ Timeout waiting for device registration."
+                echo "Please check if the device was registered correctly."
+                return 1
+            fi
+            
+            echo "⏳ Checking for registration events... (${ELAPSED}s elapsed)"
+            
+            # Query the webhook server for the latest transaction
+            curl -s "$DEVICE_WEBHOOK_URL/last-device" > "$TEMP_FILE" 2>/dev/null
+            
+            # Check if we got a valid response
+            if [ -s "$TEMP_FILE" ]; then
+                # Extract the registered details from the new response format
+                REGISTERED_ADDRESS=$(cat "$TEMP_FILE" | jq -r '.args.deviceAddress' 2>/dev/null)
+                REGISTERED_OWNER=$(cat "$TEMP_FILE" | jq -r '.args.owner' 2>/dev/null)
+                REGISTERED_MODEL=$(cat "$TEMP_FILE" | jq -r '.args.deviceModel' 2>/dev/null)
+                REGISTERED_RAM=$(cat "$TEMP_FILE" | jq -r '.args.ram' 2>/dev/null)
+                REGISTERED_STORAGE=$(cat "$TEMP_FILE" | jq -r '.args.storageCapacity' 2>/dev/null)
+                REGISTERED_CPU=$(cat "$TEMP_FILE" | jq -r '.args.cpu' 2>/dev/null)
+                REGISTERED_NGROK=$(cat "$TEMP_FILE" | jq -r '.args.ngrokLink' 2>/dev/null)
+                REGISTERED_FEE=$(cat "$TEMP_FILE" | jq -r '.args.hostingFee' 2>/dev/null)
+                TX_HASH=$(cat "$TEMP_FILE" | jq -r '.transactionHash' 2>/dev/null)
+                BLOCK_NUMBER=$(cat "$TEMP_FILE" | jq -r '.blockNumber' 2>/dev/null)
+                TIMESTAMP=$(cat "$TEMP_FILE" | jq -r '.timestamp' 2>/dev/null)
+                
+                # Check if the device address matches
+                if [ "$REGISTERED_ADDRESS" = "$WALLET_ADDRESS" ]; then
+                    echo "✅ Device registration confirmed on-chain!"
+                    echo "✅ Device address verified: $REGISTERED_ADDRESS"
+                    echo "✅ Transaction hash: $TX_HASH"
+                    echo "✅ Block number: $BLOCK_NUMBER"
+                    echo "✅ Timestamp: $TIMESTAMP"
+                    
+                    # Display the full transaction details
+                    echo "=== Registration Details ==="
+                    echo "Owner: $REGISTERED_OWNER"
+                    echo "Device Model: $REGISTERED_MODEL"
+                    echo "RAM: $REGISTERED_RAM"
+                    echo "Storage: $REGISTERED_STORAGE"
+                    echo "CPU: $REGISTERED_CPU"
+                    echo "Ngrok Link: $REGISTERED_NGROK"
+                    echo "Hosting Fee: $REGISTERED_FEE"
+                    echo
+                    
+                    # Verify device details
+                    echo "=== Device Details Verification ==="
+                    if [ "$REGISTERED_MODEL" = "$DEVICE_MODEL" ]; then
+                        echo "✅ Device model verified"
+                    else
+                        echo "ℹ️ Device model differs:"
+                        echo "  Local: $DEVICE_MODEL"
+                        echo "  Registered: $REGISTERED_MODEL"
+                    fi
+                    
+                    if [ "$REGISTERED_RAM" = "$RAM" ]; then
+                        echo "✅ RAM verified"
+                    else
+                        echo "ℹ️ RAM differs:"
+                        echo "  Local: $RAM"
+                        echo "  Registered: $REGISTERED_RAM"
+                    fi
+                    
+                    if [ "$REGISTERED_STORAGE" = "$STORAGE" ]; then
+                        echo "✅ Storage verified"
+                    else
+                        echo "ℹ️ Storage differs:"
+                        echo "  Local: $STORAGE"
+                        echo "  Registered: $REGISTERED_STORAGE"
+                    fi
+                    
+                    if [ "$REGISTERED_CPU" = "$CPU" ]; then
+                        echo "✅ CPU verified"
+                    else
+                        echo "ℹ️ CPU differs:"
+                        echo "  Local: $CPU"
+                        echo "  Registered: $REGISTERED_CPU"
+                    fi
+                    
+                    # Create the credentials directory if it doesn't exist
+                    CREDS_DIR="$PWD/credentials"
+                    mkdir -p "$CREDS_DIR"
+                    
+                    # Store device credentials in a predictable location
+                    CREDS_FILE="$CREDS_DIR/device_credentials.txt"
+                    echo "=== Device Credentials ===" > "$CREDS_FILE"
+                    echo "Device Address: $REGISTERED_ADDRESS" >> "$CREDS_FILE"
+                    echo "Owner Address: $REGISTERED_OWNER" >> "$CREDS_FILE"
+                    echo "Private Key: $PRIVATE_KEY" >> "$CREDS_FILE"
+                    echo "Mnemonic: $MNEMONIC" >> "$CREDS_FILE"
+                    echo "Hosting Fee: $REGISTERED_FEE" >> "$CREDS_FILE"
+                    echo "Registration Time: $TIMESTAMP" >> "$CREDS_FILE"
+                    echo "Transaction Hash: $TX_HASH" >> "$CREDS_FILE"
+                    
+                    # Set restrictive permissions on the credentials file
+                    chmod 600 "$CREDS_FILE"
+                    
+                    echo "💾 Device credentials saved to: $CREDS_FILE"
+                    
+                    return 0
+                else
+                    # If we found a transaction but address doesn't match
+                    if [ -n "$REGISTERED_ADDRESS" ]; then
+                        echo "ℹ️ Found a registration transaction, but for a different device:"
+                        echo "Transaction device: $REGISTERED_ADDRESS"
+                        echo "Local device: $WALLET_ADDRESS"
+                    fi
+                fi
+            else
+                echo "ℹ️ No registration transaction found yet"
+            fi
+            
+            # Wait before checking again
+            sleep 10
+        done
+    }
+    
+    # Start checking for registration
+    if check_registration; then
+        echo "🎉 Device registration complete!"
+        echo "Your device is now registered on the blockchain."
+        echo
+        echo "=== Your Wallet Details ==="
+        echo "Address: $WALLET_ADDRESS"
+        echo "Private Key: $PRIVATE_KEY"
+        echo "Mnemonic: $MNEMONIC"
+        echo
+        echo "IMPORTANT: Keep your private key and mnemonic secure!"
+    else
+        echo "⚠️ Device registration process did not complete successfully."
+        echo "You can still use your wallet, but the device may not be registered on-chain."
+        echo
+        echo "=== Your Wallet Details ==="
+        echo "Address: $WALLET_ADDRESS"
+        echo "Private Key: $PRIVATE_KEY"
+        echo "Mnemonic: $MNEMONIC"
+    fi
+    
+    # Clean up
+    rm -f "$TEMP_FILE"
+    
     echo "✅ Wallet creation process completed!"
     echo "🚀 SillyTavern is running with Ollama integration and wallet has been created."
     echo "Press Ctrl+C to stop the server when you're done."
@@ -388,13 +567,148 @@ create_wallet() {
     wait $SERVER_PID
 }
 
+# Function to list latest agent
+list_latest_agent() {
+    echo "🔍 Fetching latest agent details..."
+    
+    # Validate webhook URL
+    if [ -z "$AGENT_WEBHOOK_URL" ]; then
+        echo "❌ Error: AGENT_WEBHOOK_URL is not set"
+        return 1
+    fi
+    
+    # Create a temporary file to store the response
+    TEMP_FILE=$(mktemp)
+    
+    # Construct the full URL
+    FULL_URL="${AGENT_WEBHOOK_URL}/last-agent"
+    
+    # Show the URL we're calling
+    echo "📡 Calling endpoint: $FULL_URL"
+    
+    # Fetch latest agent data with verbose output
+    RESPONSE=$(curl -s -f "$FULL_URL" 2>&1)
+    CURL_EXIT_CODE=$?
+    
+    if [ $CURL_EXIT_CODE -ne 0 ]; then
+        echo "❌ Failed to fetch data from webhook"
+        echo "Error response:"
+        echo "$RESPONSE"
+        rm -f "$TEMP_FILE"
+        return 1
+    fi
+    
+    echo "$RESPONSE" > "$TEMP_FILE"
+    
+    # Check if we got a valid response with content
+    if [ -s "$TEMP_FILE" ]; then
+        # Try to parse as JSON
+        if jq empty "$TEMP_FILE" 2>/dev/null; then
+            echo "✅ Valid JSON response received"
+            
+            # Extract event name
+            EVENT_NAME=$(cat "$TEMP_FILE" | jq -r '.eventName')
+            echo "📋 Event type: $EVENT_NAME"
+            
+            if [ "$EVENT_NAME" = "AgentCreated" ]; then
+                # Extract agent details from the new format
+                AGENT_ADDRESS=$(cat "$TEMP_FILE" | jq -r '.args.agentAddress')
+                DEVICE_ADDRESS=$(cat "$TEMP_FILE" | jq -r '.args.deviceAddress')
+                PREFIX=$(cat "$TEMP_FILE" | jq -r '.args.prefix')
+                OWNER=$(cat "$TEMP_FILE" | jq -r '.args.owner')
+                PER_API_CALL_FEE=$(cat "$TEMP_FILE" | jq -r '.args.perApiCallFee')
+                SECRETS_HASH=$(cat "$TEMP_FILE" | jq -r '.args.secretsHash')
+                CHARACTER_URL=$(cat "$TEMP_FILE" | jq -r '.args.character')
+                SECRETS=$(cat "$TEMP_FILE" | jq -r '.args.secrets')
+                IS_PUBLIC=$(cat "$TEMP_FILE" | jq -r '.args.isPublic')
+                TX_HASH=$(cat "$TEMP_FILE" | jq -r '.transactionHash')
+                BLOCK_NUMBER=$(cat "$TEMP_FILE" | jq -r '.blockNumber')
+                TIMESTAMP=$(cat "$TEMP_FILE" | jq -r '.timestamp')
+                
+                echo "=== Latest Agent Details ==="
+                echo "Event: $EVENT_NAME"
+                echo "Agent Address: $AGENT_ADDRESS"
+                echo "Device Address: $DEVICE_ADDRESS"
+                echo "Prefix: $PREFIX"
+                echo "Owner: $OWNER"
+                echo "Per API Call Fee: $PER_API_CALL_FEE"
+                echo "Secrets Hash: $SECRETS_HASH"
+                echo "Public: $IS_PUBLIC"
+                echo "Block Number: $BLOCK_NUMBER"
+                echo "Transaction Hash: $TX_HASH"
+                echo "Created At: $TIMESTAMP"
+                echo
+                
+                # Extract IPFS hash from character URL
+                IPFS_HASH=$(echo "$CHARACTER_URL" | sed -n 's/.*\/ipfs\/\([^/]*\).*/\1/p')
+                if [ -n "$IPFS_HASH" ]; then
+                    echo "🎭 Fetching character data from IPFS..."
+                    echo "IPFS Hash: $IPFS_HASH"
+                    echo
+                    
+                    # Try to fetch from IPFS
+                    GATEWAY_URL="https://ipfs.io/ipfs/$IPFS_HASH"
+                    CHARACTER_DATA=$(curl -s "$GATEWAY_URL")
+                    
+                    if [ -n "$CHARACTER_DATA" ]; then
+                        echo "=== Character Details ==="
+                        # Pretty print the JSON with proper indentation
+                        echo "$CHARACTER_DATA" | jq '.' || echo "$CHARACTER_DATA"
+                        echo
+                        
+                        # Extract key details
+                        NAME=$(echo "$CHARACTER_DATA" | jq -r '.name')
+                        DESCRIPTION=$(echo "$CHARACTER_DATA" | jq -r '.description')
+                        PERSONALITY=$(echo "$CHARACTER_DATA" | jq -r '.personality')
+                        SCENARIO=$(echo "$CHARACTER_DATA" | jq -r '.scenario')
+                        CREATOR=$(echo "$CHARACTER_DATA" | jq -r '.creator')
+                        CREATED_AT=$(echo "$CHARACTER_DATA" | jq -r '.createdAt')
+                        
+                        echo "=== Summary ==="
+                        echo "Name: ${NAME:-'(not set)'}"
+                        echo "Description: ${DESCRIPTION:-'(not set)'}"
+                        echo "Personality: ${PERSONALITY:-'(not set)'}"
+                        echo "Scenario: ${SCENARIO:-'(not set)'}"
+                        echo "Creator: ${CREATOR:-'(unknown)'}"
+                        echo "Created At: ${CREATED_AT:-'(unknown)'}"
+                    else
+                        echo "❌ Failed to fetch character data from IPFS"
+                    fi
+                else
+                    echo "❌ Invalid character URL format"
+                fi
+            else
+                echo "❌ Unexpected event type: $EVENT_NAME"
+                return 1
+            fi
+        else
+            echo "❌ Invalid JSON response"
+            echo "Response content:"
+            cat "$TEMP_FILE"
+            return 1
+        fi
+    else
+        echo "❌ Empty response received"
+        echo "Full curl output:"
+        echo "$RESPONSE"
+        return 1
+    fi
+    
+    # Clean up
+    rm -f "$TEMP_FILE"
+}
+
 # Main script logic
 case "$1" in
     start)
+        setup_dependencies
         start_sillytavern
         ;;
+    list)
+        list_latest_agent
+        ;;
     *)
-        echo "Usage: franky start"
+        echo "Usage: franky [start|list]"
         exit 1
         ;;
 esac
