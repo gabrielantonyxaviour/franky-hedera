@@ -8,27 +8,19 @@ Monetize your old devices by powering efficient AI agents.
 Not sure what to do with your OLD mobile? Franky helps you to run Local LLM Inference right in your device and **MONETIZE** your compute with **$FRANKY** tokens. Device Owners could contribute their old devices to run LLMs locally and host AI agents on top of them to earn **$FRANKY** tokens. Agent creators could choose a device of their choice to build their Agent from scratch with it's very own custom characteristics and generate an API key to interact with them. Agents could also be made publicly available by the Agent Creator for others to use them and in-turn earn **$FRANKY** tokens. Agent developers could build plugins in our AI Agent Framework to build custom functionalities. Each Agent has their VERY OWN custom subdomain which makes it readable and convenient to interact with.
 ## How it's made
 
-The app is built on **WorldChain Sepolia** and leverages **Hyperlane Interchain Accounts (ICA)** and the **Open Intents framework** to facilitate seamless cross-chain transactions. World ID–verified users have identity-linked smart accounts that allow them to interact with multiple blockchains through a single interface, streamlining the cross-chain process.
+The application is built on **Base** and uses **Metal** for token transfers. For real-time data management, we integrated **Nodit’s Web3 Data API**, **Elastic Nodes**, and **Streams**. These technologies allow for the efficient indexing of multi-chain data—such as balances and transaction history—ensuring that users can access this information instantly and without delay. The use of  **Web3 data API** and **Streams** ensure that data updates happen in real-time, providing a highly dynamic and responsive user experience.
 
-For real-time data management, I integrated **Nodit’s Web3 Data API**, **Elastic Nodes**, **Webhooks**, and **Streams**. These technologies allow for the efficient indexing of multi-chain data—such as balances and transaction history—ensuring that users can access this information instantly and without delay. The use of **Elastic Nodes** helps to handle complex queries, while **Webhooks** and **Streams** ensure that data updates happen in real-time, providing a highly dynamic and responsive user experience.
+**Metal** was useful for us to create the $FRANKY tokens and simplified the ENTIRE transaction flow between Device Providers, Agent Creators and the Platform Owners. An LLM runs locally in the mobile phone and the Agent Framework implemented for Franky Agents is a Fork of the SillyTavern Framework.
 
-By combining **Hyperlane’s** cross-chain messaging, **Open Intents’** secure transaction execution, and **Nodit’s** powerful data indexing tools, the Mini App offers a robust, scalable solution for cross-chain interactions. This technology stack allows the app to deliver live, fast data access across multiple blockchains, making it simple for users to manage their assets and perform transactions in a seamless, unified interface.
+Every single agent upon creation has their own ENS name. We do this by minting the DNS Subdomain on **ENS**, thereby making it seamless for users to interact with the agent of their choice.
 
 ## Sponsors
 
-### WorldChain
+### Metal
 
-I’ve built a fully functional Mini App on WorldChain Sepolia that extends the ERC-7683 Open Intents Account with Hyperlane Interchain Accounts.
+The tokenomics in the Franky Agents ecosystem is managed by the $FRANKY tokens. These tokens were created from **Metal** and the liquidity pool comprises of $FRANKY and USDC. Metal accomodates the API Exhaustion from the User side by deducting $FRANKY tokens directly from their wallet whenever a request is made to the Agent's ENS endpoint and distributes the necessary funds between the Device Owners and the Platform Owners.
 
-With this integration, users can bridge assets across 140+ EVM chains and even send arbitrary transactions. For example, a user verified via World ID on WorldChain can now send a gasless transaction on Arbitrum—or any supported chain—directly from within a Mini App using Quick Actions.
-
-This unlocks a powerful new paradigm for building World Apps on WorldChain, where users can interact with any EVM chain from a single interface—without needing separate on-chain verification on each destination chain. This not only saves significant gas fees but also bypasses the need for native zk verification, which many chains (including some in the EVM, Solana, and Cosmos ecosystems) don’t support.
-
-With this implementation, World ID users can now send human-verified transactions on any blockchain.
-
-Moreover, this opens the door for EVM applications to leverage human-verified accounts, making it effortless to port apps like decentralized games, DAOs, NFT marketplaces, and more into the World Mini Apps effortlessly!
-
-And thanks to the Open Intents framework, any dApp can choose to sponsor gas fees for human-verified users simply by submitting a pull request to the intent solver—making onboarding and adoption even smoother.
+The same happens when a new user interacts with an existing agent displayed in the marketplace. The necessary $FRANKY tokens are distributed between the Agent Creator, Device Owner and the Platform Owners. This results in real-time transfer of $FRANKY tokens in a seamless fashion.
 
 ### Nodit
 
@@ -40,17 +32,11 @@ Nodit’s developer-first tooling makes it easy to provide a fast, reliable, and
 
 Thanks to Nodit, users can list their devices, host their agents quickly and arrive at insights WITHOUT any hassle.
 
-### Hyperlane
+### ENS
 
-I’ve built a Mini App on WorldChain Sepolia that extends the ERC-7683 Open Intents Account with Hyperlane Interchain Accounts. Each smart account created by a World ID–verified user is a Hyperlane ICA, allowing them to bridge assets and send arbitrary transactions across 140+ EVM chains.
+We have used ENS to mint subdomains for EVERY SINGLE Agent created in our application and also include ALL the metadata about the agent like, character data, profile picture, agent address etc. We have also made the subdomains as the means to communicate with the created Agent
 
-This goes beyond standard Open Intents usage—every World ID user owns an interchain smart account that can act on any chain. I’ve made custom modifications to the Open Intents framework to support this World ID–controlled architecture.
-
-Verified users can now send gasless transactions on chains like Arbitrum from within the Mini App using Quick Actions, without needing on-chain verification contracts on other chains. This saves gas, avoids zk compatibility issues, and enables human-verified transactions on any blockchain.
-
-EVM apps can now integrate with these verified accounts easily, making it simple to port games, DAOs, and marketplaces into World Mini Apps. Thanks to Open Intents, dApps can sponsor transactions for verified users with just a pull request to the solver—offering seamless, scalable onboarding.
-
-### WorldCoin Line of Code
+### Metal Line of Code
 
 https://github.com/gabrielantonyxaviour/bombardiro-crocodilo/blob/main/README.md#world-line-of-code
 
@@ -58,11 +44,11 @@ https://github.com/gabrielantonyxaviour/bombardiro-crocodilo/blob/main/README.md
 
 https://github.com/gabrielantonyxaviour/bombardiro-crocodilo/blob/main/README.md#nodit-line-of-code
 
-### Hyperlane Line of Code
+### ENS Line of Code
 
 https://github.com/gabrielantonyxaviour/bombardiro-crocodilo/blob/main/README.md#hyperlane-line-of-code
 
-### WorldCoin Feedback
+### Metal Feedback
 
 Super easy to use and integrate. I have added my feedback here.
 
@@ -75,7 +61,7 @@ Under Websockets, LOGs could facilitate listening to various topics in multiple 
 
 https://github.com/gabrielantonyxaviour/bombardiro-crocodilo/blob/main/README.md#nodit-feedback
 
-### Hyperlane Feedback
+### ENS Feedback
 
 Super easy to use and integrate. I have added my feedback here.
 
