@@ -243,305 +243,9 @@ const DeviceVerification = () => {
     }
   }
 
-  // Handle device verification
-  const verifyDevice = async () => {
-    try {
-      // Basic validation for positive number
-      const fee = Number(hostingFee);
-      if (hostingFee === '' || isNaN(fee) || fee <= 0) {
-        setTransactionError('Please enter a positive number for the hosting fee.');
-        return;
-      }
-
-      setIsVerifying(true)
-      setTransactionError(null)
-
-      if (!isWalletConnected || !walletAddress) {
-        console.error('Wallet not connected')
-        setTransactionError('Wallet not connected. Please connect your wallet and try again.')
-        setIsVerifying(false)
-        return
-      }
-
-      if (!deviceDetails) {
-        console.error('No device details available')
-        setTransactionError('No device details available. Please scan the QR code from your device first.')
-        setIsVerifying(false)
-        return
-      }
-
-      console.log('Registering device on smart contract...')
-
-      // Prepare contract call parameters
-      const {
-        deviceModel,
-        ram,
-        storage: storageCapacity,
-        cpu,
-        ngrokLink,
-        walletAddress: deviceAddress,
-        bytes32Data: verificationHash,
-        signature,
-      } = deviceDetails
-
-      // Convert signature from string to bytes if available
-      // If signature is not provided, use an empty bytes array
-      let signatureBytes: `0x${string}` = '0x'
-      if (signature) {
-        // Make sure signature has 0x prefix
-        signatureBytes = signature.startsWith('0x')
-          ? signature as `0x${string}`
-          : `0x${signature}` as `0x${string}`
-      }
-
-      // Make sure verification hash has 0x prefix
-      const verificationHashHex = verificationHash.startsWith('0x')
-        ? verificationHash as `0x${string}`
-        : `0x${verificationHash}` as `0x${string}`
-
-      // Always use Base Mainnet chainId
-      const currentChainId = 8453  // Base Mainnet
-      console.log('Using chain ID:', currentChainId)
-
-      try {
-        // Open the Reown modal first to ensure it's ready
-        console.log('Preparing Reown wallet for transaction');
-
-        // Open the Account view to prepare for transaction
-        try {
-          // TODO: Reown modal opening logic
-          console.log('Reown modal opened successfully');
-
-          // Allow time for the modal to fully open and initialize
-          await new Promise(resolve => setTimeout(resolve, 3000));
-        } catch (modalError) {
-          console.warn('Could not open Reown modal:', modalError);
-          // Continue anyway as the modal might already be open
-        }
-
-        // Convert hosting fee to BigInt
-        const hostingFeeBigInt = BigInt(hostingFee || "0")
-
-        // Create transaction params with the new hostingFee parameter
-        // const txParams = {
-        //   address: CONTRACT_ADDRESS as `0x${string}`,
-        //   abi: CONTRACT_ABI,
-        //   functionName: 'registerDevice' as const,
-        //   args: [
-        //     deviceModel,
-        //     ram,
-        //     storageCapacity,
-        //     cpu,
-        //     ngrokLink,
-        //     hostingFeeBigInt,
-        //     deviceAddress as `0x${string}`,
-        //     verificationHashHex,
-        //     signatureBytes
-        //   ] as const,
-        //   chainId: currentChainId,
-        //   gas: BigInt(6000000)
-        // }
-
-        // console.log('Sending transaction...');
-        // const hash = await writeContractAsync(txParams)
-
-        // // Set transaction hash to track its progress
-        // console.log('Transaction submitted:', hash)
-        // setTransactionHash(hash)
-
-      } catch (error: any) {
-        console.error('Transaction signing error:', error)
-
-        // Simple error handling
-        if (error.message?.includes('Request was aborted')) {
-          setTransactionError('Transaction was aborted. Please ensure you are connected to Base Mainnet network and try again.');
-        } else if (error.message?.includes('user rejected') || error.message?.includes('User denied')) {
-          setTransactionError('Transaction was rejected. Please approve the transaction in your wallet.');
-        } else {
-          setTransactionError(error.message || 'Failed to sign transaction');
-        }
-
-        setIsVerifying(false)
-      }
-    } catch (error: any) {
-      console.error('Error verifying device:', error)
-      setTransactionError(error.message || 'Unknown error occurred')
-      setIsVerifying(false)
-    }
-  }
-
-  // // Watch for transaction receipt
-  // useEffect(() => {
-  //   if (transactionReceipt) {
-  //     console.log('Transaction confirmed:', transactionReceipt)
-
-  //     // Extract information from the transaction receipt logs
-  //     try {
-  //       // For the new contract, we want to extract information from the DeviceRegistered event
-  //       // DeviceRegistered(address indexed deviceAddress, address indexed owner, string deviceModel, string ram, 
-  //       // string storageCapacity, string cpu, string ngrokLink, uint256 hostingFee)
-
-  //       if (transactionReceipt.logs && transactionReceipt.logs.length > 0) {
-  //         console.log('Transaction logs:', transactionReceipt.logs);
-
-  //         // The new DeviceRegistered event has the following topic in the new contract:
-  //         const deviceRegisteredTopic = '0x23308818ac578935e73a554a196ddeaa2ea2f9e718f32025a04ae66d8fe43ad5';
-
-  //         // Look through all logs to find the DeviceRegistered event
-  //         for (const log of transactionReceipt.logs) {
-  //           if (log.topics[0] === deviceRegisteredTopic) {
-  //             // Device address is indexed and in topics[1]
-  //             if (log.topics[1]) {
-  //               const deviceAddressHex = log.topics[1];
-  //               setDeviceId(deviceDetails?.walletAddress || deviceAddressHex);
-  //               console.log('Device registered with address:', deviceDetails?.walletAddress);
-  //               break;
-  //             }
-  //           }
-  //         }
-
-  //         // If we still don't have the device address from logs, just use what we have
-  //         if (!deviceId && deviceDetails?.walletAddress) {
-  //           setDeviceId(deviceDetails.walletAddress);
-  //         }
-  //       }
-  //     } catch (error) {
-  //       console.error('Error extracting device info from logs:', error);
-  //       // Fallback - just use the known device address
-  //       if (deviceDetails?.walletAddress) {
-  //         setDeviceId(deviceDetails.walletAddress);
-  //       }
-  //     }
-
-  //     setVerificationSuccess(true)
-  //     setIsVerifying(false)
-
-  //     // Close modal after success
-  //     setTimeout(() => {
-  //       setShowDeviceModal(false)
-
-  //       // Remove URL parameters after successful verification
-  //       if (typeof window !== 'undefined') {
-  //         const baseUrl = window.location.pathname
-  //         window.history.replaceState({}, document.title, baseUrl)
-  //       }
-  //     }, 7000) // Increased timeout to give users more time to see the result
-  //   }
-
-  //   if (waitError) {
-  //     console.error('Transaction wait error:', waitError)
-  //     setTransactionError(waitError.message || 'Error waiting for transaction confirmation')
-  //     setIsVerifying(false)
-  //   }
-  // }, [transactionReceipt, waitError, deviceDetails, deviceId])
-
-  // New functions for Reown wallet connection
-  const handleReownConnect = () => {
-    console.log('Reown wallet connected')
-    setIsConnecting(false)
-  }
-
-  const handleReownDisconnect = () => {
-    console.log('Reown wallet disconnected')
-    setIsWalletConnected(false)
-    setWalletAddress(null)
-    setWalletType(null)
-  }
-
-  // Render the 6th step
+  // Render the 5th step
   return (
     <section className="py-10 px-6">
-      <div className="container mx-auto max-w-5xl">
-        <InstructionStep number={6} title="Verify Your Device" icon={<FiSmartphone />}>
-          <p className="mb-4">
-            After scanning the QR code on your device, connect your wallet to verify ownership
-            and complete the device registration process.
-          </p>
-
-          {deviceDetails ? (
-            <>
-              <p className="mt-4 text-emerald-400">
-                <span className="font-medium">Device detected!</span> Please connect your wallet to verify ownership.
-              </p>
-
-              {!isWalletConnected ? (
-                <div className="mt-6 flex flex-col items-center">
-
-                  <p className="mt-3 text-gray-400 text-sm">
-                    Connect securely using Reown
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-6 p-4 rounded-lg bg-[#00FF88]/10 border border-[#00FF88]/30">
-                  <div className="flex items-center">
-                    <div className="flex justify-center items-center h-10 w-10 rounded-full bg-[#00FF88]/20 mr-4">
-                      <FiCheck className="text-[#00FF88]" />
-                    </div>
-                    <div>
-                      <p className="text-[#00FF88] font-medium">
-                        Reown wallet connected successfully!
-                      </p>
-                      <div className="text-gray-400 text-sm mt-1">
-                        <p className="mb-1">
-                          <span className="font-medium">Address:</span> {walletAddress ? `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}` : ''}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4 text-center">
-                    <button
-                      onClick={() => setShowDeviceModal(true)}
-                      className="px-4 py-2 bg-[#00FF88]/20 hover:bg-[#00FF88]/30 text-[#00FF88] rounded-lg border border-[#00FF88]/30 transition-colors text-sm"
-                    >
-                      View and verify your device
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="mt-6 p-5 rounded-lg bg-yellow-900/20 border border-yellow-600/30">
-              <div className="flex items-start">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-400 mt-0.5 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <div>
-                  <p className="text-yellow-400 font-medium mb-2">No device details detected</p>
-                  <p className="text-gray-300">
-                    Please scan the QR code displayed on your device's Termux interface after running <code className="bg-black/30 px-2 py-0.5 rounded text-yellow-400">franky serve</code>.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4">
-                {isWalletConnected ? (
-                  <div className="p-3 rounded-lg bg-[#00FF88]/10 border border-[#00FF88]/30 mb-4">
-                    <div className="flex items-center">
-                      <div className="flex justify-center items-center h-8 w-8 rounded-full bg-[#00FF88]/20 mr-3">
-                        <FiCheck className="text-[#00FF88]" />
-                      </div>
-                      <div>
-                        <p className="text-[#00FF88] text-sm font-medium">
-                          Wallet connected
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {walletAddress ? `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}` : ''}
-                          {walletType && ` (${walletType})`}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex justify-center">
-
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </InstructionStep>
-      </div>
-
       {/* Device Verification Modal */}
       {showDeviceModal && deviceDetails && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 overflow-auto">
@@ -769,44 +473,6 @@ const DeviceVerification = () => {
                     <p>{transactionError}</p>
                   </div>
                 )}
-                {/* <motion.button
-                  onClick={verifyDevice}
-                  disabled={isVerifying || isPending || isWaitingForTransaction || hostingFee === '' || isNaN(Number(hostingFee)) || Number(hostingFee) <= 0}
-                  className="px-5 py-2 rounded-lg bg-[#00FF88] bg-opacity-20 border border-[#00FF88] text-[#00FF88] hover:bg-opacity-30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm w-full"
-                  whileHover={{ scale: isVerifying ? 1 : 1.03 }}
-                  whileTap={{ scale: isVerifying ? 1 : 0.97 }}
-                >
-                  {(isVerifying || isPending || isWaitingForTransaction) ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-[#00FF88]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      {isPending ? 'Waiting for approval...' :
-                        isWaitingForTransaction ? 'Confirming transaction...' :
-                          'Registering device...'}
-                    </>
-                  ) : hostingFee === '' || isNaN(Number(hostingFee)) || Number(hostingFee) <= 0 ? (
-                    'Enter valid fee amount'
-                  ) : (
-                    <>
-                      Register Device on Contract
-                    </>
-                  )}
-                </motion.button>
-                {transactionHash && !verificationSuccess && (
-                  <p className="text-xs text-center text-gray-400 mt-2">
-                    Transaction pending:
-                    <a
-                      href={getExplorerUrl(chainId, transactionHash)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#00FF88] underline hover:text-emerald-200 ml-1"
-                    >
-                      View
-                    </a>
-                  </p>
-                )} */}
               </div>
             )}
           </motion.div>
@@ -816,10 +482,7 @@ const DeviceVerification = () => {
   )
 }
 
-// Wrap the device verification component with Reown provider instead of Privy
-const WrappedDeviceVerification = () => (
-  <DeviceVerification />
-)
+
 
 export default function DeployDevice() {
   return (
@@ -851,71 +514,26 @@ export default function DeployDevice() {
         <section className="py-10 px-6">
           <div className="container mx-auto max-w-5xl">
             <InstructionStep number={1} title="Setup your Phone" icon={<FiSmartphone />}>
-              <p className="mb-4">
-                Termux is a terminal emulator for Android that allows you to run Linux commands.
-                Follow these steps to install it:
+              <p className="mb-6">
+                Watch this video tutorial to set up your phone with Termux, an Android terminal emulator that allows you to run Linux commands:
               </p>
 
-              <ol className="list-decimal ml-6 space-y-3">
-                <li>
-                  <span className="font-medium text-[#00FF88]">Install F-Droid</span> (recommended method):
-                  <ul className="list-disc ml-6 mt-2">
-                    <li>Visit <a href="https://f-droid.org" target="_blank" rel="noopener noreferrer" className="text-[#00FF88] underline hover:text-emerald-400">f-droid.org</a> from your mobile device</li>
-                    <li>Download and install the F-Droid app</li>
-                  </ul>
-                </li>
-                <li>
-                  <span className="font-medium text-[#00FF88]">Install Termux from F-Droid</span>:
-                  <ul className="list-disc ml-6 mt-2">
-                    <li>Open F-Droid app</li>
-                    <li>Search for "Termux"</li>
-                    <li>Tap on Termux and install it</li>
-                  </ul>
-                </li>
-                <li>
-                  <span className="font-medium text-[#00FF88]">Alternative method</span>:
-                  <ul className="list-disc ml-6 mt-2">
-                    <li>Visit the <a href="https://github.com/termux/termux-app/releases" target="_blank" rel="noopener noreferrer" className="text-[#00FF88] underline hover:text-emerald-400">Termux Releases</a> page</li>
-                    <li>Download the latest APK file</li>
-                    <li>Install the APK file on your device</li>
-                  </ul>
-                </li>
-              </ol>
+              <div className="relative pb-[56.25%] h-0 rounded-lg overflow-hidden mb-4">
+                <iframe
+                  className="absolute top-0 left-0 w-full h-full border-0"
+                  src="https://www.youtube.com/embed/s3TXc-jiQ40"
+                  title="Franky AI: Setting up your device"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen>
+                </iframe>
+              </div>
 
-              <p className="mt-4">
+              <p className="mt-4 bg-yellow-900/20 border border-yellow-600/30 p-4 rounded-lg text-yellow-300">
                 <span className="font-medium">Important:</span> After installation, open Termux and grant the necessary permissions when prompted.
               </p>
             </InstructionStep>
 
-            <InstructionStep number={2} title="Set up Ollama in Termux" icon={<FiTerminal />}>
-              <p className="mb-4">
-                Ollama allows you to run AI models locally on your device. Follow these commands to set up Ollama in Termux:
-              </p>
-
-              <p className="font-medium mt-3">Update Termux packages:</p>
-              <CodeBlock code="pkg update && pkg upgrade -y" />
-
-              <p className="font-medium mt-3">Install required dependencies:</p>
-              <CodeBlock code="pkg install -y git build-essential golang cmake" />
-
-              <p className="font-medium mt-3">Clone Ollama repository:</p>
-              <CodeBlock code="git clone https://github.com/ollama/ollama.git" />
-
-              <p className="font-medium mt-3">Navigate to the Ollama directory:</p>
-              <CodeBlock code="cd ollama" />
-
-              <p className="font-medium mt-3">Build Ollama:</p>
-              <CodeBlock code="go build" />
-
-              <p className="font-medium mt-3">Move the binary to a directory in your PATH:</p>
-              <CodeBlock code="mv ollama $PREFIX/bin/" />
-
-              <p className="mt-4">
-                <span className="font-medium">Note:</span> The build process might take some time depending on your device.
-              </p>
-            </InstructionStep>
-
-            <InstructionStep number={3} title="Install Franky Shell Script" icon={<FiDownload />}>
+            <InstructionStep number={2} title="Install Franky Shell Script" icon={<FiDownload />}>
               <p className="mb-4">
                 Use the following curl command to download and install our Franky shell script:
               </p>
@@ -927,7 +545,7 @@ export default function DeployDevice() {
               </p>
             </InstructionStep>
 
-            <InstructionStep number={4} title="Install Required Dependencies" icon={<FiDownload />}>
+            <InstructionStep number={3} title="Install Required Dependencies" icon={<FiDownload />}>
               <p className="mb-4">
                 Install all required files and dependencies using the franky command:
               </p>
@@ -939,12 +557,13 @@ export default function DeployDevice() {
               </p>
               <ul className="list-disc ml-6 space-y-2">
                 <li>Download the required AI models</li>
-                <li>Set up the runtime environment</li>
+                <li>Set up Ollama and runtime environment</li>
                 <li>Configure your device for optimal performance</li>
+                <li>Install all dependencies needed</li>
               </ul>
             </InstructionStep>
 
-            <InstructionStep number={5} title="Start the Franky Server" icon={<FiServer />}>
+            <InstructionStep number={4} title="Start the Franky Server" icon={<FiServer />}>
               <p className="mb-4">
                 Start the Franky server with this simple command:
               </p>
@@ -966,8 +585,7 @@ export default function DeployDevice() {
           </div>
         </section>
 
-        {/* Device Verification Section - Use wrapped component */}
-        <WrappedDeviceVerification />
+        <DeviceVerification />
       </main>
     </>
   )

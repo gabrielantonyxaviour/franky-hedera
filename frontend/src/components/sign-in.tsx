@@ -7,6 +7,7 @@ import Link from "next/link";
 
 // Lucide icons can be directly imported
 import { MailIcon, ArrowLeftIcon, Boxes, Sliders } from "lucide-react";
+import Image from "next/image";
 
 // TypeScript interfaces for component props
 interface GlowButtonProps {
@@ -365,20 +366,23 @@ export default function SignIn() {
     };
 
     return (
-        <div className="flex flex-col justify-center max-w-2xl mx-auto w-full">
+
+        <div className="flex flex-col justify-center max-w-2xl mx-auto w-full h-screen">
             {!showEmailForm && !showOTPForm && (
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="text-center mb-10"
+                    className="text-center "
                 >
-                    <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
-                        Register Your Digital Likeness as IP
+                    <p className="text-lg md:text-xl mb-3 text-[#AAAAAA] max-w-3xl mx-auto">
+                        Introducing
+                    </p>
+                    <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
+                        Green AI Agents
                     </h1>
-                    <p className="text-xl text-[#AAAAAA]">
-                        Onboard your digital likeness and create your own model twin,
-                        bringing economic opportunity to your craft.
+                    <p className="text-xl md:text-2xl mb-10 text-[#AAAAAA] max-w-3xl mx-auto">
+                        Recycle your old mobile devices into AI agents and earn $FIL.
                     </p>
                 </motion.div>
             )}
@@ -393,10 +397,12 @@ export default function SignIn() {
                 >
                     <GlowButton
                         onClick={handleInitialClick}
-                        className="w-full py-5 text-lg"
+                        className="text-lg mx-auto"
                     >
-                        <MailIcon className="mr-3" size={24} />
-                        <span>Log in with Email</span>
+                        <div className="flex space-x-2 items-center">
+                            <MailIcon size={24} />
+                            <p>Log in with Email</p>
+                        </div>
                     </GlowButton>
                 </motion.div>
             )}
@@ -442,15 +448,15 @@ export default function SignIn() {
                                         disabled={isLoading}
                                     >
                                         {isLoading ? (
-                                            <>
-                                                <span className="mr-2">
+                                            <div className="flex space-x-2 items-center">
+                                                <span>
                                                     <svg className="animate-spin h-5 w-5 text-[#00FF88]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                                     </svg>
                                                 </span>
-                                                Sending
-                                            </>
+                                                <p>Sending</p>
+                                            </div>
                                         ) : "Send OTP"}
                                     </GlowButton>
                                 </div>
@@ -462,8 +468,10 @@ export default function SignIn() {
                                 variant="ghost"
                                 onClick={handleBackToInitial}
                             >
-                                <ArrowLeftIcon className="mr-2 h-4 w-4" />
-                                Back
+                                <div className="flex space-x-2 items-center">
+                                    <ArrowLeftIcon className=" h-4 w-4" />
+                                    <p>Back</p>
+                                </div>
                             </GlowButton>
                         </GlowCardFooter>
                     </GlowCard>
@@ -505,27 +513,29 @@ export default function SignIn() {
                                         disabled={isLoading}
                                     >
                                         {isLoading ? (
-                                            <>
-                                                <span className="mr-2">
+                                            <div className="flex space-x-2 items-center">
+                                                <span>
                                                     <svg className="animate-spin h-5 w-5 text-[#00FF88]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                                     </svg>
                                                 </span>
-                                                Verifying
-                                            </>
+                                                <p>Verifying</p>
+                                            </div>
                                         ) : "Log in"}
                                     </GlowButton>
                                 </div>
 
-                                <div className="mt-6 text-center">
+                                <div className="mt-6 text-center mx-auto">
                                     <GlowButton
                                         variant="ghost"
                                         onClick={handleBackToEmail}
-                                        className="text-sm"
+                                        className="text-sm mx-auto"
                                     >
-                                        <ArrowLeftIcon className="mr-2 h-4 w-4" />
-                                        Back
+                                        <div className="flex space-x-2 items-center">
+                                            <ArrowLeftIcon className=" h-4 w-4" />
+                                            <p>Back</p>
+                                        </div>
                                     </GlowButton>
                                 </div>
                             </form>
@@ -538,7 +548,7 @@ export default function SignIn() {
                                     setError("");
                                     handleEmailSubmit({ preventDefault: () => { } });
                                 }}
-                                className="text-sm"
+                                className="text-sm hover:text-white/80"
                             >
                                 Didn't receive a code? Resend
                             </GlowButton>
@@ -547,5 +557,7 @@ export default function SignIn() {
                 </motion.div>
             )}
         </div>
+
+
     );
 }
