@@ -1,9 +1,9 @@
 const axios = require("axios");
 const ethers = require("ethers");
 
-const noditAPIKey = "p4CtuYObYH1xoB0eWsz09JbFSVa6gdkB";
+const noditAPIKey = "xxxxxxxxxxxxxxxxxxxxxxxxx";
 const axiosInstance = axios.create({
-  baseURL: "https://web3.nodit.io/v1/base/sepolia",
+  baseURL: "https://web3.nodit.io/v1/base/mainnet",
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -11,7 +11,7 @@ const axiosInstance = axios.create({
   },
 });
 
-// Updated ABI with the new registerDevice function signature
+// Updated ABI with the correct registerDevice function signature
 const contractABI = [
   {
     "inputs": [
@@ -33,8 +33,8 @@ const contractABI = [
 ];
 
 const contractInterface = new ethers.utils.Interface(contractABI);
-// Updated contract address
-const contractAddress = "0x18c2e2f87183034700cc2A7cf6D86a71fd209678";
+// Contract address
+const contractAddress = "0x486989cd189ED5DB6f519712eA794Cee42d75b29";
 const registerDeviceSelector = contractInterface.getSighash("registerDevice");
 
 /**
@@ -95,6 +95,8 @@ async function getDevicesByRegistrar(specificAddresses = [], showDebug = false) 
             console.log(`  Ngrok: ${decodedData.args.ngrokLink}`);
             console.log(`  Hosting Fee: ${ethers.utils.formatUnits(decodedData.args.hostingFee, 0)}`);
             console.log(`  Device Address: ${decodedData.args.deviceAddress}`);
+            console.log(`  Verification Hash: ${decodedData.args.verificationHash}`);
+            console.log(`  Signature: ${decodedData.args.signature}`);
             console.log("----------------------------------------");
           } catch (error) {
             console.log("⚠️ Could not decode device details");
@@ -135,7 +137,7 @@ async function getDeviceDetails(deviceAddress) {
   try {
     console.log(`🔍 Getting details for device: ${deviceAddress}`);
     
-    // Create a minimal ABI for the devices mapping getter
+    // Create a minimal ABI for the devices mapping getter based on the provided full ABI
     const deviceGetterABI = [
       {
         "inputs": [{"internalType": "address", "name": "", "type": "address"}],
@@ -194,7 +196,7 @@ async function getDeviceDetails(deviceAddress) {
 // Example usage
 // To list devices from specific addresses:
 getDevicesByRegistrar([
-  "0x6EFF675818968272D5A3406C6282c89C4FFAE94e"
+  "0x7c215d7f399df6f04d4b154c09d39a80265e9b63"
   // Add more addresses here as needed
 ]);
 
