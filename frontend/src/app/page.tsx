@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Header from "@/components/ui/Header";
 import { motion } from "framer-motion";
+import Image from "next/image";
 
 const HeroAnimation = () => {
   return (
@@ -161,28 +162,8 @@ export default function Home() {
               className="w-full"
             >
               {/* Logo and Site Name */}
-              <div className="flex items-center justify-center mb-16">
-                <svg
-                  width="48"
-                  height="48"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="mr-3"
-                >
-                  <path
-                    d="M12 2L20 7V17L12 22L4 17V7L12 2Z"
-                    stroke="#00FF88"
-                    strokeWidth="1.5"
-                  />
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="3"
-                    stroke="#00FF88"
-                    strokeWidth="1.5"
-                  />
-                </svg>
+              <div className="flex items-center justify-center mb-16 space-x-4">
+                <Image src={"/logo.png"} alt="Logo" width={50} height={50} className="rounded-full select-none" />
                 <h2 className="text-2xl font-bold bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
                   frankyagents.xyz
                 </h2>

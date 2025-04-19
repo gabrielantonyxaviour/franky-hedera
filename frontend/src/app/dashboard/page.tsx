@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount } from "wagmi";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import HeaderWalletWrapper from "@/components/wallet/HeaderWalletWrapper";
 import { useAppKitAccount } from "@reown/appkit/react";
+import { usePrivy } from "@privy-io/react-auth";
 
 export default function DashboardPage() {
-  const { address } = useAccount();
+  const { user } = usePrivy()
   const [mounted, setMounted] = useState(false);
   const { embeddedWalletInfo } = useAppKitAccount();
 
@@ -128,7 +128,7 @@ export default function DashboardPage() {
                       headers: {
                         "Content-Type": "application/json",
                       },
-                      body: JSON.stringify({ address }),
+                      body: JSON.stringify({ address: user?.smartWallet?.address }),
                     });
                     const data = await request.json();
                     console.log("Faucet response:", data);
@@ -154,7 +154,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {address && (
+            {user?.smartWallet?.address && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
                 <Link href="/dashboard/agents">
                   <motion.div

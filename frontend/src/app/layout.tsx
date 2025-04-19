@@ -1,6 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import ReownProviders from "@/components/ReownProviders";
+import Providers from "@/components/providers";
 
 export const metadata: Metadata = {
   title: "FRANKY",
@@ -15,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="sen">
-        <ReownProviders>{children}</ReownProviders>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

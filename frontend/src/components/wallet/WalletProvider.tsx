@@ -3,28 +3,29 @@
 import { ReactNode, useEffect, useRef } from 'react'
 import { useWalletStore } from '@/store/useWalletStore'
 import { useAccount, useDisconnect } from 'wagmi'
+import { usePrivy } from '@privy-io/react-auth'
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const { setConnected, setAddress, disconnect: storeDisconnect } = useWalletStore()
-  const { address, isConnected } = useAccount()
   const { disconnect: wagmiDisconnect } = useDisconnect()
   const initializedRef = useRef(false)
-  
+  const { user } = usePrivy()
+
   // Sync wagmi state with our store
   useEffect(() => {
     try {
-      if (isConnected && address) {
+      if (user && user.smartWallet) {
         setConnected(true)
-        setAddress(address)
-      } else if (!isConnected) {
+        setAddress(user.smartWallet.address)
+      } else if (!user) {
         setConnected(false)
         setAddress(null)
       }
     } catch (error) {
       console.error('Error syncing wallet state:', error)
     }
-  }, [isConnected, address, setConnected, setAddress])
-  
+  }, [user, setConnected, setAddress])
+
   // Handle disconnect
   const handleDisconnect = () => {
     try {
@@ -36,17 +37,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       storeDisconnect()
     }
   }
-  
+
   // Expose disconnect method to the store - only once on mount
   useEffect(() => {
     if (!initializedRef.current) {
       try {
         initializedRef.current = true
         const originalDisconnect = storeDisconnect
-        
+
         // Set the disconnect handler only once
         useWalletStore.setState({ disconnect: handleDisconnect })
-        
+
         // Restore original disconnect on unmount
         return () => {
           try {
@@ -60,6 +61,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
     }
   }, []) // Empty dependency array to run only once
-  
+
   return <>{children}</>
 } 

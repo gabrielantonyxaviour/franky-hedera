@@ -17,24 +17,15 @@ import {
   FiImage,
 } from "react-icons/fi";
 import { uploadImageToPinata } from "@/utils/pinata";
-import {
-  useWriteContract,
-  useWaitForTransactionReceipt,
-  useChainId,
-  useAccount,
-  useSignMessage,
-} from "wagmi";
+
 import { encrypt } from "@/utils/lit";
 import { getApiKey } from "@/utils/apiKey";
-import ReownWrapper from "@/components/wallet/ReownWrapper";
-import ReownWalletButton from "@/components/wallet/ReownWalletButton";
 import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
-import { modal } from "@/components/ReownProviders";
 import { normalize } from "viem/ens";
 import { createPublicClient, http } from "viem";
 import { sepolia, mainnet } from "viem/chains";
 import { useRouter, useSearchParams } from "next/navigation";
-import ReownWalletHeader from "@/components/wallet/ReownWalletHeader";
+import { usePrivy } from "@privy-io/react-auth";
 
 // Define tool types
 export interface Tool {
@@ -126,11 +117,10 @@ function ConstructionZone({
           <div
             key={tool.id}
             onClick={() => onToolToggle(tool.id)}
-            className={`p-4 rounded-lg border cursor-pointer transition-all duration-300 ${
-              isSelected
-                ? "bg-[#00FF88]/20 border-[#00FF88] shadow-lg shadow-[#00FF88]/10"
-                : "bg-black/30 border-[#00FF88]/20 hover:bg-[#00FF88]/10"
-            }`}
+            className={`p-4 rounded-lg border cursor-pointer transition-all duration-300 ${isSelected
+              ? "bg-[#00FF88]/20 border-[#00FF88] shadow-lg shadow-[#00FF88]/10"
+              : "bg-black/30 border-[#00FF88]/20 hover:bg-[#00FF88]/10"
+              }`}
           >
             <div className="flex items-center">
               <span className="text-2xl mr-3">{tool.icon}</span>
@@ -821,10 +811,8 @@ function CreateAgentContent() {
 
   const searchParams = useSearchParams();
   const router = useRouter();
-  const chainId = useChainId();
-  const account = useAccount();
-  const { signMessageAsync } = useSignMessage();
-  const isMainnet = chainId === 8453; // Base mainnet
+  const { user } = usePrivy();
+  // const isMainnet = chainId === 8453; // Base mainnet
 
   // Get Reown instance
   const { open } = useAppKit();
@@ -856,25 +844,25 @@ function CreateAgentContent() {
   };
 
   // Contract interaction hooks
-  const { writeContractAsync, isPending } = useWriteContract();
-  const {
-    data: transactionReceipt,
-    isLoading: isWaitingForTransaction,
-    error: waitError,
-  } = useWaitForTransactionReceipt({
-    hash: transactionHash,
-  });
+  // const { writeContractAsync, isPending } = useWriteContract();
+  // const {
+  //   data: transactionReceipt,
+  //   isLoading: isWaitingForTransaction,
+  //   error: waitError,
+  // } = useWaitForTransactionReceipt({
+  //   hash: transactionHash,
+  // });
 
   // Get device info from URL params
   const deviceInfo =
     searchParams.size > 0
       ? {
-          deviceModel: searchParams.get("deviceModel") || "",
-          deviceStatus: searchParams.get("deviceStatus") || "",
-          deviceAddress: searchParams.get("deviceAddress") || "",
-          ngrokLink: searchParams.get("ngrokLink") || "",
-          hostingFee: searchParams.get("hostingFee") || "",
-        }
+        deviceModel: searchParams.get("deviceModel") || "",
+        deviceStatus: searchParams.get("deviceStatus") || "",
+        deviceAddress: searchParams.get("deviceAddress") || "",
+        ngrokLink: searchParams.get("ngrokLink") || "",
+        hostingFee: searchParams.get("hostingFee") || "",
+      }
       : null;
 
   // Handle tool selection
@@ -1003,8 +991,8 @@ function CreateAgentContent() {
 
       try {
         const { ciphertext, dataToEncryptHash } = await encrypt(
-          secrets.trim(),
-          isMainnet
+          secrets.trim(), true
+          // isMainnet
         );
         setEncryptedSecrets(ciphertext);
         setDataToEncryptHash(dataToEncryptHash);
@@ -1040,17 +1028,17 @@ function CreateAgentContent() {
       return;
     }
 
-    // Check if we're on the right network
-    const requiredChainId = 8453; // Base Mainnet
-    if (chainId !== requiredChainId) {
-      console.log(
-        `Currently on chain ${chainId}, need to switch to ${requiredChainId}`
-      );
-      alert(
-        `Please switch to Base Mainnet network (Chain ID: ${requiredChainId}) to continue`
-      );
-      return;
-    }
+    // // Check if we're on the right network
+    // const requiredChainId = 8453; // Base Mainnet
+    // if (chainId !== requiredChainId) {
+    //   console.log(
+    //     `Currently on chain ${chainId}, need to switch to ${requiredChainId}`
+    //   );
+    //   alert(
+    //     `Please switch to Base Mainnet network (Chain ID: ${requiredChainId}) to continue`
+    //   );
+    //   return;
+    // }
 
     try {
       // Use the validated name as the subname
@@ -1066,9 +1054,7 @@ function CreateAgentContent() {
 
         // Open the Account view to prepare for transaction
         try {
-          await modal.open({
-            view: "Account",
-          });
+
           console.log("Reown modal opened successfully");
 
           // Allow time for the modal to fully open and initialize
@@ -1126,11 +1112,11 @@ function CreateAgentContent() {
         };
 
         console.log("Sending transaction...");
-        const data = await writeContractAsync(txParams);
+        // const data = await writeContractAsync(txParams);
 
-        // Set transaction hash to track progress
-        setTransactionHash(data);
-        console.log("Transaction submitted:", data);
+        // // Set transaction hash to track progress
+        // setTransactionHash(data);
+        // console.log("Transaction submitted:", data);
       } catch (error: any) {
         console.error("Transaction signing error:", error);
 
@@ -1160,87 +1146,87 @@ function CreateAgentContent() {
   }
 
   // Watch for transaction receipt
-  useEffect(() => {
-    if (transactionReceipt) {
-      console.log("Transaction confirmed:", transactionReceipt);
+  // useEffect(() => {
+  //   if (transactionReceipt) {
+  //     console.log("Transaction confirmed:", transactionReceipt);
 
-      // Try to extract the agent address from the AgentCreated event
-      if (transactionReceipt.status === "success") {
-        // Find the AgentCreated event log
-        const agentCreatedEvent = transactionReceipt.logs.find((log) => {
-          // The event signature is the first topic
-          const eventSignature = log.topics[0];
-          // AgentCreated event has 9 parameters (1 indexed address, 1 indexed address, and 7 non-indexed)
-          return (
-            log.topics.length === 3 && // 2 indexed parameters + event signature
-            log.address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase()
-          );
-        });
+  //     // Try to extract the agent address from the AgentCreated event
+  //     if (transactionReceipt.status === "success") {
+  //       // Find the AgentCreated event log
+  //       const agentCreatedEvent = transactionReceipt.logs.find((log) => {
+  //         // The event signature is the first topic
+  //         const eventSignature = log.topics[0];
+  //         // AgentCreated event has 9 parameters (1 indexed address, 1 indexed address, and 7 non-indexed)
+  //         return (
+  //           log.topics.length === 3 && // 2 indexed parameters + event signature
+  //           log.address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase()
+  //         );
+  //       });
 
-        if (agentCreatedEvent) {
-          try {
-            // The agent address is the first indexed parameter (topic[1])
-            const agentAddress = agentCreatedEvent.topics?.[1]?.slice(-40);
-            if (agentAddress) {
-              console.log("Agent Address:", `0x${agentAddress}`);
-              setAgentId(`0x${agentAddress}`);
+  //       if (agentCreatedEvent) {
+  //         try {
+  //           // The agent address is the first indexed parameter (topic[1])
+  //           const agentAddress = agentCreatedEvent.topics?.[1]?.slice(-40);
+  //           if (agentAddress) {
+  //             console.log("Agent Address:", `0x${agentAddress}`);
+  //             setAgentId(`0x${agentAddress}`);
 
-              // Generate API key for the agent
-              const generateApiKey = async (agentAddr: string) => {
-                try {
-                  if (walletAddress) {
-                    // Create a signer function using the useSignMessage hook
-                    const signer = async (
-                      message: string
-                    ): Promise<`0x${string}`> => {
-                      return await signMessageAsync({ message });
-                    };
+  //             // Generate API key for the agent
+  //             const generateApiKey = async (agentAddr: string) => {
+  //               try {
+  //                 if (walletAddress) {
+  //                   // Create a signer function using the useSignMessage hook
+  //                   // const signer = async (
+  //                   //   message: string
+  //                   // ): Promise<`0x${string}`> => {
+  //                   //   return await signMessageAsync({ message });
+  //                   // };
 
-                    // Pass the signer function to getApiKey
-                    // Important: only pass the Reown account
-                    const key = await getApiKey(
-                      agentAddr,
-                      { address: walletAddress },
-                      isMainnet,
-                      signer
-                    );
-                    setApiKey(key);
-                    console.log("API key generated:", key);
-                  }
-                } catch (error) {
-                  console.error("Error generating API key:", error);
-                }
-              };
+  //                   // Pass the signer function to getApiKey
+  //                   // Important: only pass the Reown account
+  //                   // const key = await getApiKey(
+  //                   //   agentAddr,
+  //                   //   { address: walletAddress },
+  //                   //   isMainnet,
+  //                   //   signer
+  //                   // );
+  //                   // setApiKey(key);
+  //                   // console.log("API key generated:", key);
+  //                 }
+  //               } catch (error) {
+  //                 console.error("Error generating API key:", error);
+  //               }
+  //             };
 
-              // Generate API key using the agent address
-              generateApiKey(`0x${agentAddress}`);
-            }
-          } catch (error) {
-            console.error("Error processing transaction result:", error);
-          }
-        } else {
-          console.error("AgentCreated event not found in transaction logs");
-        }
-      }
+  //             // Generate API key using the agent address
+  //             generateApiKey(`0x${agentAddress}`);
+  //           }
+  //         } catch (error) {
+  //           console.error("Error processing transaction result:", error);
+  //         }
+  //       } else {
+  //         console.error("AgentCreated event not found in transaction logs");
+  //       }
+  //     }
 
-      // Set success state
-      setAgentCreated(true);
-      setShowConfirmModal(false);
-      setShowSuccessModal(true);
-    }
+  //     // Set success state
+  //     setAgentCreated(true);
+  //     setShowConfirmModal(false);
+  //     setShowSuccessModal(true);
+  //   }
 
-    if (waitError) {
-      console.error("Transaction error:", waitError);
-      alert(`Transaction failed: ${waitError.message || "Unknown error"}`);
-      setShowConfirmModal(false);
-    }
-  }, [
-    transactionReceipt,
-    waitError,
-    walletAddress,
-    isMainnet,
-    signMessageAsync,
-  ]);
+  //   if (waitError) {
+  //     console.error("Transaction error:", waitError);
+  //     alert(`Transaction failed: ${waitError.message || "Unknown error"}`);
+  //     setShowConfirmModal(false);
+  //   }
+  // }, [
+  //   transactionReceipt,
+  //   waitError,
+  //   walletAddress,
+  //   isMainnet,
+  //   signMessageAsync,
+  // ]);
 
   // Check for wallet connection status
   const isWalletConnected = !!walletAddress;
@@ -1317,13 +1303,12 @@ function CreateAgentContent() {
                   value={agentName}
                   onChange={(e) => setAgentName(e.target.value)}
                   placeholder="my-agent-name"
-                  className={`w-full p-3 rounded-lg bg-black/50 border focus:outline-none focus:ring-1 ${
-                    isNameAvailable
-                      ? "border-[#00FF88]/30 focus:border-[#00FF88] focus:ring-[#00FF88]"
-                      : nameError
+                  className={`w-full p-3 rounded-lg bg-black/50 border focus:outline-none focus:ring-1 ${isNameAvailable
+                    ? "border-[#00FF88]/30 focus:border-[#00FF88] focus:ring-[#00FF88]"
+                    : nameError
                       ? "border-red-500/30 focus:border-red-500 focus:ring-red-500"
                       : "border-[#00FF88]/30 focus:border-[#00FF88] focus:ring-[#00FF88]"
-                  }`}
+                    }`}
                 />
                 {agentName && (
                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -1391,9 +1376,9 @@ function CreateAgentContent() {
                 <p className="text-xs text-gray-400">
                   {walletAddress
                     ? `${walletAddress.substring(
-                        0,
-                        6
-                      )}...${walletAddress.substring(walletAddress.length - 4)}`
+                      0,
+                      6
+                    )}...${walletAddress.substring(walletAddress.length - 4)}`
                     : ""}
                 </p>
               </div>
@@ -1548,7 +1533,7 @@ function CreateAgentContent() {
         >
           {!isWalletConnected ? (
             <div className="flex flex-col items-center p-6 border border-[#00FF88]/30 rounded-xl bg-black/50">
-              <ReownWalletButton
+              {/* <ReownWalletButton
                 buttonText="Connect Wallet"
                 fullWidth={true}
                 showAddress={false}
@@ -1560,7 +1545,7 @@ function CreateAgentContent() {
                   console.log("Wallet disconnected via ReownWalletButton");
                 }}
                 className="px-8 py-4 rounded-lg bg-gradient-to-r from-[#00FF88]/20 to-emerald-500/20 border border-[#00FF88] text-[#00FF88] hover:from-[#00FF88]/30 hover:to-emerald-500/30 transition-all duration-300 shadow-lg shadow-emerald-900/30 backdrop-blur-sm min-w-[240px]"
-              />
+              /> */}
             </div>
           ) : (
             <button
@@ -1572,10 +1557,9 @@ function CreateAgentContent() {
                 agentCreated
               }
               className={`px-8 py-4 rounded-lg transition-all duration-300 shadow-lg shadow-emerald-900/30 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed
-                ${
-                  uploadUrl
-                    ? "bg-[#00FF88]/30 border border-[#00FF88] text-white"
-                    : "bg-gradient-to-r from-[#00FF88]/20 to-emerald-500/20 border border-[#00FF88] text-[#00FF88] hover:from-[#00FF88]/30 hover:to-emerald-500/30"
+                ${uploadUrl
+                  ? "bg-[#00FF88]/30 border border-[#00FF88] text-white"
+                  : "bg-gradient-to-r from-[#00FF88]/20 to-emerald-500/20 border border-[#00FF88] text-[#00FF88] hover:from-[#00FF88]/30 hover:to-emerald-500/30"
                 } 
                 ${isUploading || isEncrypting ? "animate-pulse" : ""}`}
             >
@@ -1617,7 +1601,7 @@ function CreateAgentContent() {
       </div>
 
       {/* Confirmation Modal */}
-      <ConfirmationModal
+      {/* <ConfirmationModal
         isOpen={showConfirmModal}
         onClose={() => setShowConfirmModal(false)}
         onConfirm={handleConfirmCreateAgent}
@@ -1630,17 +1614,17 @@ function CreateAgentContent() {
         perApiCallFee={perApiCallFee}
         isPublic={isPublic}
         avatarUrl={avatarUrl}
-      />
+      /> */}
 
       {/* Success Modal */}
-      <SuccessModal
+      {/* <SuccessModal
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
         agentAddress={agentId}
         transactionHash={transactionHash}
         chainId={chainId}
         apiKey={apiKey}
-      />
+      /> */}
     </>
   );
 }
@@ -1662,9 +1646,7 @@ export default function CreateAgentPage() {
   return (
     <main className="min-h-screen pb-20">
       <Suspense fallback={<LoadingFallback />}>
-        <ReownWrapper>
-          <CreateAgentContent />
-        </ReownWrapper>
+        <CreateAgentContent />
       </Suspense>
     </main>
   );

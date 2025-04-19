@@ -46,6 +46,7 @@
     "react-dom": "^19.0.0",
     "react-icons": "^5.5.0",
     "sonic-boom": "^4.2.0",
+    "permissionless": "^0.2.41",
     "uuid": "^11.1.0",
     "viem": "^2.23.15",
     "wagmi": "^2.14.15",

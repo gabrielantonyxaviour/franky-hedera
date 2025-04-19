@@ -53,20 +53,20 @@ body {
   }
 
   .grid-bg {
-    background-image: linear-gradient(
-        rgba(0, 255, 136, 0.1) 1px,
-        transparent 1px
-      ),
+    background-image: linear-gradient(rgba(0, 255, 136, 0.1) 1px,
+        transparent 1px),
       linear-gradient(90deg, rgba(0, 255, 136, 0.1) 1px, transparent 1px);
     background-size: 40px 40px;
   }
 }
 
 @keyframes glow {
+
   0%,
   100% {
     opacity: 0.2;
   }
+
   50% {
     opacity: 0.4;
   }
@@ -129,4 +129,9 @@ body {
     font-optical-sizing: auto;
     font-style: normal;
   }
+}
+
+::selection {
+  background: #00FF88;
+  color: black;
 }

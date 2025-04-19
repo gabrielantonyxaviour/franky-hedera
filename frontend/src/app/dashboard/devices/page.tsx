@@ -6,6 +6,7 @@ import axios from 'axios'
 import { ethers } from 'ethers'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { usePrivy } from '@privy-io/react-auth'
 
 // Define interface types for our data
 interface Device {
@@ -50,15 +51,15 @@ const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
 const CONTRACT_ABI = [
   {
     "inputs": [
-      {"internalType": "string", "name": "deviceModel", "type": "string"},
-      {"internalType": "string", "name": "ram", "type": "string"},
-      {"internalType": "string", "name": "storageCapacity", "type": "string"},
-      {"internalType": "string", "name": "cpu", "type": "string"},
-      {"internalType": "string", "name": "ngrokLink", "type": "string"},
-      {"internalType": "uint256", "name": "hostingFee", "type": "uint256"},
-      {"internalType": "address", "name": "deviceAddress", "type": "address"},
-      {"internalType": "bytes32", "name": "verificationHash", "type": "bytes32"},
-      {"internalType": "bytes", "name": "signature", "type": "bytes"}
+      { "internalType": "string", "name": "deviceModel", "type": "string" },
+      { "internalType": "string", "name": "ram", "type": "string" },
+      { "internalType": "string", "name": "storageCapacity", "type": "string" },
+      { "internalType": "string", "name": "cpu", "type": "string" },
+      { "internalType": "string", "name": "ngrokLink", "type": "string" },
+      { "internalType": "uint256", "name": "hostingFee", "type": "uint256" },
+      { "internalType": "address", "name": "deviceAddress", "type": "address" },
+      { "internalType": "bytes32", "name": "verificationHash", "type": "bytes32" },
+      { "internalType": "bytes", "name": "signature", "type": "bytes" }
     ],
     "name": "registerDevice",
     "outputs": [],
@@ -68,14 +69,14 @@ const CONTRACT_ABI = [
 ] as const
 
 export default function DevicesPage() {
-  const { address } = useAccount()
+  const { user } = usePrivy()
   const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const [debugInfo, setDebugInfo] = useState<{
     functionSelector: string;
-    allSelectors: {selector: string, from: string}[];
+    allSelectors: { selector: string, from: string }[];
   } | null>(null)
 
   // Fix hydration issues by waiting for component to mount
@@ -84,17 +85,17 @@ export default function DevicesPage() {
   }, [])
 
   useEffect(() => {
-    if (mounted && address) {
+    if (mounted && user?.smartWallet) {
       setLoading(true)
-      fetchDevices(address)
+      fetchDevices(user.smartWallet.address)
     }
-  }, [address, mounted])
+  }, [user, mounted])
 
   const fetchDevices = async (walletAddress: string) => {
     setLoading(true)
     setError(null)
     setDebugInfo(null)
-    
+
     try {
       const devicesData = await getDevicesByOwner(walletAddress, true)
       setDevices(devicesData.devices)
@@ -113,7 +114,7 @@ export default function DevicesPage() {
     devices: Device[],
     debug?: {
       functionSelector: string;
-      allSelectors: {selector: string, from: string}[];
+      allSelectors: { selector: string, from: string }[];
     }
   }> {
     try {
@@ -150,28 +151,28 @@ export default function DevicesPage() {
       }
 
       const deviceRegistrationTxs = txResult.data.items.filter((tx: Transaction) => {
-        return tx.functionSelector?.toLowerCase() === registerDeviceSelector.toLowerCase() && 
-               tx.from?.toLowerCase() === ownerAddress.toLowerCase()
+        return tx.functionSelector?.toLowerCase() === registerDeviceSelector.toLowerCase() &&
+          tx.from?.toLowerCase() === ownerAddress.toLowerCase()
       })
 
       if (deviceRegistrationTxs.length > 0) {
         console.log(`✅ Found ${deviceRegistrationTxs.length} device registration transaction(s) by this address:\n`)
-        
+
         // Sort transactions by timestamp (newest first)
         deviceRegistrationTxs.sort((a: Transaction, b: Transaction) => b.timestamp - a.timestamp)
-        
+
         const parsedDevices = deviceRegistrationTxs.map((tx: Transaction, index: number) => {
           console.log(`🖥️ Device Registration #${index + 1}`)
           console.log(`- TX Hash: ${tx.transactionHash}`)
           console.log(`- Block: ${tx.blockNumber}`)
           console.log(`- Date: ${new Date(tx.timestamp * 1000).toLocaleString()}`)
-          
+
           try {
             const decodedData = contractInterface.parseTransaction({ data: tx.input })
             if (!decodedData || !decodedData.args) {
               throw new Error("Failed to decode transaction data")
             }
-            
+
             console.log("\nRegistration Parameters:")
             console.log(`  Device Model: ${decodedData.args.deviceModel}`)
             console.log(`  RAM: ${decodedData.args.ram}`)
@@ -182,7 +183,7 @@ export default function DevicesPage() {
             console.log(`  Device Address: ${decodedData.args.deviceAddress}`)
             console.log(`  Verification Hash: ${decodedData.args.verificationHash}`)
             console.log("----------------------------------------")
-            
+
             return {
               id: index + 1,
               txHash: tx.transactionHash,
@@ -216,21 +217,21 @@ export default function DevicesPage() {
         return { devices: parsedDevices }
       } else {
         console.log("\n❌ No devices found for this wallet address")
-        
+
         if (showDebug) {
           console.log("\nDebug Info:")
           console.log(`Looking for function selector: ${registerDeviceSelector}`)
           console.log(`All function selectors found:`)
-          
+
           const allSelectors = txResult.data.items.map((tx: Transaction) => {
             console.log(`- ${tx.functionSelector} (from: ${tx.from})`)
-            return { 
-              selector: tx.functionSelector || 'unknown', 
-              from: tx.from 
+            return {
+              selector: tx.functionSelector || 'unknown',
+              from: tx.from
             }
           })
-          
-          return { 
+
+          return {
             devices: [],
             debug: {
               functionSelector: registerDeviceSelector,
@@ -238,7 +239,7 @@ export default function DevicesPage() {
             }
           }
         }
-        
+
         return { devices: [] }
       }
     } catch (error: any) {
@@ -255,7 +256,7 @@ export default function DevicesPage() {
     return (
       <div className="pt-24 min-h-screen bg-gradient-to-b from-black to-emerald-950/20">
         <div className="container mx-auto px-4 pb-16">
-          <motion.h1 
+          <motion.h1
             className="text-3xl md:text-4xl font-bold mb-10 text-center bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -275,7 +276,7 @@ export default function DevicesPage() {
     <div className="pt-24 min-h-screen bg-gradient-to-b from-black to-emerald-950/20">
       <div className="container mx-auto px-4 pb-16">
         <div className="flex items-center justify-between mb-10">
-          <motion.h1 
+          <motion.h1
             className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -283,7 +284,7 @@ export default function DevicesPage() {
           >
             My Devices
           </motion.h1>
-          
+
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -291,32 +292,32 @@ export default function DevicesPage() {
           >
             <Link href="/dashboard" className="flex items-center text-[#00FF88]/80 hover:text-[#00FF88] transition-colors">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mr-2">
-                <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               Back to Dashboard
             </Link>
           </motion.div>
         </div>
 
-        {!address && (
+        {!user?.smartWallet && (
           <div className="text-center py-20 text-white/70">
             <p className="text-xl">Please connect your wallet to view your devices</p>
           </div>
         )}
 
-        {address && loading && (
+        {user?.smartWallet && loading && (
           <div className="text-center py-20 text-white/70">
             <div className="w-12 h-12 border-4 border-[#00FF88]/20 border-t-[#00FF88] rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-xl">Loading your devices...</p>
           </div>
         )}
 
-        {address && !loading && error && (
+        {user?.smartWallet && !loading && error && (
           <div className="text-center py-20 text-red-400">
             <p className="text-xl">Error loading devices</p>
             <p className="text-sm mt-2">{error}</p>
-            <button 
-              onClick={() => fetchDevices(address)}
+            <button
+              onClick={() => fetchDevices(user?.smartWallet?.address || '')}
               className="mt-4 px-4 py-2 bg-[#00FF88]/20 text-[#00FF88] rounded-lg hover:bg-[#00FF88]/30 transition-colors"
             >
               Try Again
@@ -324,7 +325,7 @@ export default function DevicesPage() {
           </div>
         )}
 
-        {address && !loading && !error && (
+        {user?.smartWallet && !loading && !error && (
           <div className="max-w-3xl mx-auto">
             {/* Devices List */}
             <motion.div
@@ -337,7 +338,7 @@ export default function DevicesPage() {
                 <h2 className="text-2xl font-bold text-white mb-2">Your Registered Devices</h2>
                 <p className="text-white/70">Here are all the devices you've registered on the network.</p>
               </div>
-              
+
               {devices.length === 0 ? (
                 <div className="bg-black/30 backdrop-blur-sm border border-[#00FF88]/20 rounded-lg p-8 text-center">
                   <svg className="w-16 h-16 mx-auto mb-4 text-[#00FF88]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -345,7 +346,7 @@ export default function DevicesPage() {
                   </svg>
                   <p className={emptyStateStyle}>No devices registered yet</p>
                   <p className="text-white/50 text-sm mt-2 mb-6">Register a device to get started.</p>
-                  
+
                   {debugInfo && (
                     <div className="mt-8 bg-black/50 p-4 rounded-lg text-left overflow-auto max-h-64">
                       <h3 className="text-[#00FF88] font-mono text-sm mb-2">Debug Information</h3>
@@ -365,7 +366,7 @@ export default function DevicesPage() {
                 </div>
               ) : (
                 devices.map((device) => (
-                  <motion.div 
+                  <motion.div
                     key={device.txHash}
                     className={cardStyle}
                     whileHover={{ scale: 1.02 }}
@@ -374,7 +375,7 @@ export default function DevicesPage() {
                     <div className="flex flex-col">
                       <span className={labelStyle}>Device Model</span>
                       <span className={valueStyle}>{device.deviceModel || "Unknown"}</span>
-                      
+
                       <div className="grid grid-cols-3 gap-4 mt-3">
                         <div>
                           <span className={labelStyle}>RAM</span>
@@ -389,7 +390,7 @@ export default function DevicesPage() {
                           <p className="text-white/80 text-sm">{device.cpu || "N/A"}</p>
                         </div>
                       </div>
-                      
+
                       {device.deviceAddress && (
                         <div className="mt-3">
                           <span className={labelStyle}>Device Address</span>
@@ -405,7 +406,7 @@ export default function DevicesPage() {
                           {parseInt(device.hostingFee) > 0 ? `${device.hostingFee} $FRANKY` : 'Free'}
                         </p>
                       </div>
-                      
+
                       <div className="flex justify-between mt-3">
                         <span className="text-xs text-white/40">
                           Registered: {new Date(device.timestamp * 1000).toLocaleString()}

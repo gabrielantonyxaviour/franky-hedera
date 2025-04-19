@@ -1,5 +1,5 @@
+import { usePrivy } from '@privy-io/react-auth';
 import { useState, useEffect } from 'react';
-import { useAccount } from 'wagmi'; // Assuming you're using wagmi for wallet connection
 
 interface TokenBalance {
     id: string;
@@ -11,13 +11,13 @@ interface TokenBalance {
 }
 
 export function useTokenBalance() {
-    const { address: walletAddress, isConnected } = useAccount();
+    const { user } = usePrivy()
     const [balance, setBalance] = useState<TokenBalance | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const fetchBalance = async () => {
-        if (!isConnected || !walletAddress) {
+        if (!user || !user.smartWallet) {
             setBalance(null);
             return;
         }
@@ -26,7 +26,7 @@ export function useTokenBalance() {
         setError(null);
 
         try {
-            const response = await fetch(`/api/holder/current?address=${walletAddress}`);
+            const response = await fetch(`/api/holder/current?address=${user.smartWallet.address}`);
 
             if (!response.ok) {
                 throw new Error('Failed to fetch balance');
@@ -44,7 +44,7 @@ export function useTokenBalance() {
 
     useEffect(() => {
         fetchBalance();
-    }, [walletAddress, isConnected]);
+    }, [user]);
 
     return {
         balance,

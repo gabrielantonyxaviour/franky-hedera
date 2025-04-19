@@ -2,7 +2,6 @@
 
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useSetActiveWallet } from '@privy-io/wagmi';
-import { useAccount } from 'wagmi';
 
 // Helper to shorten addresses for display
 const shortenAddress = (address: string) => {
@@ -15,7 +14,6 @@ export default function Button() {
   const { wallets, ready: walletsReady } = useWallets();
 
   // WAGMI hooks
-  const { address, isConnected } = useAccount();
   const { setActiveWallet } = useSetActiveWallet();
 
   if (!ready) {
@@ -52,9 +50,9 @@ export default function Button() {
     <div className="w-full space-y-4">
       <div className="p-4 bg-gray-700 rounded-lg">
         <p className="text-sm mb-2">You are connected with Privy!</p>
-        {address && (
+        {user?.smartWallet && (
           <p className="font-mono text-sm bg-gray-800 p-2 rounded">
-            Address: {shortenAddress(address)}
+            Address: {shortenAddress(user.smartWallet.address)}
           </p>
         )}
       </div>
@@ -86,14 +84,14 @@ export default function Button() {
         >
           Connect Another Wallet
         </button>
-        
+
         <button
           onClick={linkWallet}
           className="w-full py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-bold transition-colors"
         >
           Link Another Wallet
         </button>
-        
+
         <button
           onClick={logout}
           className="w-full py-2 bg-red-600 hover:bg-red-700 rounded-lg font-bold transition-colors"

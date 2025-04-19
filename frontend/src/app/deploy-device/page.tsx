@@ -4,12 +4,10 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Header from '@/components/ui/Header'
 import { FiCopy, FiCheck, FiSmartphone, FiTerminal, FiDownload, FiServer } from 'react-icons/fi'
-import ReownWrapper from '@/components/wallet/ReownWrapper'
-import ReownWalletButton from '@/components/wallet/ReownWalletButton'
-import { useChainId, useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi'
 import { baseSepolia } from '@/components/baseChains'
 import { useAppKitAccount } from '@reown/appkit/react'
-import { modal } from '@/components/ReownProviders'
+import { usePrivy } from '@privy-io/react-auth'
+import { filecoinCalibration } from 'viem/chains'
 
 // Contract address and ABI
 const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
@@ -17,15 +15,15 @@ const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
 const CONTRACT_ABI = [
   {
     "inputs": [
-      {"internalType": "string", "name": "deviceModel", "type": "string"},
-      {"internalType": "string", "name": "ram", "type": "string"},
-      {"internalType": "string", "name": "storageCapacity", "type": "string"},
-      {"internalType": "string", "name": "cpu", "type": "string"},
-      {"internalType": "string", "name": "ngrokLink", "type": "string"},
-      {"internalType": "uint256", "name": "hostingFee", "type": "uint256"},
-      {"internalType": "address", "name": "deviceAddress", "type": "address"},
-      {"internalType": "bytes32", "name": "verificationHash", "type": "bytes32"},
-      {"internalType": "bytes", "name": "signature", "type": "bytes"}
+      { "internalType": "string", "name": "deviceModel", "type": "string" },
+      { "internalType": "string", "name": "ram", "type": "string" },
+      { "internalType": "string", "name": "storageCapacity", "type": "string" },
+      { "internalType": "string", "name": "cpu", "type": "string" },
+      { "internalType": "string", "name": "ngrokLink", "type": "string" },
+      { "internalType": "uint256", "name": "hostingFee", "type": "uint256" },
+      { "internalType": "address", "name": "deviceAddress", "type": "address" },
+      { "internalType": "bytes32", "name": "verificationHash", "type": "bytes32" },
+      { "internalType": "bytes", "name": "signature", "type": "bytes" }
     ],
     "name": "registerDevice",
     "outputs": [],
@@ -35,14 +33,14 @@ const CONTRACT_ABI = [
   {
     "anonymous": false,
     "inputs": [
-      {"indexed": true, "internalType": "address", "name": "deviceAddress", "type": "address"},
-      {"indexed": true, "internalType": "address", "name": "owner", "type": "address"},
-      {"indexed": false, "internalType": "string", "name": "deviceModel", "type": "string"},
-      {"indexed": false, "internalType": "string", "name": "ram", "type": "string"},
-      {"indexed": false, "internalType": "string", "name": "storageCapacity", "type": "string"},
-      {"indexed": false, "internalType": "string", "name": "cpu", "type": "string"},
-      {"indexed": false, "internalType": "string", "name": "ngrokLink", "type": "string"},
-      {"indexed": false, "internalType": "uint256", "name": "hostingFee", "type": "uint256"}
+      { "indexed": true, "internalType": "address", "name": "deviceAddress", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "owner", "type": "address" },
+      { "indexed": false, "internalType": "string", "name": "deviceModel", "type": "string" },
+      { "indexed": false, "internalType": "string", "name": "ram", "type": "string" },
+      { "indexed": false, "internalType": "string", "name": "storageCapacity", "type": "string" },
+      { "indexed": false, "internalType": "string", "name": "cpu", "type": "string" },
+      { "indexed": false, "internalType": "string", "name": "ngrokLink", "type": "string" },
+      { "indexed": false, "internalType": "uint256", "name": "hostingFee", "type": "uint256" }
     ],
     "name": "DeviceRegistered",
     "type": "event"
@@ -86,7 +84,7 @@ const CodeBlock = ({ code }: { code: string }) => {
       <div className="bg-black/70 backdrop-blur-sm border border-[#00FF88] border-opacity-30 p-5 font-mono text-sm md:text-base overflow-x-auto">
         <code className="text-[#00FF88]">{code}</code>
       </div>
-      <button 
+      <button
         onClick={copyToClipboard}
         className="absolute top-3 right-3 p-2 rounded-md bg-black/50 hover:bg-black/80 text-[#00FF88] transition-colors"
         aria-label="Copy to clipboard"
@@ -98,16 +96,16 @@ const CodeBlock = ({ code }: { code: string }) => {
 }
 
 // Instruction Step component
-const InstructionStep = ({ 
-  number, 
-  title, 
-  icon, 
-  children 
-}: { 
-  number: number, 
-  title: string, 
-  icon: React.ReactNode, 
-  children: React.ReactNode 
+const InstructionStep = ({
+  number,
+  title,
+  icon,
+  children
+}: {
+  number: number,
+  title: string,
+  icon: React.ReactNode,
+  children: React.ReactNode
 }) => {
   return (
     <motion.div
@@ -137,25 +135,25 @@ const Background = () => {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden">
       <div className="absolute inset-0 grid-bg opacity-30"></div>
-      
+
       {/* Gradient overlay for depth */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-emerald-900/10"></div>
-      
+
       {/* Hexagon pattern */}
       <svg className="absolute inset-0 w-full h-full opacity-10" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <pattern id="hexagons" width="50" height="43.4" patternUnits="userSpaceOnUse" patternTransform="scale(2)">
-            <path 
-              d="M25 0 L50 14.4 L50 38.6 L25 53 L0 38.6 L0 14.4 Z" 
-              fill="none" 
-              stroke="#00FF88" 
+            <path
+              d="M25 0 L50 14.4 L50 38.6 L25 53 L0 38.6 L0 14.4 Z"
+              fill="none"
+              stroke="#00FF88"
               strokeWidth="1"
             />
           </pattern>
         </defs>
         <rect width="100%" height="200%" fill="url(#hexagons)" />
       </svg>
-      
+
       {/* Animated glow spots */}
       <motion.div
         className="absolute w-96 h-96 rounded-full"
@@ -174,7 +172,7 @@ const Background = () => {
           ease: "easeInOut",
         }}
       />
-      
+
       <motion.div
         className="absolute w-64 h-64 rounded-full"
         style={{
@@ -226,21 +224,19 @@ const DeviceVerification = () => {
   const [transactionHash, setTransactionHash] = useState<`0x${string}` | undefined>(undefined)
   const [transactionError, setTransactionError] = useState<string | null>(null)
   const [deviceId, setDeviceId] = useState<string | null>(null)
-  
+
   // Get chain ID for explorer URL
-  const chainId = useChainId()
-  const account = useAccount()
-  
+  const { user } = usePrivy()
   // Contract interaction hooks
-  const { writeContractAsync, isPending } = useWriteContract()
-  const { data: transactionReceipt, isLoading: isWaitingForTransaction, error: waitError } = 
-    useWaitForTransactionReceipt({
-      hash: transactionHash
-    })
+  // const { writeContractAsync, isPending } = useWriteContract()
+  // const { data: transactionReceipt, isLoading: isWaitingForTransaction, error: waitError } =
+  //   useWaitForTransactionReceipt({
+  //     hash: transactionHash
+  //   })
 
   // Use AppKit account
   const { address: appKitAddress, isConnected: appKitIsConnected } = useAppKitAccount()
-  
+
   // Set isClient to true after component mounts to avoid SSR issues
   useEffect(() => {
     setIsClient(true)
@@ -252,7 +248,7 @@ const DeviceVerification = () => {
 
     // Extract URL parameters that contain device info
     const urlParams = new URLSearchParams(window.location.search)
-    
+
     const deviceModel = urlParams.get('deviceModel')
     const ram = urlParams.get('ram')
     const storage = urlParams.get('storage')
@@ -261,7 +257,7 @@ const DeviceVerification = () => {
     const walletAddress = urlParams.get('walletAddress')
     const bytes32Data = urlParams.get('bytes32Data')
     const signature = urlParams.get('signature')
-    
+
     // Check if all required parameters are present
     if (deviceModel && ram && storage && cpu && ngrokLink && walletAddress && bytes32Data) {
       // Store device details for display in the modal
@@ -275,7 +271,7 @@ const DeviceVerification = () => {
         bytes32Data,
         signature: signature || undefined
       })
-      
+
       // Don't automatically show modal - wait for wallet connection
       console.log('Device parameters detected in URL')
     } else {
@@ -290,16 +286,16 @@ const DeviceVerification = () => {
       setWalletAddress(appKitAddress)
       setWalletType("Reown Wallet")
       setIsWalletConnected(true)
-      
+
       // Show device modal if we have device details
       if (deviceDetails && !showDeviceModal) {
         // Set focus to the hostingFee input when opened
         setShowDeviceModal(true);
-        
+
         // Set a default value that's easy to change
         setHostingFee("20");
       }
-      
+
       console.log('Reown wallet connected:', appKitAddress)
     } else {
       // No wallet connected
@@ -327,17 +323,17 @@ const DeviceVerification = () => {
         setTransactionError('Please enter a positive number for the hosting fee.');
         return;
       }
-      
+
       setIsVerifying(true)
       setTransactionError(null)
-      
+
       if (!isWalletConnected || !walletAddress) {
         console.error('Wallet not connected')
         setTransactionError('Wallet not connected. Please connect your wallet and try again.')
         setIsVerifying(false)
         return
       }
-      
+
       if (!deviceDetails) {
         console.error('No device details available')
         setTransactionError('No device details available. Please scan the QR code from your device first.')
@@ -347,15 +343,15 @@ const DeviceVerification = () => {
 
       // Check if we're on the right network
       const requiredChainId = 8453 // Base Mainnet
-      if (chainId !== requiredChainId) {
-        console.log(`Currently on chain ${chainId}, need to switch to ${requiredChainId}`)
-        setTransactionError(`Please switch to Base Mainnet network (Chain ID: ${requiredChainId}) to continue`)
-        setIsVerifying(false)
-        return
-      }
+      // if (chainId !== requiredChainId) {
+      //   console.log(`Currently on chain ${chainId}, need to switch to ${requiredChainId}`)
+      //   setTransactionError(`Please switch to Base Mainnet network (Chain ID: ${requiredChainId}) to continue`)
+      //   setIsVerifying(false)
+      //   return
+      // }
 
       console.log('Registering device on smart contract...')
-      
+
       // Prepare contract call parameters
       const {
         deviceModel,
@@ -370,16 +366,16 @@ const DeviceVerification = () => {
 
       // Convert signature from string to bytes if available
       // If signature is not provided, use an empty bytes array
-      let signatureBytes: `0x${string}` = '0x' 
+      let signatureBytes: `0x${string}` = '0x'
       if (signature) {
         // Make sure signature has 0x prefix
-        signatureBytes = signature.startsWith('0x') 
-          ? signature as `0x${string}` 
+        signatureBytes = signature.startsWith('0x')
+          ? signature as `0x${string}`
           : `0x${signature}` as `0x${string}`
       }
 
       // Make sure verification hash has 0x prefix
-      const verificationHashHex = verificationHash.startsWith('0x') 
+      const verificationHashHex = verificationHash.startsWith('0x')
         ? verificationHash as `0x${string}`
         : `0x${verificationHash}` as `0x${string}`
 
@@ -390,24 +386,22 @@ const DeviceVerification = () => {
       try {
         // Open the Reown modal first to ensure it's ready
         console.log('Preparing Reown wallet for transaction');
-        
+
         // Open the Account view to prepare for transaction
         try {
-          await modal.open({
-            view: 'Account'
-          });
+          // TODO: Reown modal opening logic
           console.log('Reown modal opened successfully');
-          
+
           // Allow time for the modal to fully open and initialize
           await new Promise(resolve => setTimeout(resolve, 3000));
         } catch (modalError) {
           console.warn('Could not open Reown modal:', modalError);
           // Continue anyway as the modal might already be open
         }
-        
+
         // Convert hosting fee to BigInt
         const hostingFeeBigInt = BigInt(hostingFee || "0")
-        
+
         // Create transaction params with the new hostingFee parameter
         const txParams = {
           address: CONTRACT_ADDRESS as `0x${string}`,
@@ -427,17 +421,17 @@ const DeviceVerification = () => {
           chainId: currentChainId,
           gas: BigInt(6000000)
         }
-        
-        console.log('Sending transaction...');
-        const hash = await writeContractAsync(txParams)
-        
-        // Set transaction hash to track its progress
-        console.log('Transaction submitted:', hash)
-        setTransactionHash(hash)
-        
+
+        // console.log('Sending transaction...');
+        // const hash = await writeContractAsync(txParams)
+
+        // // Set transaction hash to track its progress
+        // console.log('Transaction submitted:', hash)
+        // setTransactionHash(hash)
+
       } catch (error: any) {
         console.error('Transaction signing error:', error)
-        
+
         // Simple error handling
         if (error.message?.includes('Request was aborted')) {
           setTransactionError('Transaction was aborted. Please ensure you are connected to Base Mainnet network and try again.');
@@ -446,7 +440,7 @@ const DeviceVerification = () => {
         } else {
           setTransactionError(error.message || 'Failed to sign transaction');
         }
-        
+
         setIsVerifying(false)
       }
     } catch (error: any) {
@@ -456,70 +450,70 @@ const DeviceVerification = () => {
     }
   }
 
-  // Watch for transaction receipt
-  useEffect(() => {
-    if (transactionReceipt) {
-      console.log('Transaction confirmed:', transactionReceipt)
-      
-      // Extract information from the transaction receipt logs
-      try {
-        // For the new contract, we want to extract information from the DeviceRegistered event
-        // DeviceRegistered(address indexed deviceAddress, address indexed owner, string deviceModel, string ram, 
-        // string storageCapacity, string cpu, string ngrokLink, uint256 hostingFee)
-        
-        if (transactionReceipt.logs && transactionReceipt.logs.length > 0) {
-          console.log('Transaction logs:', transactionReceipt.logs);
-          
-          // The new DeviceRegistered event has the following topic in the new contract:
-          const deviceRegisteredTopic = '0x23308818ac578935e73a554a196ddeaa2ea2f9e718f32025a04ae66d8fe43ad5';
-          
-          // Look through all logs to find the DeviceRegistered event
-          for (const log of transactionReceipt.logs) {
-            if (log.topics[0] === deviceRegisteredTopic) {
-              // Device address is indexed and in topics[1]
-              if (log.topics[1]) {
-                const deviceAddressHex = log.topics[1];
-                setDeviceId(deviceDetails?.walletAddress || deviceAddressHex);
-                console.log('Device registered with address:', deviceDetails?.walletAddress);
-                break;
-              }
-            }
-          }
-          
-          // If we still don't have the device address from logs, just use what we have
-          if (!deviceId && deviceDetails?.walletAddress) {
-            setDeviceId(deviceDetails.walletAddress);
-          }
-        }
-      } catch (error) {
-        console.error('Error extracting device info from logs:', error);
-        // Fallback - just use the known device address
-        if (deviceDetails?.walletAddress) {
-          setDeviceId(deviceDetails.walletAddress);
-        }
-      }
-      
-      setVerificationSuccess(true)
-      setIsVerifying(false)
-      
-      // Close modal after success
-      setTimeout(() => {
-        setShowDeviceModal(false)
-        
-        // Remove URL parameters after successful verification
-        if (typeof window !== 'undefined') {
-          const baseUrl = window.location.pathname
-          window.history.replaceState({}, document.title, baseUrl)
-        }
-      }, 7000) // Increased timeout to give users more time to see the result
-    }
-    
-    if (waitError) {
-      console.error('Transaction wait error:', waitError)
-      setTransactionError(waitError.message || 'Error waiting for transaction confirmation')
-      setIsVerifying(false)
-    }
-  }, [transactionReceipt, waitError, deviceDetails, deviceId])
+  // // Watch for transaction receipt
+  // useEffect(() => {
+  //   if (transactionReceipt) {
+  //     console.log('Transaction confirmed:', transactionReceipt)
+
+  //     // Extract information from the transaction receipt logs
+  //     try {
+  //       // For the new contract, we want to extract information from the DeviceRegistered event
+  //       // DeviceRegistered(address indexed deviceAddress, address indexed owner, string deviceModel, string ram, 
+  //       // string storageCapacity, string cpu, string ngrokLink, uint256 hostingFee)
+
+  //       if (transactionReceipt.logs && transactionReceipt.logs.length > 0) {
+  //         console.log('Transaction logs:', transactionReceipt.logs);
+
+  //         // The new DeviceRegistered event has the following topic in the new contract:
+  //         const deviceRegisteredTopic = '0x23308818ac578935e73a554a196ddeaa2ea2f9e718f32025a04ae66d8fe43ad5';
+
+  //         // Look through all logs to find the DeviceRegistered event
+  //         for (const log of transactionReceipt.logs) {
+  //           if (log.topics[0] === deviceRegisteredTopic) {
+  //             // Device address is indexed and in topics[1]
+  //             if (log.topics[1]) {
+  //               const deviceAddressHex = log.topics[1];
+  //               setDeviceId(deviceDetails?.walletAddress || deviceAddressHex);
+  //               console.log('Device registered with address:', deviceDetails?.walletAddress);
+  //               break;
+  //             }
+  //           }
+  //         }
+
+  //         // If we still don't have the device address from logs, just use what we have
+  //         if (!deviceId && deviceDetails?.walletAddress) {
+  //           setDeviceId(deviceDetails.walletAddress);
+  //         }
+  //       }
+  //     } catch (error) {
+  //       console.error('Error extracting device info from logs:', error);
+  //       // Fallback - just use the known device address
+  //       if (deviceDetails?.walletAddress) {
+  //         setDeviceId(deviceDetails.walletAddress);
+  //       }
+  //     }
+
+  //     setVerificationSuccess(true)
+  //     setIsVerifying(false)
+
+  //     // Close modal after success
+  //     setTimeout(() => {
+  //       setShowDeviceModal(false)
+
+  //       // Remove URL parameters after successful verification
+  //       if (typeof window !== 'undefined') {
+  //         const baseUrl = window.location.pathname
+  //         window.history.replaceState({}, document.title, baseUrl)
+  //       }
+  //     }, 7000) // Increased timeout to give users more time to see the result
+  //   }
+
+  //   if (waitError) {
+  //     console.error('Transaction wait error:', waitError)
+  //     setTransactionError(waitError.message || 'Error waiting for transaction confirmation')
+  //     setIsVerifying(false)
+  //   }
+  // }, [transactionReceipt, waitError, deviceDetails, deviceId])
 
   // New functions for Reown wallet connection
   const handleReownConnect = () => {
@@ -543,23 +537,16 @@ const DeviceVerification = () => {
             After scanning the QR code on your device, connect your wallet to verify ownership
             and complete the device registration process.
           </p>
-          
+
           {deviceDetails ? (
             <>
               <p className="mt-4 text-emerald-400">
                 <span className="font-medium">Device detected!</span> Please connect your wallet to verify ownership.
               </p>
-              
+
               {!isWalletConnected ? (
                 <div className="mt-6 flex flex-col items-center">
-                  <ReownWalletButton
-                    buttonText="Connect Wallet"
-                    fullWidth={true}
-                    showAddress={false}
-                    onConnect={handleReownConnect}
-                    onDisconnect={handleReownDisconnect}
-                    className="px-6 py-4 bg-gradient-to-r from-[#00FF88]/20 to-emerald-500/20 hover:from-[#00FF88]/30 hover:to-emerald-500/30 backdrop-blur-sm rounded-lg transition-all border border-[#00FF88]/30 focus:outline-none w-full"
-                  />
+
                   <p className="mt-3 text-gray-400 text-sm">
                     Connect securely using Reown
                   </p>
@@ -582,7 +569,7 @@ const DeviceVerification = () => {
                     </div>
                   </div>
                   <div className="mt-4 text-center">
-                    <button 
+                    <button
                       onClick={() => setShowDeviceModal(true)}
                       className="px-4 py-2 bg-[#00FF88]/20 hover:bg-[#00FF88]/30 text-[#00FF88] rounded-lg border border-[#00FF88]/30 transition-colors text-sm"
                     >
@@ -605,7 +592,7 @@ const DeviceVerification = () => {
                   </p>
                 </div>
               </div>
-              
+
               <div className="mt-4">
                 {isWalletConnected ? (
                   <div className="p-3 rounded-lg bg-[#00FF88]/10 border border-[#00FF88]/30 mb-4">
@@ -626,14 +613,7 @@ const DeviceVerification = () => {
                   </div>
                 ) : (
                   <div className="flex justify-center">
-                    <ReownWalletButton
-                      buttonText="Connect Wallet"
-                      fullWidth={true}
-                      showAddress={false}
-                      onConnect={handleReownConnect}
-                      onDisconnect={handleReownDisconnect}
-                      className="px-6 py-2 rounded-lg bg-[#00FF88]/10 border border-[#00FF88]/40 text-[#00FF88] hover:bg-[#00FF88]/20 transition-colors"
-                    />
+
                   </div>
                 )}
               </div>
@@ -641,11 +621,11 @@ const DeviceVerification = () => {
           )}
         </InstructionStep>
       </div>
-      
+
       {/* Device Verification Modal */}
       {showDeviceModal && deviceDetails && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 overflow-auto">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="relative max-w-md w-full rounded-xl border border-[#00FF88] border-opacity-50 bg-black/90 backdrop-blur-sm p-5 max-h-[90vh] overflow-y-auto"
@@ -655,12 +635,12 @@ const DeviceVerification = () => {
               onClick={() => {
                 // Close the modal
                 setShowDeviceModal(false);
-                
+
                 // Remove URL parameters by replacing current URL with base URL
                 if (typeof window !== 'undefined') {
                   const baseUrl = window.location.pathname;
                   window.history.replaceState({}, document.title, baseUrl);
-                  
+
                   // Also reset device details state
                   setDeviceDetails(null);
                 }
@@ -676,7 +656,7 @@ const DeviceVerification = () => {
             <h3 className="text-xl font-bold bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent mb-3 pr-8">
               Verify Device
             </h3>
-            
+
             {/* Connected wallet info card - Showing this first as it's most relevant for verification */}
             <div className="p-3 rounded-lg bg-[#00FF88]/10 border border-[#00FF88]/30 mb-4">
               <div className="flex items-center mb-1">
@@ -690,7 +670,7 @@ const DeviceVerification = () => {
               </div>
               <div className="text-xs text-gray-400 ml-8">
                 <p className="flex justify-between">
-                  <span className="text-gray-300">Address:</span> 
+                  <span className="text-gray-300">Address:</span>
                   <span className="text-[#00FF88]">
                     {walletAddress ? `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}` : 'Not connected'}
                   </span>
@@ -708,7 +688,7 @@ const DeviceVerification = () => {
                 )}
               </div>
             </div>
-            
+
             {/* Integrated hosting fee input section */}
             <div className="p-4 rounded-lg bg-emerald-900/20 border border-emerald-400/30 mb-4">
               <label htmlFor="hostingFee" className="block text-emerald-300 text-sm font-medium mb-2">
@@ -728,12 +708,12 @@ const DeviceVerification = () => {
                   <span className="text-emerald-400">$FRANKY</span>
                 </div>
               </div>
-              
+
               <p className="mt-2 text-xs text-gray-400">
                 Payment you'll receive when someone deploys an agent to your device.
               </p>
             </div>
-            
+
             {/* Device details in a compact accordion/tabs style */}
             <div className="space-y-2 mb-4">
               <details className="group rounded-lg bg-black/50 border border-gray-800 overflow-hidden">
@@ -767,7 +747,7 @@ const DeviceVerification = () => {
                   </div>
                 </div>
               </details>
-              
+
               <details className="group rounded-lg bg-black/50 border border-gray-800 overflow-hidden">
                 <summary className="flex cursor-pointer list-none items-center justify-between p-2 font-medium">
                   <div className="flex items-center">
@@ -787,14 +767,14 @@ const DeviceVerification = () => {
                   </div>
                   <div className="flex justify-between py-1 border-t border-gray-700">
                     <span className="text-gray-400">Link</span>
-                    <a href={deviceDetails.ngrokLink} target="_blank" rel="noopener noreferrer" 
+                    <a href={deviceDetails.ngrokLink} target="_blank" rel="noopener noreferrer"
                       className="text-[#00FF88] text-xs underline hover:text-emerald-400 break-all max-w-[200px] truncate">
                       {deviceDetails.ngrokLink}
                     </a>
                   </div>
                 </div>
               </details>
-              
+
               <details className="group rounded-lg bg-black/50 border border-gray-800 overflow-hidden">
                 <summary className="flex cursor-pointer list-none items-center justify-between p-2 font-medium">
                   <div className="flex items-center">
@@ -816,7 +796,7 @@ const DeviceVerification = () => {
                       {deviceDetails.bytes32Data}
                     </div>
                   </div>
-                  
+
                   {deviceDetails.signature && (
                     <div className="py-1 border-t border-gray-700">
                       <div className="flex justify-between mb-1">
@@ -831,28 +811,28 @@ const DeviceVerification = () => {
                 </div>
               </details>
             </div>
-            
+
             {verificationSuccess ? (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="p-3 rounded-lg bg-emerald-900/30 border border-emerald-400/30 text-center"
               >
                 <FiCheck className="text-[#00FF88] mx-auto text-xl mb-1" />
                 <p className="text-[#00FF88] font-medium text-sm">Device verification successful!</p>
-                
+
                 {deviceId && (
                   <div className="mt-2 text-sm text-emerald-300">
                     <p className="font-bold">Device Address: <span className="text-white text-xs break-all">{deviceId}</span></p>
                     <p className="text-xs mt-1 text-yellow-300 font-medium">Your device is now registered and ready to host agents</p>
                   </div>
                 )}
-                
+
                 {transactionHash && (
                   <div className="mt-2 text-xs text-emerald-300">
                     <p>Transaction confirmed on-chain</p>
-                    <a 
-                      href={getExplorerUrl(chainId, transactionHash)} 
+                    <a
+                      href={getExplorerUrl(filecoinCalibration.id, transactionHash)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[#00FF88] underline hover:text-emerald-200 text-xs mt-1 inline-block"
@@ -869,7 +849,7 @@ const DeviceVerification = () => {
                     <p>{transactionError}</p>
                   </div>
                 )}
-                <motion.button
+                {/* <motion.button
                   onClick={verifyDevice}
                   disabled={isVerifying || isPending || isWaitingForTransaction || hostingFee === '' || isNaN(Number(hostingFee)) || Number(hostingFee) <= 0}
                   className="px-5 py-2 rounded-lg bg-[#00FF88] bg-opacity-20 border border-[#00FF88] text-[#00FF88] hover:bg-opacity-30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm w-full"
@@ -882,9 +862,9 @@ const DeviceVerification = () => {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      {isPending ? 'Waiting for approval...' : 
-                       isWaitingForTransaction ? 'Confirming transaction...' : 
-                       'Registering device...'}
+                      {isPending ? 'Waiting for approval...' :
+                        isWaitingForTransaction ? 'Confirming transaction...' :
+                          'Registering device...'}
                     </>
                   ) : hostingFee === '' || isNaN(Number(hostingFee)) || Number(hostingFee) <= 0 ? (
                     'Enter valid fee amount'
@@ -896,9 +876,9 @@ const DeviceVerification = () => {
                 </motion.button>
                 {transactionHash && !verificationSuccess && (
                   <p className="text-xs text-center text-gray-400 mt-2">
-                    Transaction pending: 
-                    <a 
-                      href={getExplorerUrl(chainId, transactionHash)} 
+                    Transaction pending:
+                    <a
+                      href={getExplorerUrl(chainId, transactionHash)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[#00FF88] underline hover:text-emerald-200 ml-1"
@@ -906,7 +886,7 @@ const DeviceVerification = () => {
                       View
                     </a>
                   </p>
-                )}
+                )} */}
               </div>
             )}
           </motion.div>
@@ -918,9 +898,7 @@ const DeviceVerification = () => {
 
 // Wrap the device verification component with Reown provider instead of Privy
 const WrappedDeviceVerification = () => (
-  <ReownWrapper>
-    <DeviceVerification />
-  </ReownWrapper>
+  <DeviceVerification />
 )
 
 export default function DeployDevice() {
@@ -929,7 +907,7 @@ export default function DeployDevice() {
       <Background />
       <main className="min-h-screen pb-16 relative z-10">
         <Header />
-        
+
         {/* Hero Section */}
         <section className="pt-32 px-6 relative">
           <div className="container mx-auto text-center">
@@ -948,16 +926,16 @@ export default function DeployDevice() {
             </motion.div>
           </div>
         </section>
-        
+
         {/* Instructions Section */}
         <section className="py-10 px-6">
           <div className="container mx-auto max-w-5xl">
             <InstructionStep number={1} title="Install Termux" icon={<FiSmartphone />}>
               <p className="mb-4">
-                Termux is a terminal emulator for Android that allows you to run Linux commands. 
+                Termux is a terminal emulator for Android that allows you to run Linux commands.
                 Follow these steps to install it:
               </p>
-              
+
               <ol className="list-decimal ml-6 space-y-3">
                 <li>
                   <span className="font-medium text-[#00FF88]">Install F-Droid</span> (recommended method):
@@ -983,59 +961,59 @@ export default function DeployDevice() {
                   </ul>
                 </li>
               </ol>
-              
+
               <p className="mt-4">
                 <span className="font-medium">Important:</span> After installation, open Termux and grant the necessary permissions when prompted.
               </p>
             </InstructionStep>
-            
+
             <InstructionStep number={2} title="Set up Ollama in Termux" icon={<FiTerminal />}>
               <p className="mb-4">
                 Ollama allows you to run AI models locally on your device. Follow these commands to set up Ollama in Termux:
               </p>
-              
+
               <p className="font-medium mt-3">Update Termux packages:</p>
               <CodeBlock code="pkg update && pkg upgrade -y" />
-              
+
               <p className="font-medium mt-3">Install required dependencies:</p>
               <CodeBlock code="pkg install -y git build-essential golang cmake" />
-              
+
               <p className="font-medium mt-3">Clone Ollama repository:</p>
               <CodeBlock code="git clone https://github.com/ollama/ollama.git" />
-              
+
               <p className="font-medium mt-3">Navigate to the Ollama directory:</p>
               <CodeBlock code="cd ollama" />
-              
+
               <p className="font-medium mt-3">Build Ollama:</p>
               <CodeBlock code="go build" />
-              
+
               <p className="font-medium mt-3">Move the binary to a directory in your PATH:</p>
               <CodeBlock code="mv ollama $PREFIX/bin/" />
-              
+
               <p className="mt-4">
                 <span className="font-medium">Note:</span> The build process might take some time depending on your device.
               </p>
             </InstructionStep>
-            
+
             <InstructionStep number={3} title="Install Franky Shell Script" icon={<FiDownload />}>
               <p className="mb-4">
                 Use the following curl command to download and install our Franky shell script:
               </p>
-              
+
               <CodeBlock code="curl -sSL https://raw.githubusercontent.com/franky-ai/setup/main/install.sh | bash" />
-              
+
               <p className="mt-4">
                 This script will download all necessary files to run Franky on your device.
               </p>
             </InstructionStep>
-            
+
             <InstructionStep number={4} title="Install Required Dependencies" icon={<FiDownload />}>
               <p className="mb-4">
                 Install all required files and dependencies using the franky command:
               </p>
-              
+
               <CodeBlock code="franky install" />
-              
+
               <p className="mt-4">
                 This command will:
               </p>
@@ -1045,18 +1023,18 @@ export default function DeployDevice() {
                 <li>Configure your device for optimal performance</li>
               </ul>
             </InstructionStep>
-            
+
             <InstructionStep number={5} title="Start the Franky Server" icon={<FiServer />}>
               <p className="mb-4">
                 Start the Franky server with this simple command:
               </p>
-              
+
               <CodeBlock code="franky serve" />
-              
+
               <p className="mt-4">
                 Your device is now running as an AI agent! The command will show a QR code or URL that you can use to connect to your agent from other devices.
               </p>
-              
+
               <div className="mt-6 p-4 bg-emerald-900/30 border border-emerald-400/30 rounded-lg">
                 <h4 className="font-medium text-[#00FF88] mb-2">💡 Tip:</h4>
                 <p>
