@@ -105,7 +105,7 @@ const OptionCard = ({
       transition={{ duration: 0.3 }}
       onClick={onClick}
     >
-      <div className="text-4xl mb-4 text-[#00FF88]">{icon}</div>
+      <div className="text-4xl flex w-full justify-center  mb-4 text-[#00FF88]">{icon}</div>
       <h3 className="text-xl font-bold mb-2 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
         {title}
       </h3>
@@ -145,7 +145,7 @@ export default function Home() {
                 Green AI Agents
               </h1>
               <p className="text-xl md:text-2xl mb-10 text-[#AAAAAA] max-w-3xl mx-auto">
-                Recycle your old mobile devices into AI agents and earn $FRANKY.
+                Recycle your old mobile devices into AI agents and earn $FIL.
               </p>
 
               <div className="flex flex-col md:flex-row justify-center gap-6 md:gap-8">
@@ -172,7 +172,7 @@ export default function Home() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
                 <OptionCard
                   title="Convert Your Device"
-                  description="Turn your old mobile device into an AI agent hosting service and earn $FRANKY tokens."
+                  description="Turn your old mobile device into an AI agent hosting service and earn $FIL tokens."
                   icon={
                     <svg
                       width="64"
@@ -204,7 +204,7 @@ export default function Home() {
                 />
                 <OptionCard
                   title="Host Your AI Agent"
-                  description="Host your AI agent in an available old device listed in the marketplace."
+                  description="Host your AI agent in any available old devices listed in the marketplace."
                   icon={
                     <svg
                       width="64"
@@ -231,7 +231,7 @@ export default function Home() {
                 />
                 <OptionCard
                   title="Use Public AI Agents"
-                  description="Access and use any of the publicly available AI agents in the network."
+                  description="Access and use any of the publicly available AI agents in the Franky Ecosystem."
                   icon={
                     <svg
                       width="64"
@@ -262,7 +262,7 @@ export default function Home() {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setGetStarted(false)}
               >
-                ← Back
+                ←  Go Back
               </motion.button>
             </motion.div>
           )}

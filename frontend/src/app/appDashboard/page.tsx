@@ -120,7 +120,7 @@ const getStatusColor = (status: Transaction['status']) => {
 
 export default function AppDashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions)
-  
+
   // Effect to simulate adding new transactions
   useEffect(() => {
     const interval = setInterval(() => {
@@ -135,26 +135,26 @@ export default function AppDashboard() {
         status: Math.random() > 0.9 ? 'pending' : 'completed',
         hash: `0x${Math.random().toString(16).substring(2, 6)}...${Math.random().toString(16).substring(2, 6)}`
       }
-      
+
       setTransactions(prev => [newTransaction, ...prev.slice(0, 9)])
     }, 15000) // Add new transaction every 15 seconds
-    
+
     return () => clearInterval(interval)
   }, [])
-  
+
   return (
     <>
       <div className="min-h-screen pb-16 relative">
         <Header />
-        
+
         <main className="container mx-auto px-4 pt-32">
           <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
             Franky Dashboard
           </h1>
-          
+
           {/* KPI Section */}
           <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <motion.div 
+            <motion.div
               className="p-6 rounded-xl bg-black/50 backdrop-blur-sm border border-[#00FF88]/30"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -170,8 +170,8 @@ export default function AppDashboard() {
                 </div>
               </div>
             </motion.div>
-            
-            <motion.div 
+
+            <motion.div
               className="p-6 rounded-xl bg-black/50 backdrop-blur-sm border border-[#00FF88]/30"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -187,8 +187,8 @@ export default function AppDashboard() {
                 </div>
               </div>
             </motion.div>
-            
-            <motion.div 
+
+            <motion.div
               className="p-6 rounded-xl bg-black/50 backdrop-blur-sm border border-[#00FF88]/30"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -205,16 +205,16 @@ export default function AppDashboard() {
               </div>
             </motion.div>
           </section>
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Transactions Section - Now Vertical */}
             <div className="lg:col-span-2">
               <h2 className="text-2xl font-bold text-white mb-4">Recent Transactions</h2>
-              
+
               <div className="space-y-4">
                 <AnimatePresence>
                   {transactions.map((tx) => (
-                    <motion.div 
+                    <motion.div
                       key={tx.id}
                       className="p-4 rounded-lg bg-black/50 backdrop-blur-sm border border-[#00FF88]/20 w-full"
                       initial={{ opacity: 0, y: -20 }}
@@ -234,10 +234,9 @@ export default function AppDashboard() {
                             <p className="text-xs text-gray-400">{tx.timestamp}</p>
                           </div>
                         </div>
-                        <div className={`px-2 py-1 rounded-full text-xs flex items-center ${
-                          tx.status === 'completed' ? 'bg-[#00FF88]/10' : 
-                          tx.status === 'pending' ? 'bg-yellow-500/10' : 'bg-red-500/10'
-                        }`}>
+                        <div className={`px-2 py-1 rounded-full text-xs flex items-center ${tx.status === 'completed' ? 'bg-[#00FF88]/10' :
+                            tx.status === 'pending' ? 'bg-yellow-500/10' : 'bg-red-500/10'
+                          }`}>
                           {tx.status === 'completed' ? (
                             <FiCheckCircle className="mr-1 text-[#00FF88]" />
                           ) : (
@@ -248,7 +247,7 @@ export default function AppDashboard() {
                           </span>
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
@@ -258,7 +257,7 @@ export default function AppDashboard() {
                             </span>
                           </div>
                         </div>
-                        
+
                         <div>
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                             <span className="text-xs text-gray-400">Address</span>
@@ -267,11 +266,11 @@ export default function AppDashboard() {
                             </span>
                           </div>
                         </div>
-                        
+
                         <div>
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                             <span className="text-xs text-gray-400">Tx Hash</span>
-                            <a 
+                            <a
                               href={`https://basescan.org/tx/${tx.hash}`}
                               target="_blank"
                               rel="noopener noreferrer"
@@ -287,14 +286,14 @@ export default function AppDashboard() {
                 </AnimatePresence>
               </div>
             </div>
-            
+
             {/* Top Token Holders - Updated without percentages */}
             <div>
               <h2 className="text-2xl font-bold text-white mb-4">Top $FRANKY Holders</h2>
-              
+
               <div className="bg-black/50 backdrop-blur-sm border border-[#00FF88]/20 rounded-xl p-4">
                 {tokenHolders.map((holder, idx) => (
-                  <motion.div 
+                  <motion.div
                     key={holder.address}
                     className={`py-3 ${idx !== tokenHolders.length - 1 ? 'border-b border-[#00FF88]/10' : ''}`}
                     initial={{ opacity: 0, y: 10 }}

@@ -4,66 +4,8 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Header from '@/components/ui/Header'
 import { FiCopy, FiCheck, FiSmartphone, FiTerminal, FiDownload, FiServer } from 'react-icons/fi'
-import { baseSepolia } from '@/components/baseChains'
 import { useAppKitAccount } from '@reown/appkit/react'
 import { usePrivy } from '@privy-io/react-auth'
-import { filecoinCalibration } from 'viem/chains'
-
-// Contract address and ABI
-const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
-
-const CONTRACT_ABI = [
-  {
-    "inputs": [
-      { "internalType": "string", "name": "deviceModel", "type": "string" },
-      { "internalType": "string", "name": "ram", "type": "string" },
-      { "internalType": "string", "name": "storageCapacity", "type": "string" },
-      { "internalType": "string", "name": "cpu", "type": "string" },
-      { "internalType": "string", "name": "ngrokLink", "type": "string" },
-      { "internalType": "uint256", "name": "hostingFee", "type": "uint256" },
-      { "internalType": "address", "name": "deviceAddress", "type": "address" },
-      { "internalType": "bytes32", "name": "verificationHash", "type": "bytes32" },
-      { "internalType": "bytes", "name": "signature", "type": "bytes" }
-    ],
-    "name": "registerDevice",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      { "indexed": true, "internalType": "address", "name": "deviceAddress", "type": "address" },
-      { "indexed": true, "internalType": "address", "name": "owner", "type": "address" },
-      { "indexed": false, "internalType": "string", "name": "deviceModel", "type": "string" },
-      { "indexed": false, "internalType": "string", "name": "ram", "type": "string" },
-      { "indexed": false, "internalType": "string", "name": "storageCapacity", "type": "string" },
-      { "indexed": false, "internalType": "string", "name": "cpu", "type": "string" },
-      { "indexed": false, "internalType": "string", "name": "ngrokLink", "type": "string" },
-      { "indexed": false, "internalType": "uint256", "name": "hostingFee", "type": "uint256" }
-    ],
-    "name": "DeviceRegistered",
-    "type": "event"
-  }
-] as const
-
-// Helper function to get the block explorer URL based on the chain
-const getExplorerUrl = (chainId: number, hash: string) => {
-  // Base Mainnet
-  if (chainId === 8453) {
-    return `https://basescan.org/tx/${hash}`
-  }
-  // Base Sepolia
-  if (chainId === baseSepolia.id) {
-    return `https://sepolia.basescan.org/tx/${hash}`
-  }
-  // Ethereum Sepolia
-  if (chainId === 11155111) {
-    return `https://sepolia.etherscan.io/tx/${hash}`
-  }
-  // Ethereum Mainnet (default)
-  return `https://etherscan.io/tx/${hash}`
-}
 
 // CodeBlock component for displaying commands with copy functionality
 const CodeBlock = ({ code }: { code: string }) => {
@@ -194,12 +136,6 @@ const Background = () => {
   )
 }
 
-// Define connect result type
-interface ConnectResult {
-  selectedChain: string;
-  address: string;
-}
-
 // Device Verification Component
 const DeviceVerification = () => {
   const [isWalletConnected, setIsWalletConnected] = useState(false)
@@ -225,14 +161,7 @@ const DeviceVerification = () => {
   const [transactionError, setTransactionError] = useState<string | null>(null)
   const [deviceId, setDeviceId] = useState<string | null>(null)
 
-  // Get chain ID for explorer URL
   const { user } = usePrivy()
-  // Contract interaction hooks
-  // const { writeContractAsync, isPending } = useWriteContract()
-  // const { data: transactionReceipt, isLoading: isWaitingForTransaction, error: waitError } =
-  //   useWaitForTransactionReceipt({
-  //     hash: transactionHash
-  //   })
 
   // Use AppKit account
   const { address: appKitAddress, isConnected: appKitIsConnected } = useAppKitAccount()
@@ -341,15 +270,6 @@ const DeviceVerification = () => {
         return
       }
 
-      // Check if we're on the right network
-      const requiredChainId = 8453 // Base Mainnet
-      // if (chainId !== requiredChainId) {
-      //   console.log(`Currently on chain ${chainId}, need to switch to ${requiredChainId}`)
-      //   setTransactionError(`Please switch to Base Mainnet network (Chain ID: ${requiredChainId}) to continue`)
-      //   setIsVerifying(false)
-      //   return
-      // }
-
       console.log('Registering device on smart contract...')
 
       // Prepare contract call parameters
@@ -403,24 +323,24 @@ const DeviceVerification = () => {
         const hostingFeeBigInt = BigInt(hostingFee || "0")
 
         // Create transaction params with the new hostingFee parameter
-        const txParams = {
-          address: CONTRACT_ADDRESS as `0x${string}`,
-          abi: CONTRACT_ABI,
-          functionName: 'registerDevice' as const,
-          args: [
-            deviceModel,
-            ram,
-            storageCapacity,
-            cpu,
-            ngrokLink,
-            hostingFeeBigInt,
-            deviceAddress as `0x${string}`,
-            verificationHashHex,
-            signatureBytes
-          ] as const,
-          chainId: currentChainId,
-          gas: BigInt(6000000)
-        }
+        // const txParams = {
+        //   address: CONTRACT_ADDRESS as `0x${string}`,
+        //   abi: CONTRACT_ABI,
+        //   functionName: 'registerDevice' as const,
+        //   args: [
+        //     deviceModel,
+        //     ram,
+        //     storageCapacity,
+        //     cpu,
+        //     ngrokLink,
+        //     hostingFeeBigInt,
+        //     deviceAddress as `0x${string}`,
+        //     verificationHashHex,
+        //     signatureBytes
+        //   ] as const,
+        //   chainId: currentChainId,
+        //   gas: BigInt(6000000)
+        // }
 
         // console.log('Sending transaction...');
         // const hash = await writeContractAsync(txParams)
@@ -832,7 +752,7 @@ const DeviceVerification = () => {
                   <div className="mt-2 text-xs text-emerald-300">
                     <p>Transaction confirmed on-chain</p>
                     <a
-                      href={getExplorerUrl(filecoinCalibration.id, transactionHash)}
+                      href={`https://filecoin-testnet.blockscout.com/tx/${transactionHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[#00FF88] underline hover:text-emerald-200 text-xs mt-1 inline-block"
@@ -930,7 +850,7 @@ export default function DeployDevice() {
         {/* Instructions Section */}
         <section className="py-10 px-6">
           <div className="container mx-auto max-w-5xl">
-            <InstructionStep number={1} title="Install Termux" icon={<FiSmartphone />}>
+            <InstructionStep number={1} title="Setup your Phone" icon={<FiSmartphone />}>
               <p className="mb-4">
                 Termux is a terminal emulator for Android that allows you to run Linux commands.
                 Follow these steps to install it:

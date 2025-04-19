@@ -6,8 +6,6 @@ import Link from 'next/link'
 import Header from '@/components/ui/Header'
 import { useRouter } from 'next/navigation'
 import { FiCpu, FiServer, FiLink, FiHash, FiDollarSign, FiUser, FiUserCheck, FiX, FiCopy, FiCheck } from 'react-icons/fi'
-import { useChainId, useAccount, useSignMessage } from 'wagmi'
-import { base } from 'viem/chains'
 import axios from 'axios'
 import { ethers } from 'ethers'
 import { getApiKey } from '@/utils/apiKey'
@@ -257,7 +255,7 @@ const AgentCard = ({ agent, onClick }: { agent: Agent, onClick: () => void }) =>
 
         <div className="flex items-center text-[#CCCCCC]">
           <FiDollarSign className="mr-2 text-[#00FF88]" />
-          <span>Fee per API Call: <span className="text-[#00FF88] font-medium">{agent.perApiCallFee} $FRANKY</span></span>
+          <span>Fee per API Call: <span className="text-[#00FF88] font-medium">{agent.perApiCallFee} $FIL</span></span>
         </div>
 
         <div className="flex items-center text-[#CCCCCC]">
@@ -320,9 +318,6 @@ const PreviewModal = ({
   const [isCopied, setIsCopied] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const { user } = usePrivy();
-  const chainId = useChainId();
-  const isMainnet = chainId === 8453; // Base Mainnet
-  const { signMessageAsync } = useSignMessage();
 
   const handlePurchase = async () => {
     if (!agent || !user || !user.smartWallet) return;
@@ -336,12 +331,12 @@ const PreviewModal = ({
         // Generate API key using the agent address and wallet address
         const key = await getApiKey(
           agent.agentAddress,
-          { address: user.smartWallet.address },
-          isMainnet,
+          { address: user.smartWallet.address }, false
+          // isMainnet,
           // Pass the signMessage function as a separate parameter
-          async (message: string): Promise<`0x${string}`> => {
-            return await signMessageAsync({ message });
-          }
+          // async (message: string): Promise<`0x${string}`> => {
+          //   return await signMessageAsync({ message });
+          // }
         );
 
         setApiKey(key);
@@ -514,7 +509,7 @@ const PreviewModal = ({
             <div className="mb-6 space-y-3">
               <div className="flex items-center text-[#CCCCCC]">
                 <FiDollarSign className="mr-2 text-[#00FF88]" />
-                <span>Fee per API Call: <span className="text-[#00FF88] font-medium">{agent.perApiCallFee} $FRANKY</span></span>
+                <span>Fee per API Call: <span className="text-[#00FF88] font-medium">{agent.perApiCallFee} $FIL</span></span>
               </div>
 
               <div className="flex items-center text-[#CCCCCC]">
@@ -574,9 +569,9 @@ const PreviewModal = ({
                   </p>
                   <button
                     onClick={handlePurchase}
-                    disabled={!user?.smartWallet || !isMainnet || isPurchasing}
+                    disabled={!user?.smartWallet || isPurchasing}
                     className={`py-2 px-6 rounded-lg text-center 
-                      ${(!user?.smartWallet || !isMainnet)
+                      ${(!user?.smartWallet)
                         ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                         : 'bg-[#00FF88]/20 text-[#00FF88] hover:bg-[#00FF88]/30'
                       } transition-colors flex items-center justify-center`}
@@ -597,7 +592,7 @@ const PreviewModal = ({
                     </p>
                   )}
 
-                  {user?.smartWallet && !isMainnet && (
+                  {user?.smartWallet && (
                     <p className="text-sm text-yellow-400 mt-2">
                       Please switch to Base Mainnet to generate an API key.
                     </p>
@@ -630,7 +625,6 @@ export default function AgentMarketplacePage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
   const router = useRouter()
-  const chainId = useChainId()
 
   // Set isClient to true after component mounts
   useEffect(() => {
@@ -734,7 +728,7 @@ export default function AgentMarketplacePage() {
                 Each agent has unique capabilities and can be used for a small fee.
               </p>
               <p className="text-lg mb-12 text-emerald-400 max-w-4xl mx-auto">
-                Pay per API call in $FRANKY tokens to interact with these agents.
+                Pay per API call in $FIL tokens to interact with these agents.
               </p>
             </motion.div>
           </div>
