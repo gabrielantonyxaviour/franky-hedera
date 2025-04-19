@@ -8,7 +8,6 @@ const HeroAnimation = () => {
   return (
     <div className="absolute inset-0 -z-10 overflow-hidden">
       <div className="absolute inset-0 grid-bg opacity-30"></div>
-
       {/* Hexagon grid pattern */}
       <svg
         className="absolute inset-0 w-full h-full opacity-10"
