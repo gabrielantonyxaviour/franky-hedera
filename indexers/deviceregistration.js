@@ -15,7 +15,7 @@ const eventType = "LOG";
 const url = "wss://web3.nodit.io/v1/websocket";
 
 // The address we want to monitor
-const targetAddress = "0x18c2e2f87183034700cc2A7cf6D86a71fd209678";
+const targetAddress = "0x486989cd189ED5DB6f519712eA794Cee42d75b29";
 
 // The event signature topic to filter by
 const eventTopic = "0xac63c86635a7aeba319131c15c528a5b11366f424aa236ac70f2bca86ca32787";
@@ -44,11 +44,11 @@ const options = {
   transports: ["websocket", "polling"],
   path: "/v1/websocket/",
   auth: {
-    apiKey: "xxxxxxxxxxxxxxxx",
+    apiKey: "xxxxxxxxxxxxxxxxxxxxxxxx",
   },
   query: {
     protocol: "base",
-    network: "sepolia",
+    network: "mainnet",
   },
 };
 
