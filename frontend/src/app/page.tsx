@@ -165,7 +165,7 @@ export default function Home() {
               <div className="flex items-center justify-center mb-16 space-x-4">
                 <Image src={"/logo.png"} alt="Logo" width={50} height={50} className="rounded-full select-none" />
                 <h2 className="text-2xl font-bold bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
-                  frankyagents.xyz
+                  frankyagent.xyz
                 </h2>
               </div>
 
