@@ -4,14 +4,16 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Header from '@/components/ui/Header'
 import { FiCopy, FiCheck, FiSmartphone, FiTerminal, FiDownload, FiServer } from 'react-icons/fi'
-// import { useAppKit, AppKitProvider } from '@/components/wallet/AppKitProvider'
-import PrivyProviders from '@/components/PrivyProviders'
-import { usePrivy, useWallets } from '@privy-io/react-auth'
-import { useWriteContract, useWaitForTransactionReceipt, useAccount, useChainId } from 'wagmi'
+import ReownWrapper from '@/components/wallet/ReownWrapper'
+import ReownWalletButton from '@/components/wallet/ReownWalletButton'
+import { useChainId, useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi'
 import { baseSepolia } from '@/components/baseChains'
+import { useAppKitAccount } from '@reown/appkit/react'
+import { modal } from '@/components/ReownProviders'
 
 // Contract address and ABI
-const CONTRACT_ADDRESS = '0x42F46AeF8d7288B525Ac7160616F7Bc23F583bAA'
+const CONTRACT_ADDRESS = '0x18c2e2f87183034700cc2A7cf6D86a71fd209678'
+
 const CONTRACT_ABI = [
   {
     "inputs": [
@@ -20,12 +22,13 @@ const CONTRACT_ABI = [
       {"internalType": "string", "name": "storageCapacity", "type": "string"},
       {"internalType": "string", "name": "cpu", "type": "string"},
       {"internalType": "string", "name": "ngrokLink", "type": "string"},
+      {"internalType": "uint256", "name": "hostingFee", "type": "uint256"},
       {"internalType": "address", "name": "deviceAddress", "type": "address"},
       {"internalType": "bytes32", "name": "verificationHash", "type": "bytes32"},
       {"internalType": "bytes", "name": "signature", "type": "bytes"}
     ],
     "name": "registerDevice",
-    "outputs": [{"internalType": "uint256", "name": "deviceId", "type": "uint256"}],
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   }
@@ -184,6 +187,7 @@ interface ConnectResult {
 const DeviceVerification = () => {
   const [isWalletConnected, setIsWalletConnected] = useState(false)
   const [showDeviceModal, setShowDeviceModal] = useState(false)
+  const [hostingFee, setHostingFee] = useState<string>("0")
   const [deviceDetails, setDeviceDetails] = useState<{
     deviceModel: string;
     ram: string;
@@ -202,14 +206,12 @@ const DeviceVerification = () => {
   const [walletType, setWalletType] = useState<string | null>(null)
   const [transactionHash, setTransactionHash] = useState<`0x${string}` | undefined>(undefined)
   const [transactionError, setTransactionError] = useState<string | null>(null)
+  const [deviceId, setDeviceId] = useState<string | null>(null)
   
   // Get chain ID for explorer URL
   const chainId = useChainId()
+  const account = useAccount()
   
-  // Get Privy instance and wallets
-  const privy = usePrivy()
-  const { wallets } = useWallets()
-
   // Contract interaction hooks
   const { writeContractAsync, isPending } = useWriteContract()
   const { data: transactionReceipt, isLoading: isWaitingForTransaction, error: waitError } = 
@@ -217,26 +219,9 @@ const DeviceVerification = () => {
       hash: transactionHash
     })
 
-  // Destructure privy values to make TypeScript happy
-  const { 
-    connectWallet, 
-    ready, 
-    authenticated, 
-    user 
-  } = privy
+  // Use AppKit account
+  const { address: appKitAddress, isConnected: appKitIsConnected } = useAppKitAccount()
   
-  // Get wallet connections safely (this might be undefined in some versions of Privy)
-  const walletConnections = (privy as any).walletConnections || []
-
-  // Debug logging - remove in production
-  useEffect(() => {
-    if (isClient) {
-      console.log("Privy auth state:", { authenticated, user });
-      console.log("Wallet connections:", walletConnections);
-      console.log("Wallets:", wallets);
-    }
-  }, [isClient, authenticated, user, walletConnections, wallets]);
-
   // Set isClient to true after component mounts to avoid SSR issues
   useEffect(() => {
     setIsClient(true)
@@ -279,89 +264,51 @@ const DeviceVerification = () => {
     }
   }, [isClient])
 
-  // Connect wallet function using Privy
-  const handleConnectWallet = async () => {
-    try {
-      console.log('Connecting wallet with Privy...')
-      setIsConnecting(true)
-      
-      // Open wallet modal and connect
-      await connectWallet()
-    } catch (error) {
-      console.error('Error connecting wallet:', error)
-    } finally {
-      setIsConnecting(false)
-    }
-  }
-
-  // Check all possible ways wallet might be connected with Privy
+  // Check for account changes
   useEffect(() => {
-    // First check Privy wallets array
-    if (wallets && wallets.length > 0) {
-      // Get the first wallet address
-      const firstWallet = wallets[0];
-      if (firstWallet?.address) {
-        setWalletAddress(firstWallet.address);
-        setWalletType(firstWallet.walletClientType);
-        setIsWalletConnected(true);
-        
-        // Show device modal if we have device details
-        if (deviceDetails && !showDeviceModal) {
-          setShowDeviceModal(true);
-        }
-        
-        console.log('Wallet connected via wallets array:', firstWallet);
-        return;
-      }
-    }
-    
-    // Check wallet connections if wallets array is empty
-    if (walletConnections && walletConnections.length > 0) {
-      const metamaskConnection = walletConnections.find((conn: any) => 
-        conn.walletName?.toLowerCase().includes('metamask') || 
-        conn.walletName?.toLowerCase().includes('injected')
-      );
-      
-      if (metamaskConnection?.address) {
-        setWalletAddress(metamaskConnection.address);
-        setWalletType(metamaskConnection.walletName || "MetaMask");
-        setIsWalletConnected(true);
-        
-        // Show device modal if we have device details
-        if (deviceDetails && !showDeviceModal) {
-          setShowDeviceModal(true);
-        }
-        
-        console.log('Wallet connected via walletConnections:', metamaskConnection);
-        return;
-      }
-    }
-    
-    // Also check the user object as fallback
-    if (authenticated && user?.wallet?.address) {
-      setWalletAddress(user.wallet.address);
-      setWalletType(user.wallet.walletClientType || "Embedded");
-      setIsWalletConnected(true);
+    // Only use appKitAddress for Reown wallet
+    if (appKitAddress && appKitIsConnected) {
+      setWalletAddress(appKitAddress)
+      setWalletType("Reown Wallet")
+      setIsWalletConnected(true)
       
       // Show device modal if we have device details
       if (deviceDetails && !showDeviceModal) {
+        // Set focus to the hostingFee input when opened
         setShowDeviceModal(true);
+        
+        // Set a default value that's easy to change
+        setHostingFee("20");
       }
       
-      console.log('Wallet connected via user object:', user.wallet);
-      return;
+      console.log('Reown wallet connected:', appKitAddress)
+    } else {
+      // No wallet connected
+      setIsWalletConnected(false)
+      setWalletAddress(null)
+      setWalletType(null)
     }
-    
-    // No wallet connected in any way
-    setIsWalletConnected(false);
-    setWalletAddress(null);
-    setWalletType(null);
-    
-  }, [wallets, walletConnections, authenticated, user, deviceDetails, showDeviceModal]);
+  }, [appKitAddress, appKitIsConnected, deviceDetails, showDeviceModal])
+
+  // Handle hosting fee input change
+  const handleHostingFeeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    // Only allow numeric values
+    if (/^\d*$/.test(value)) {
+      setHostingFee(value)
+    }
+  }
 
   // Handle device verification
   const verifyDevice = async () => {
     try {
+      // Basic validation for positive number
+      const fee = Number(hostingFee);
+      if (hostingFee === '' || isNaN(fee) || fee <= 0) {
+        setTransactionError('Please enter a positive number for the hosting fee.');
+        return;
+      }
+      
       setIsVerifying(true)
       setTransactionError(null)
       
@@ -375,6 +322,15 @@ const DeviceVerification = () => {
       if (!deviceDetails) {
         console.error('No device details available')
         setTransactionError('No device details available. Please scan the QR code from your device first.')
+        setIsVerifying(false)
+        return
+      }
+
+      // Check if we're on the right network
+      const requiredChainId = 84532 // Base Sepolia
+      if (chainId !== requiredChainId) {
+        console.log(`Currently on chain ${chainId}, need to switch to ${requiredChainId}`)
+        setTransactionError(`Please switch to Base Sepolia network (Chain ID: ${requiredChainId}) to continue`)
         setIsVerifying(false)
         return
       }
@@ -408,27 +364,73 @@ const DeviceVerification = () => {
         ? verificationHash as `0x${string}`
         : `0x${verificationHash}` as `0x${string}`
 
-      // Call the contract's registerDevice function
-      const hash = await writeContractAsync({
-        address: CONTRACT_ADDRESS as `0x${string}`,
-        abi: CONTRACT_ABI,
-        functionName: 'registerDevice',
-        args: [
-          deviceModel,
-          ram,
-          storageCapacity,
-          cpu,
-          ngrokLink,
-          deviceAddress as `0x${string}`,
-          verificationHashHex,
-          signatureBytes
-        ]
-      })
-      
-      // Set transaction hash to track its progress
-      console.log('Transaction submitted:', hash)
-      setTransactionHash(hash)
-      
+      // Always use Base Sepolia chainId
+      const currentChainId = 84532  // Base Sepolia
+      console.log('Using chain ID:', currentChainId)
+
+      try {
+        // Open the Reown modal first to ensure it's ready
+        console.log('Preparing Reown wallet for transaction');
+        
+        // Open the Account view to prepare for transaction
+        try {
+          await modal.open({
+            view: 'Account'
+          });
+          console.log('Reown modal opened successfully');
+          
+          // Allow time for the modal to fully open and initialize
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        } catch (modalError) {
+          console.warn('Could not open Reown modal:', modalError);
+          // Continue anyway as the modal might already be open
+        }
+        
+        // Convert hosting fee to BigInt
+        const hostingFeeBigInt = BigInt(hostingFee || "0")
+        
+        // Create transaction params with the new hostingFee parameter
+        const txParams = {
+          address: CONTRACT_ADDRESS as `0x${string}`,
+          abi: CONTRACT_ABI,
+          functionName: 'registerDevice' as const,
+          args: [
+            deviceModel,
+            ram,
+            storageCapacity,
+            cpu,
+            ngrokLink,
+            hostingFeeBigInt,
+            deviceAddress as `0x${string}`,
+            verificationHashHex,
+            signatureBytes
+          ] as const,
+          chainId: currentChainId,
+          // Simple gas configuration to avoid issues
+          gas: BigInt(6000000)  // 6M gas limit to ensure plenty of room
+        }
+        
+        console.log('Sending transaction...');
+        const hash = await writeContractAsync(txParams)
+        
+        // Set transaction hash to track its progress
+        console.log('Transaction submitted:', hash)
+        setTransactionHash(hash)
+        
+      } catch (error: any) {
+        console.error('Transaction signing error:', error)
+        
+        // Simple error handling
+        if (error.message?.includes('Request was aborted')) {
+          setTransactionError('Transaction was aborted. Please ensure you are connected to Base Sepolia network and try again.');
+        } else if (error.message?.includes('user rejected') || error.message?.includes('User denied')) {
+          setTransactionError('Transaction was rejected. Please approve the transaction in your wallet.');
+        } else {
+          setTransactionError(error.message || 'Failed to sign transaction');
+        }
+        
+        setIsVerifying(false)
+      }
     } catch (error: any) {
       console.error('Error verifying device:', error)
       setTransactionError(error.message || 'Unknown error occurred')
@@ -440,6 +442,45 @@ const DeviceVerification = () => {
   useEffect(() => {
     if (transactionReceipt) {
       console.log('Transaction confirmed:', transactionReceipt)
+      
+      // Extract information from the transaction receipt logs
+      try {
+        // For the new contract, we want to extract information from the DeviceRegistered event
+        // DeviceRegistered(address indexed deviceAddress, address indexed owner, string deviceModel, string ram, 
+        // string storageCapacity, string cpu, string ngrokLink, uint256 hostingFee)
+        
+        if (transactionReceipt.logs && transactionReceipt.logs.length > 0) {
+          console.log('Transaction logs:', transactionReceipt.logs);
+          
+          // The new DeviceRegistered event has the following topic in the new contract:
+          const deviceRegisteredTopic = '0x23308818ac578935e73a554a196ddeaa2ea2f9e718f32025a04ae66d8fe43ad5';
+          
+          // Look through all logs to find the DeviceRegistered event
+          for (const log of transactionReceipt.logs) {
+            if (log.topics[0] === deviceRegisteredTopic) {
+              // Device address is indexed and in topics[1]
+              if (log.topics[1]) {
+                const deviceAddressHex = log.topics[1];
+                setDeviceId(deviceDetails?.walletAddress || deviceAddressHex);
+                console.log('Device registered with address:', deviceDetails?.walletAddress);
+                break;
+              }
+            }
+          }
+          
+          // If we still don't have the device address from logs, just use what we have
+          if (!deviceId && deviceDetails?.walletAddress) {
+            setDeviceId(deviceDetails.walletAddress);
+          }
+        }
+      } catch (error) {
+        console.error('Error extracting device info from logs:', error);
+        // Fallback - just use the known device address
+        if (deviceDetails?.walletAddress) {
+          setDeviceId(deviceDetails.walletAddress);
+        }
+      }
+      
       setVerificationSuccess(true)
       setIsVerifying(false)
       
@@ -452,7 +493,7 @@ const DeviceVerification = () => {
           const baseUrl = window.location.pathname
           window.history.replaceState({}, document.title, baseUrl)
         }
-      }, 3000)
+      }, 7000) // Increased timeout to give users more time to see the result
     }
     
     if (waitError) {
@@ -460,7 +501,20 @@ const DeviceVerification = () => {
       setTransactionError(waitError.message || 'Error waiting for transaction confirmation')
       setIsVerifying(false)
     }
-  }, [transactionReceipt, waitError])
+  }, [transactionReceipt, waitError, deviceDetails, deviceId])
+
+  // New functions for Reown wallet connection
+  const handleReownConnect = () => {
+    console.log('Reown wallet connected')
+    setIsConnecting(false)
+  }
+
+  const handleReownDisconnect = () => {
+    console.log('Reown wallet disconnected')
+    setIsWalletConnected(false)
+    setWalletAddress(null)
+    setWalletType(null)
+  }
 
   // Render the 6th step
   return (
@@ -480,35 +534,16 @@ const DeviceVerification = () => {
               
               {!isWalletConnected ? (
                 <div className="mt-6 flex flex-col items-center">
-                  <motion.button
-                    onClick={handleConnectWallet}
-                    disabled={isConnecting || !ready}
-                    className="relative group px-8 py-4 rounded-lg bg-gradient-to-r from-[#00FF88]/20 to-emerald-500/20 border border-[#00FF88] text-[#00FF88] hover:from-[#00FF88]/30 hover:to-emerald-500/30 transition-all duration-300 shadow-lg shadow-emerald-900/30 backdrop-blur-sm min-w-[240px]"
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <span className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#00FF88]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
-                    
-                    <div className="flex items-center justify-center">
-                      {isConnecting ? (
-                        <>
-                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-[#00FF88]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          <span className="font-bold">Connecting...</span>
-                        </>
-                      ) : (
-                        <>
-                          <FiSmartphone className="mr-3 text-xl" />
-                          <span className="font-bold">Connect Wallet</span>
-                        </>
-                      )}
-                    </div>
-                  </motion.button>
-                  
+                  <ReownWalletButton
+                    buttonText="Connect Wallet"
+                    fullWidth={true}
+                    showAddress={false}
+                    onConnect={handleReownConnect}
+                    onDisconnect={handleReownDisconnect}
+                    className="px-6 py-4 bg-gradient-to-r from-[#00FF88]/20 to-emerald-500/20 hover:from-[#00FF88]/30 hover:to-emerald-500/30 backdrop-blur-sm rounded-lg transition-all border border-[#00FF88]/30 focus:outline-none w-full"
+                  />
                   <p className="mt-3 text-gray-400 text-sm">
-                    Connect securely using Privy
+                    Connect securely using Reown
                   </p>
                 </div>
               ) : (
@@ -519,29 +554,23 @@ const DeviceVerification = () => {
                     </div>
                     <div>
                       <p className="text-[#00FF88] font-medium">
-                        Wallet connected successfully!
+                        Reown wallet connected successfully!
                       </p>
                       <div className="text-gray-400 text-sm mt-1">
                         <p className="mb-1">
                           <span className="font-medium">Address:</span> {walletAddress ? `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}` : ''}
                         </p>
-                        {walletType && (
-                          <p className="flex items-center">
-                            <span className="font-medium mr-1">Wallet:</span> 
-                            {walletType.toLowerCase().includes('metamask') && (
-                              <img src="/metamask-icon.svg" alt="MetaMask" className="h-4 w-4 mr-1" onError={(e) => e.currentTarget.style.display = 'none'} />
-                            )}
-                            {walletType}
-                          </p>
-                        )}
                       </div>
                     </div>
                   </div>
-                  <p className="mt-4 text-[#00FF88] text-center">
-                    <span className="cursor-pointer underline" onClick={() => setShowDeviceModal(true)}>
-                      View and verify your device details
-                    </span>
-                  </p>
+                  <div className="mt-4 text-center">
+                    <button 
+                      onClick={() => setShowDeviceModal(true)}
+                      className="px-4 py-2 bg-[#00FF88]/20 hover:bg-[#00FF88]/30 text-[#00FF88] rounded-lg border border-[#00FF88]/30 transition-colors text-sm"
+                    >
+                      View and verify your device
+                    </button>
+                  </div>
                 </div>
               )}
             </>
@@ -568,7 +597,7 @@ const DeviceVerification = () => {
                       </div>
                       <div>
                         <p className="text-[#00FF88] text-sm font-medium">
-                          Wallet already connected
+                          Wallet connected
                         </p>
                         <p className="text-xs text-gray-400">
                           {walletAddress ? `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}` : ''}
@@ -579,15 +608,14 @@ const DeviceVerification = () => {
                   </div>
                 ) : (
                   <div className="flex justify-center">
-                    <motion.button
-                      onClick={handleConnectWallet}
-                      disabled={isConnecting || !ready}
+                    <ReownWalletButton
+                      buttonText="Connect Wallet"
+                      fullWidth={true}
+                      showAddress={false}
+                      onConnect={handleReownConnect}
+                      onDisconnect={handleReownDisconnect}
                       className="px-6 py-2 rounded-lg bg-[#00FF88]/10 border border-[#00FF88]/40 text-[#00FF88] hover:bg-[#00FF88]/20 transition-colors"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      {isConnecting ? 'Connecting...' : 'Prepare Your Wallet'}
-                    </motion.button>
+                    />
                   </div>
                 )}
               </div>
@@ -637,7 +665,10 @@ const DeviceVerification = () => {
                 <div className="flex justify-center items-center h-6 w-6 rounded-full bg-[#00FF88]/20 mr-2">
                   <FiCheck className="text-[#00FF88] text-sm" />
                 </div>
-                <span className="text-[#00FF88] text-sm font-medium">Your Wallet</span>
+                <span className="text-[#00FF88] text-sm font-medium">Wallet Status</span>
+                <span className="ml-auto text-xs bg-[#00FF88]/20 px-2 py-0.5 rounded-full text-[#00FF88]">
+                  {isWalletConnected ? 'Connected' : 'Not Connected'}
+                </span>
               </div>
               <div className="text-xs text-gray-400 ml-8">
                 <p className="flex justify-between">
@@ -658,6 +689,31 @@ const DeviceVerification = () => {
                   </p>
                 )}
               </div>
+            </div>
+            
+            {/* Integrated hosting fee input section */}
+            <div className="p-4 rounded-lg bg-emerald-900/20 border border-emerald-400/30 mb-4">
+              <label htmlFor="hostingFee" className="block text-emerald-300 text-sm font-medium mb-2">
+                Hosting Fee ($FRANKY)
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  id="hostingFee"
+                  value={hostingFee}
+                  onChange={handleHostingFeeChange}
+                  className="w-full p-3 text-lg font-medium rounded-lg bg-black/50 border border-emerald-400/30 text-white focus:outline-none focus:border-emerald-400/80 transition-colors"
+                  placeholder="Enter amount"
+                  autoFocus
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <span className="text-emerald-400">$FRANKY</span>
+                </div>
+              </div>
+              
+              <p className="mt-2 text-xs text-gray-400">
+                Payment you'll receive when someone deploys an agent to your device.
+              </p>
             </div>
             
             {/* Device details in a compact accordion/tabs style */}
@@ -767,8 +823,15 @@ const DeviceVerification = () => {
                 <FiCheck className="text-[#00FF88] mx-auto text-xl mb-1" />
                 <p className="text-[#00FF88] font-medium text-sm">Device verification successful!</p>
                 
+                {deviceId && (
+                  <div className="mt-2 text-sm text-emerald-300">
+                    <p className="font-bold">Device Address: <span className="text-white text-xs break-all">{deviceId}</span></p>
+                    <p className="text-xs mt-1 text-yellow-300 font-medium">Your device is now registered and ready to host agents</p>
+                  </div>
+                )}
+                
                 {transactionHash && (
-                  <div className="mt-1 text-xs text-emerald-300">
+                  <div className="mt-2 text-xs text-emerald-300">
                     <p>Transaction confirmed on-chain</p>
                     <a 
                       href={getExplorerUrl(chainId, transactionHash)} 
@@ -776,7 +839,7 @@ const DeviceVerification = () => {
                       rel="noopener noreferrer"
                       className="text-[#00FF88] underline hover:text-emerald-200 text-xs mt-1 inline-block"
                     >
-                      View on Explorer
+                      View
                     </a>
                   </div>
                 )}
@@ -790,7 +853,7 @@ const DeviceVerification = () => {
                 )}
                 <motion.button
                   onClick={verifyDevice}
-                  disabled={isVerifying || isPending || isWaitingForTransaction}
+                  disabled={isVerifying || isPending || isWaitingForTransaction || hostingFee === '' || isNaN(Number(hostingFee)) || Number(hostingFee) <= 0}
                   className="px-5 py-2 rounded-lg bg-[#00FF88] bg-opacity-20 border border-[#00FF88] text-[#00FF88] hover:bg-opacity-30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm w-full"
                   whileHover={{ scale: isVerifying ? 1 : 1.03 }}
                   whileTap={{ scale: isVerifying ? 1 : 0.97 }}
@@ -805,6 +868,8 @@ const DeviceVerification = () => {
                        isWaitingForTransaction ? 'Confirming transaction...' : 
                        'Registering device...'}
                     </>
+                  ) : hostingFee === '' || isNaN(Number(hostingFee)) || Number(hostingFee) <= 0 ? (
+                    'Enter valid fee amount'
                   ) : (
                     <>
                       Register Device on Contract
@@ -820,7 +885,7 @@ const DeviceVerification = () => {
                       rel="noopener noreferrer"
                       className="text-[#00FF88] underline hover:text-emerald-200 ml-1"
                     >
-                      View on Explorer
+                      View
                     </a>
                   </p>
                 )}
@@ -833,11 +898,11 @@ const DeviceVerification = () => {
   )
 }
 
-// Wrap the device verification component with Privy provider
+// Wrap the device verification component with Reown provider instead of Privy
 const WrappedDeviceVerification = () => (
-  <PrivyProviders>
+  <ReownWrapper>
     <DeviceVerification />
-  </PrivyProviders>
+  </ReownWrapper>
 )
 
 export default function DeployDevice() {
