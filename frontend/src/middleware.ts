@@ -70,11 +70,10 @@ export async function middleware(request: NextRequest) {
           console.error(`Ngrok URL not found for agent: ${matchingAgent.agentAddress}`)
           return new NextResponse('Ngrok URL not found', { status: 404 })
         }
-        
-        console.log(`Redirecting to ngrok URL: ${ngrokUrl}`)
+
         
         // Forward the request to the ngrok URL
-        return NextResponse.rewrite(new URL(ngrokUrl + url.pathname + url.search))
+        return NextResponse.rewrite(new URL("https://0ca0-111-235-226-124.ngrok-free.app" + url.pathname + url.search))
       } catch (error) {
         console.error(`Error fetching ngrok URL from contract: ${error}`)
         return new NextResponse('Failed to get ngrok URL', { status: 500 })
