@@ -6,6 +6,7 @@ Monetize your old devices by powering efficient AI agents.
 ## Description
 
 Not sure what to do with your OLD mobile? Franky helps you to run Local LLM Inference right in your device and **MONETIZE** your compute with **$FRANKY** tokens. Device Owners could contribute their old devices to run LLMs locally and host AI agents on top of them to earn **$FRANKY** tokens. Agent creators could choose a device of their choice to build their Agent from scratch with it's very own custom characteristics and generate an API key to interact with them. Agents could also be made publicly available by the Agent Creator for others to use them and in-turn earn **$FRANKY** tokens. Agent developers could build plugins in our AI Agent Framework to build custom functionalities. Each Agent has their VERY OWN custom subdomain which makes it readable and convenient to interact with.
+
 ## How it's made
 
 The application is built on **Base** and uses **Metal** for token transfers. For real-time data management, we integrated **Nodit’s Web3 Data API**, **Elastic Nodes**, and **Streams**. These technologies allow for the efficient indexing of multi-chain data—such as balances and transaction history—ensuring that users can access this information instantly and without delay. The use of  **Web3 data API** and **Streams** ensure that data updates happen in real-time, providing a highly dynamic and responsive user experience.
@@ -18,9 +19,11 @@ Every single agent upon creation has their own ENS name. We do this by minting t
 
 ### Metal
 
-The tokenomics in the Franky Agents ecosystem is managed by the $FRANKY tokens. These tokens were created from **Metal** and the liquidity pool comprises of $FRANKY and USDC. Metal accomodates the API Exhaustion from the User side by deducting $FRANKY tokens directly from their wallet whenever a request is made to the Agent's ENS endpoint and distributes the necessary funds between the Device Owners and the Platform Owners.
+The Franky Agents ecosystem is driven by $FRANKY tokens, created through Metal, with a liquidity pool also deployed via Metal. When an AI agent is deployed, the deployer pays a hosting fee in $FRANKY to the device owners running the agent and its local LLM. This fee is automatically split between the Franky Merchant Wallet and the Device Owner.
 
-The same happens when a new user interacts with an existing agent displayed in the marketplace. The necessary $FRANKY tokens are distributed between the Agent Creator, Device Owner and the Platform Owners. This results in real-time transfer of $FRANKY tokens in a seamless fashion.
+Likewise, when users interact with agents listed on the marketplace, $FRANKY tokens are seamlessly distributed among the Agent Developer, Device Owner, and Merchant. All token flows are fully abstracted from the UI, enabling frictionless, real-time transfers between users, developers, and infrastructure providers.
+
+Thanks to Reown’s built-in swap and on-ramp features, users can instantly convert their earnings to fiat directly within the app.
 
 ### Nodit
 
@@ -34,37 +37,73 @@ Thanks to Nodit, users can list their devices, host their agents quickly and arr
 
 ### ENS
 
-We have used ENS to mint subdomains for EVERY SINGLE Agent created in our application and also include ALL the metadata about the agent like, character data, profile picture, agent address etc. We have also made the subdomains as the means to communicate with the created Agent
+Our primary domain is a DNS domain—frankyagent.xyz—which we’ve registered as an ENS name and bridged into ENS on Base. For each AI Agent created, we mint a corresponding subdomain as a subname under this ENS domain. Users interact with these Agents by sending POST requests to their respective URLs, such as https://eliza.frankyagent.xyz/chat. We use the Durin Stack to resolve ENS names directly on the Base L2 network, enabling seamless DNS-to-ENS integration and agent communication.
 
 ### Metal Line of Code
 
-https://github.com/gabrielantonyxaviour/bombardiro-crocodilo/blob/main/README.md#world-line-of-code
+Tokenization and Wallet Infrastructure - https://github.com/Marshal-AM/franky/blob/main/frontend/src/components/wallet/ReownWalletButton.tsx
+
+Token Balance Management - https://github.com/Marshal-AM/franky/blob/main/frontend/src/app/api/balance/%5BuserId%5D/route.ts
+
+Token Transaction Processing - https://github.com/Marshal-AM/franky/blob/main/frontend/src/app/api/withdraw/%5BuserId%5D/route.ts
+
+Token Data and Holder Info - https://github.com/Marshal-AM/franky/blob/main/frontend/src/app/api/get-holders/route.ts
+
+Hosting AI Agents - 
+
+Franky Faucet - 
+
+Smart Contract Integration - 
+
+API Call Payment - 
+
 
 ### Nodit Line of Code
 
-https://github.com/gabrielantonyxaviour/bombardiro-crocodilo/blob/main/README.md#nodit-line-of-code
+List All Agents - https://github.com/Marshal-AM/franky/blob/main/indexers/agents/allagents.js
+
+List Agents Owned by a specific Wallet Address - https://github.com/Marshal-AM/franky/blob/main/indexers/agents/walletagent.js
+
+List All Devices - https://github.com/Marshal-AM/franky/blob/main/indexers/device/listalldevice.js
+
+List Devices Owned by an Owner - https://github.com/Marshal-AM/franky/blob/main/indexers/device/walletdevice.js
+
+Websocket Listening to a New Agent Created Event - https://github.com/Marshal-AM/franky/blob/main/indexers/agentcreation.js
+
+Websocket Listening to a New Device Registration Event - https://github.com/Marshal-AM/franky/blob/main/indexers/deviceregistration.js
+
+Websocket for updating the revenue in real-time - https://github.com/Marshal-AM/franky/blob/main/indexers/liverevenue.js
+
+Websocket Listening to Token Transfer Events - https://github.com/Marshal-AM/franky/blob/main/indexers/transfers.js
+
+Agent Information in frontend - https://github.com/Marshal-AM/franky/blob/main/frontend/src/middleware.ts
+
+Agent Dashboard data - https://github.com/Marshal-AM/franky/blob/main/frontend/src/app/dashboard/agents/page.tsx
+
+Devices Dashboard data - https://github.com/Marshal-AM/franky/blob/main/frontend/src/app/dashboard/devices/page.tsx
+
+Marketplace Data Fetch - https://github.com/Marshal-AM/franky/blob/main/frontend/src/app/agent-marketplace/page.tsx
+
 
 ### ENS Line of Code
 
-https://github.com/gabrielantonyxaviour/bombardiro-crocodilo/blob/main/README.md#hyperlane-line-of-code
+Agent Subdomains - https://github.com/Marshal-AM/franky/blob/main/frontend/src/lib/ens.ts
+
+Middleware Routing - https://github.com/Marshal-AM/franky/blob/main/frontend/src/middleware.ts
+
+Agent Creation - https://github.com/Marshal-AM/franky/blob/main/frontend/src/app/create-agent/page.tsx
+
+ENS Testing - https://github.com/Marshal-AM/franky/blob/main/testing/ens.ts
+
 
 ### Metal Feedback
 
-Super easy to use and integrate. I have added my feedback here.
-
-https://github.com/gabrielantonyxaviour/bombardiro-crocodilo/blob/main/README.md#world-feedback
+It would be nice to have an API endpoint that would batch multiple transfer actions in one API call. Building react hooks, or react sdks would really be good DevX.
 
 ### Nodit Feedback
 
-Super easy to use and integrate. Webhooks and Websockets possess a latency which could be reduced
-Under Websockets, LOGs could facilitate listening to various topics in multiple events instead of looking for a bunch of topics under the same event in an address
-
-https://github.com/gabrielantonyxaviour/bombardiro-crocodilo/blob/main/README.md#nodit-feedback
+Super easy to use and integrate but Webhooks and Websockets possess a latency which could be reduced. Under Websockets, LOGs could facilitate listening to various topics in multiple events instead of looking for a bunch of topics under the same event in an address. Nodit only indexes subnames in Ethereum Mainnet, it does not resolve or fetch subnames minted on L2 using Durin. This made it challenging to use Nodit ENS API for our use case.
 
 ### ENS Feedback
 
-Super easy to use and integrate. I have added my feedback here.
-
-https://github.com/gabrielantonyxaviour/bombardiro-crocodilo/blob/main/README.md#hyperlane-feedback
-
-This is my 3rd year aniversary building on Hyperlane. It was the first sponsor I built on for an ETHGlobal Hackathon. Super glad to keep build new things on Hyperlane.
+Integration was super easy and the indexing was fast. But we had issues with fetching all the text records from the ENS names in the client side. Indexer solutions like Nodit only indexes subnames in Ethereum Mainnet, it does not resolve the L2 subname.
