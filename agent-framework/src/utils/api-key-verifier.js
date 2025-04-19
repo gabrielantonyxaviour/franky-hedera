@@ -79,6 +79,7 @@ async function recoverApiKey(apiKey, agentAddress, ownerKeyHash) {
         message: keyHash,
         signature
     });
+    console.log(`Recovered address: ${address}`);
     const ownerAddress = await recoverMessageAddress({
         message: ownerKeyHash,
         signature

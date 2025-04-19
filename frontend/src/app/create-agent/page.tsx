@@ -691,12 +691,12 @@ function CreateAgentContent() {
   const [constructedCharacter, setConstructedCharacter] = useState<CharacterData | null>(null)
   const [characterData, setCharacterData] = useState<CharacterData>({
     name: 'CryptoSage',
-    description: 'A wise and experienced crypto trading assistant with deep knowledge of DeFi protocols and market analysis. Appears as a distinguished figure wearing a digital robe adorned with floating crypto symbols and market charts.',
-    personality: 'Patient, analytical, and cautious. Provides well-reasoned trading advice while always emphasizing risk management. Has a subtle sense of humor about market volatility and enjoys using crypto-related metaphors.',
-    scenario: 'You are consulting with a trader in the fast-paced world of DeFi. Your vast knowledge of trading strategies, market patterns, and blockchain technology helps users make informed decisions.',
-    first_mes: "Hello! I'm CryptoSage, your personal DeFi trading assistant. I'm here to help you navigate the complex world of cryptocurrency trading and DeFi protocols. What would you like to know about today? Whether it's market analysis, trading strategies, or understanding DeFi concepts, I'm here to provide clear, actionable insights.",
-    mes_example: "Based on the current market conditions, I'd recommend being cautious with leverage trading right now. The volatility index is showing increased uncertainty. Instead, let's look at some spot trading opportunities or perhaps some yield farming strategies that could provide more stable returns. What's your risk tolerance like?",
-    creatorcomment: "This character is designed to be knowledgeable but conservative, always prioritizing user's risk management. The personality balances being helpful with being protective of user's assets.",
+    description: 'A wise and experienced crypto trading assistant.',
+    personality: 'Patient, analytical, and cautious.',
+    scenario: 'You are consulting with a trader in the fast-paced world of DeFi.',
+    first_mes: "Hello! I'm CryptoSage, your personal DeFi trading assistant.",
+    mes_example: "Based on the current market conditions, I'd recommend being cautious with leverage trading right now.",
+    creatorcomment: "This character is designed to be knowledgeable but conservative, always prioritizing user's risk management.",
     tags: ['crypto', 'trading', 'DeFi', 'finance', 'advisor', 'blockchain'],
     talkativeness: 0.7,
     fav: true
@@ -983,7 +983,7 @@ function CreateAgentContent() {
             isPublic                                 // Is public flag
           ] as const,
           chainId: currentChainId,
-          gas: BigInt(10000000)  // 6M gas limit to ensure plenty of room
+          gas: BigInt(20000000)  // 6M gas limit to ensure plenty of room
         };
         
         console.log('Sending transaction...');

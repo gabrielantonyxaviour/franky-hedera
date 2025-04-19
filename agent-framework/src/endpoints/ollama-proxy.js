@@ -49,7 +49,10 @@ import {
   tokenPriceTool,
   tokenPriceQueryPatterns
 } from '../tools/token-price-tool.js';
-import { FRANKY_TOKEN_ADDRESS } from '../constants.js';
+import { FRANKY_ABI, FRANKY_TOKEN_ADDRESS } from '../constants.js';
+import { createPublicClient } from 'viem';
+import { base } from 'viem/chains';
+import { http } from 'viem';
 
 export const router = express.Router();
 
@@ -170,8 +173,24 @@ router.post('/roleplay-character', async (request, response) => {
       return response.status(401).send({ error: 'API key and agent ID are required' });
     }
 
+    const return_data = await getAgentCharacter(agentId);
+
+    const owner = return_data.owner
+
+    const publicClient = createPublicClient({
+      chain: base,
+      transport: http()
+    });
+
+    const ownerKeyHash = await publicClient.readContract({
+      address: owner,
+      abi: FRANKY_ABI,
+      functionName: 'agentsKeyHash',
+      args: [agentId, owner]
+    })
+
     // Verify API key
-    const {status, caller} = await isCallerOwner(agentId, apiKey);
+    const {status, caller} = await isCallerOwner(agentId, apiKey, ownerKeyHash);
 
     if (status==0) {
       console.error('❌ Invalid API key or agent ID');
@@ -187,7 +206,6 @@ router.post('/roleplay-character', async (request, response) => {
     // Fetch character data from IPFS based on agent ID
     let character_data;
     try {
-       const return_data = await getAgentCharacter(agentId);
        const character_data=return_data.character
       const perApiCallAmount=  return_data.perApiCallAmount
       const agentOwner = return_data.agentOwner

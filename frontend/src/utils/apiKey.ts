@@ -36,7 +36,7 @@ const abi = [{
 export async function getApiKey(
     agentAddress: string, 
     account: any, 
-    isMainnet = false, 
+    isMainnet = true, 
     signer?: (message: string) => Promise<`0x${string}`>
 ): Promise<string> {
     console.log('getApiKey called with:', {

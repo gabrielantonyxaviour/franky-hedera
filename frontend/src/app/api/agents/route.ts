@@ -335,7 +335,19 @@ export async function GET() {
         isPublic: agent.isPublic,
         txHash: agent.txHash,
         blockNumber: agent.blockNumber,
-        timestamp: agent.timestamp
+        timestamp: agent.timestamp,
+        // Include all character config details
+        characterConfig: {
+          name: agent.characterConfig.name || '',
+          description: agent.characterConfig.description || '',
+          personality: agent.characterConfig.personality || '',
+          scenario: agent.characterConfig.scenario || '',
+          first_mes: agent.characterConfig.first_mes || '',
+          mes_example: agent.characterConfig.mes_example || '',
+          creatorcomment: agent.characterConfig.creatorcomment || '',
+          tags: agent.characterConfig.tags || '',
+          talkativeness: agent.characterConfig.talkativeness || ''
+        }
       };
       
       // Log each processed agent for debugging
