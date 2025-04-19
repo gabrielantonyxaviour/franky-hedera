@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { AppKitProvider } from '@/components/wallet/appkitprovider'
+import { ReownProviders } from '@/components/ReownProviders'
 
 // Use dynamic import with SSR disabled to avoid hydration issues
 const ReownWalletHeaderWithNoSSR = dynamic(
@@ -11,8 +12,10 @@ const ReownWalletHeaderWithNoSSR = dynamic(
 
 export default function HeaderWalletWrapper() {
   return (
-    <AppKitProvider>
-      <ReownWalletHeaderWithNoSSR />
-    </AppKitProvider>
+    <ReownProviders>
+      <AppKitProvider>
+        <ReownWalletHeaderWithNoSSR />
+      </AppKitProvider>
+    </ReownProviders>
   )
 } 

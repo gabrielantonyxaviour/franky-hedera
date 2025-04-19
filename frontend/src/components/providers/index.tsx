@@ -2,6 +2,7 @@
 import { PrivyProvider } from "@privy-io/react-auth";
 import { SmartWalletsProvider } from '@privy-io/react-auth/smart-wallets';
 import { filecoin, filecoinCalibration } from 'viem/chains'
+import { ReownProviders } from '@/components/ReownProviders';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
     return (
@@ -21,7 +22,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                 supportedChains: [filecoin, filecoinCalibration]
             }}
         >
-            <SmartWalletsProvider> {children}</SmartWalletsProvider>
+            <SmartWalletsProvider>
+                <ReownProviders>
+                    {children}
+                </ReownProviders>
+            </SmartWalletsProvider>
         </PrivyProvider>
     );
 }
