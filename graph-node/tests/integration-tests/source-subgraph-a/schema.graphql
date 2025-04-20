@@ -1,0 +1,5 @@
+type SourceAData @entity(immutable: true) {
+  id: ID!
+  data: String!
+  blockNumber: BigInt!
+} 

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "./interfaces/IL2Registrar.sol";
 import {IFrankyAgentAccountImplementation} from "./interfaces/IFrankyAgentAccountImplementation.sol";
@@ -30,7 +29,6 @@ contract Franky {
     uint256 public agentsCount = 0;
     uint32 public protocolFeeInBps = 0;
 
-    address public immutable frankyToken;
     address public frankyAgentAccountImplemetation;
     address public frankyENSRegistrar;
 
@@ -46,15 +44,13 @@ contract Franky {
 
     mapping(address => mapping(address => bytes32)) public agentsKeyHash;
 
-    mapping(address => address) public reownToMetal;
+    mapping(address => address) public embeddedToServerWallets;
 
     constructor(
         address _frankyAgentAccountImplemetation,
-        address _frankyToken,
         uint32 _protocolFeeInBps
     ) {
         frankyAgentAccountImplemetation = _frankyAgentAccountImplemetation;
-        frankyToken = _frankyToken;
         protocolFeeInBps = _protocolFeeInBps;
     }
 
@@ -75,29 +71,29 @@ contract Franky {
         string characterConfig,
         bool isPublic
     );
-    event MetalWalletConfigured(
-        address indexed deviceAddress,
-        address indexed metalUserAddress
+    event ServerWalletConfigured(
+        address indexed embeddedWalletAddress,
+        address indexed serverWalletAddress
     );
     event ApiKeyRegenerated(address indexed agentAddress, bytes32 keyHash);
     event Initialized(address indexed frankyENSRegistrar);
 
-    function intialize(address _frankyENSRegistrar) external {
-        require(
-            frankyENSRegistrar == address(0),
-            "Franky: Already initialized"
-        );
-        frankyENSRegistrar = _frankyENSRegistrar;
-        emit Initialized(_frankyENSRegistrar);
-    }
+    // function intialize(address _frankyENSRegistrar) external {
+    //     require(
+    //         frankyENSRegistrar == address(0),
+    //         "Franky: Already initialized"
+    //     );
+    //     frankyENSRegistrar = _frankyENSRegistrar;
+    //     emit Initialized(_frankyENSRegistrar);
+    // }
 
-    function configureMetalWallet(address metalUserAddress) public {
+    function configureServerWallet(address serverWalletAddress) external {
         require(
-            reownToMetal[msg.sender] == address(0),
-            "Metal Wallet Already configured"
+            embeddedToServerWallets[msg.sender] == address(0),
+            "Server wallet already configured"
         );
-        reownToMetal[msg.sender] = metalUserAddress;
-        emit MetalWalletConfigured(msg.sender, metalUserAddress);
+        embeddedToServerWallets[msg.sender] = serverWalletAddress;
+        emit ServerWalletConfigured(msg.sender, serverWalletAddress);
     }
 
     function registerDevice(
@@ -149,16 +145,16 @@ contract Franky {
             msg.sender,
             keccak256(abi.encodePacked(characterConfig))
         );
-        require(
-            IL2Registrar(frankyENSRegistrar).available(subname),
-            "ENS Subname Already taken"
-        );
-        IL2Registrar(frankyENSRegistrar).register(subname, agentAddress);
-        IFrankyAgentAccountImplementation(agentAddress).setCharacterAndUrl(
-            characterConfig,
-            devices[deviceAddress].ngrokLink,
-            avatar
-        );
+        // require(
+        //     IL2Registrar(frankyENSRegistrar).available(subname),
+        //     "ENS Subname Already taken"
+        // );
+        // IL2Registrar(frankyENSRegistrar).register(subname, agentAddress);
+        // IFrankyAgentAccountImplementation(agentAddress).setCharacterAndUrl(
+        //     characterConfig,
+        //     devices[deviceAddress].ngrokLink,
+        //     avatar
+        // );
         agents[agentAddress] = Agent({
             agentAddress: agentAddress,
             deviceAddress: deviceAddress,
@@ -211,8 +207,10 @@ contract Franky {
         }
     }
 
-    function checkAvailableCredits() public view returns (uint256 amount) {
-        return IERC20(frankyToken).balanceOf(reownToMetal[msg.sender]);
+    function checkAvailableCredits(
+        address embeddedWalletAddress
+    ) public view returns (uint256 amount) {
+        return embeddedToServerWallets[embeddedWalletAddress].balance;
     }
 
     function isDeviceOwned(
@@ -228,7 +226,7 @@ contract Franky {
     ) external view returns (bool) {
         return
             agents[agentAddress].owner == caller ||
-            IERC20(frankyToken).balanceOf(reownToMetal[caller]) >=
+            embeddedToServerWallets[caller].balance >=
             agents[agentAddress].perApiCallFee;
     }
 

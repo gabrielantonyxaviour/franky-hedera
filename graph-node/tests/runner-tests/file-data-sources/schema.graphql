@@ -1,0 +1,10 @@
+type FileEntity @entity {
+  id: ID!
+  content: String!
+  foo: Foo @relation
+}
+
+type Foo @entity {
+  id: ID!
+  ipfs: FileEntity @derivedFrom(field: "foo")
+}

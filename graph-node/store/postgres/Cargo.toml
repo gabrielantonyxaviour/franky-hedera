@@ -1,0 +1,38 @@
+[package]
+name = "graph-store-postgres"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+async-trait = "0.1.50"
+blake3 = "1.6"
+chrono = { workspace = true }
+derive_more = { version = "0.99.18" }
+diesel = { workspace = true }
+diesel-dynamic-schema = { workspace = true }
+diesel-derive-enum = { workspace = true }
+diesel_derives = { workspace = true }
+diesel_migrations = { workspace = true }
+fallible-iterator = "0.3.0"
+graph = { path = "../../graph" }
+graphman-store = { workspace = true }
+Inflector = "0.11.3"
+lazy_static = "1.5"
+lru_time_cache = "0.11"
+maybe-owned = "0.3.4"
+postgres = "0.19.1"
+openssl = "0.10.71"
+postgres-openssl = "0.5.0"
+rand = "0.8.4"
+serde = { workspace = true }
+serde_json = { workspace = true }
+stable-hash_legacy = { git = "https://github.com/graphprotocol/stable-hash", branch = "old", package = "stable-hash" }
+anyhow = "1.0.86"
+git-testament = "0.2.5"
+itertools = "0.13.0"
+hex = "0.4.3"
+pretty_assertions = "1.4.0"
+
+[dev-dependencies]
+clap.workspace = true
+graphql-parser = "0.4.0"
