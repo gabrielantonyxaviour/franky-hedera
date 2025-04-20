@@ -1,0 +1,65 @@
+type AgentCreated @entity(immutable: true) {
+  id: Bytes!
+  agentAddress: Bytes! # address
+  deviceAddress: Bytes! # address
+  avatar: String! # string
+  subname: String! # string
+  owner: Bytes! # address
+  perApiCallFee: BigInt! # uint256
+  secretsHash: Bytes! # bytes32
+  characterConfig_name: String! # string
+  characterConfig_description: String! # string
+  characterConfig_personality: String! # string
+  characterConfig_scenario: String! # string
+  characterConfig_first_mes: String! # string
+  characterConfig_mes_example: String! # string
+  characterConfig_creatorcomment: String! # string
+  characterConfig_tags: String! # string
+  characterConfig_talkativeness: String! # string
+  secrets: String! # string
+  isPublic: Boolean! # bool
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type ApiKeyRegenerated @entity(immutable: true) {
+  id: Bytes!
+  agentAddress: Bytes! # address
+  keyHash: Bytes! # bytes32
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type DeviceRegistered @entity(immutable: true) {
+  id: Bytes!
+  deviceAddress: Bytes! # address
+  owner: Bytes! # address
+  deviceModel: String! # string
+  ram: String! # string
+  storageCapacity: String! # string
+  cpu: String! # string
+  ngrokLink: String! # string
+  hostingFee: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type Initialized @entity(immutable: true) {
+  id: Bytes!
+  frankyENSRegistrar: Bytes! # address
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type MetalWalletConfigured @entity(immutable: true) {
+  id: Bytes!
+  deviceAddress: Bytes! # address
+  metalUserAddress: Bytes! # address
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
