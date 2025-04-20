@@ -66,19 +66,16 @@ contract FrankyAgentAccountImplementation is
     }
 
     function setCharacterAndUrl(
-        Character memory character,
+        string memory character,
         string memory url,
         string memory avatar
     ) external onlyFrankyOrOwner {
         require(bytes(url).length > 0, "URL cannot be empty");
-
         if (msg.sender == owner && bytes(deviceNgrokUrl).length > 0)
             deviceNgrokUrl = url;
-
         bytes32 nameHash = IL2Registry(registry).namehash(
             string.concat(subname, ".frankyagent.xyz")
         );
-
         IL2Registry(registry).setText(
             IL2Registry(registry).namehash(
                 string.concat(subname, ".frankyagent.xyz")
@@ -86,50 +83,8 @@ contract FrankyAgentAccountImplementation is
             "url",
             url
         );
-
-        IL2Registry(registry).setText(nameHash, "name", character.name);
-
-        IL2Registry(registry).setText(
-            nameHash,
-            "description",
-            character.description
-        );
-
+        IL2Registry(registry).setText(nameHash, "character", character);
         IL2Registry(registry).setText(nameHash, "avatar", avatar);
-
-        IL2Registry(registry).setText(
-            nameHash,
-            "personality",
-            character.personality
-        );
-
-        IL2Registry(registry).setText(nameHash, "scenario", character.scenario);
-
-        IL2Registry(registry).setText(
-            nameHash,
-            "first_mes",
-            character.first_mes
-        );
-
-        IL2Registry(registry).setText(
-            nameHash,
-            "mes_example",
-            character.mes_example
-        );
-
-        IL2Registry(registry).setText(
-            nameHash,
-            "creatorcomment",
-            character.creatorcomment
-        );
-
-        IL2Registry(registry).setText(nameHash, "tags", character.tags);
-
-        IL2Registry(registry).setText(
-            nameHash,
-            "talkativeness",
-            character.talkativeness
-        );
     }
 
     /**

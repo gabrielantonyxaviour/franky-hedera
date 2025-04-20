@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "./interfaces/IL2Registrar.sol";
-import {Character, IFrankyAgentAccountImplementation} from "./interfaces/IFrankyAgentAccountImplementation.sol";
+import {IFrankyAgentAccountImplementation} from "./interfaces/IFrankyAgentAccountImplementation.sol";
 
 contract Franky {
     struct Device {
@@ -68,6 +68,7 @@ contract Franky {
     event AgentCreated(
         address indexed agentAddress,
         address indexed deviceAddress,
+        string avatar,
         string subname,
         address owner,
         uint256 perApiCallFee,
@@ -100,7 +101,7 @@ contract Franky {
     }
 
     function registerDevice(
-        string calldata,
+        string calldata deviceMetadata,
         string calldata ngrokLink,
         uint256 hostingFee,
         address deviceAddress,
@@ -146,7 +147,7 @@ contract Franky {
         address agentAddress = _deployAgentAccount(
             subname,
             msg.sender,
-            secretsHash
+            keccak256(abi.encodePacked(characterConfig))
         );
         require(
             IL2Registrar(frankyENSRegistrar).available(subname),
@@ -163,8 +164,6 @@ contract Franky {
             deviceAddress: deviceAddress,
             subname: subname,
             characterConfig: characterConfig,
-            secrets: secrets,
-            secretsHash: secretsHash,
             perApiCallFee: perApiCallFee,
             owner: msg.sender,
             status: isPublic ? 2 : 1
@@ -180,9 +179,7 @@ contract Franky {
             subname,
             msg.sender,
             perApiCallFee,
-            agents[agentAddress].secretsHash,
             agents[agentAddress].characterConfig,
-            agents[agentAddress].secrets,
             isPublic
         );
         emit ApiKeyRegenerated(
