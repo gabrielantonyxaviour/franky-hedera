@@ -5,12 +5,13 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Header from '@/components/ui/Header'
 import { useRouter } from 'next/navigation'
-import { FiCpu, FiHardDrive, FiServer, FiLink, FiSmartphone, FiHash } from 'react-icons/fi'
-import { useChainId } from 'wagmi'
+import { FiCpu, FiHardDrive, FiServer, FiLink, FiSmartphone, FiHash, FiCheck } from 'react-icons/fi'
 import { base } from 'viem/chains'
 import axios from 'axios'
 // Import ethers and utils directly for compatibility
 import { ethers } from 'ethers'
+// Import Privy
+import { usePrivy } from "@privy-io/react-auth";
 
 // Contract information
 const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
@@ -284,8 +285,12 @@ export default function MarketplacePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
-  const chainId = useChainId()
-  const isMainnet = chainId === 8453 // Base mainnet
+  
+  // Use Privy for wallet connection (matching create-agent page)
+  const { user, login } = usePrivy()
+  const walletAddress = user?.wallet?.address
+  const walletIsConnected = !!walletAddress
+  const isMainnet = true // We're always on Base mainnet
   
   // Set isClient to true after component mounts to avoid SSR issues
   useEffect(() => {
@@ -506,13 +511,24 @@ export default function MarketplacePage() {
     fetchDevicesFromNodit();
   }, [isClient]);
   
+  // Add wallet connect handler (matching the create-agent page)
+  const handleConnectWallet = async () => {
+    try {
+      console.log("Connecting wallet with Privy...");
+      await login();
+    } catch (error) {
+      console.error("Error connecting wallet:", error);
+    }
+  };
+  
   // Handle device selection
   const handleDeviceSelect = (device: Device) => {
     console.log('Selected device:', device);
     
-    // Check if we're on the right network before proceeding
-    if (!isMainnet) {
-      alert('Please switch to Base Mainnet to interact with devices');
+    // Check if wallet is connected
+    if (!walletIsConnected) {
+      alert('Please connect your wallet to interact with devices');
+      handleConnectWallet();
       return;
     }
     
@@ -593,6 +609,33 @@ export default function MarketplacePage() {
             )}
           </div>
         </section>
+        
+        {/* Add Connect Wallet CTA if not connected */}
+        {!walletIsConnected && (
+          <section className="py-5 px-6">
+            <div className="container mx-auto max-w-xl">
+              <motion.div
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true }}
+                className="p-6 rounded-xl border border-[#00FF88] border-opacity-30 bg-black/50 backdrop-blur-sm text-center"
+              >
+                <h2 className="text-xl font-bold mb-3 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
+                  Connect Wallet
+                </h2>
+                <p className="text-[#AAAAAA] mb-4 text-sm">
+                  Connect your wallet to interact with devices and create agents
+                </p>
+                <button
+                  onClick={handleConnectWallet}
+                  className="px-6 py-2 rounded-lg bg-[#00FF88]/20 border border-[#00FF88]/50 text-[#00FF88] hover:bg-[#00FF88]/30 transition-colors"
+                >
+                  Connect Wallet
+                </button>
+              </motion.div>
+            </div>
+          </section>
+        )}
         
         {/* Add Device CTA */}
         <section className="py-10 px-6">

@@ -258,7 +258,7 @@ export default function Home() {
                     </svg>
                   }
                   onClick={() => {
-                    router.push("/agents")
+                    router.push("/agent-marketplace")
                   }}
                 />
               </div>
