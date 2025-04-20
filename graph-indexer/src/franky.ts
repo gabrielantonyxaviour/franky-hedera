@@ -2,7 +2,8 @@ import {
   AgentCreated as AgentCreatedEvent,
   ApiKeyRegenerated as ApiKeyRegeneratedEvent,
   DeviceRegistered as DeviceRegisteredEvent,
-  ServerWalletConfigured as ServerWalletConfiguredEvent
+  ServerWalletConfigured as ServerWalletConfiguredEvent,
+  Initialized as InitializedEvent,
 } from "../generated/Franky/Franky"
 
 import { agent as Agent, device as Device, user as User } from "../generated/schema"
@@ -87,3 +88,4 @@ export function handleServerWalletConfigured(event: ServerWalletConfiguredEvent)
   user.updatedAt = event.block.timestamp
   user.save()
 }
+export function handleInitialized(event: InitializedEvent): void { }

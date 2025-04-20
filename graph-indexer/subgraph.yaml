@@ -6,7 +6,7 @@ schema:
 dataSources:
   - kind: ethereum
     name: Franky
-    network: calibration
+    network: testnet
     source:
       address: "0x486989cd189ED5DB6f519712eA794Cee42d75b29"
       abi: Franky
