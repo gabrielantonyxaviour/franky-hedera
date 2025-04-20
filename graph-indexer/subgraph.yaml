@@ -6,11 +6,11 @@ schema:
 dataSources:
   - kind: ethereum
     name: Franky
-    network: base
+    network: calibration
     source:
       address: "0x486989cd189ED5DB6f519712eA794Cee42d75b29"
       abi: Franky
-      startBlock: 28538792
+      startBlock: 2574712
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
@@ -20,19 +20,19 @@ dataSources:
         - ApiKeyRegenerated
         - DeviceRegistered
         - Initialized
-        - MetalWalletConfigured
+        - ServerWalletConfigured
       abis:
         - name: Franky
           file: ./abis/Franky.json
       eventHandlers:
-        - event: AgentCreated(indexed address,indexed address,string,string,address,uint256,bytes32,(string,string,string,string,string,string,string,string,string),string,bool)
+        - event: AgentCreated(indexed address,indexed address,string,string,address,uint256,string,bool)
           handler: handleAgentCreated
         - event: ApiKeyRegenerated(indexed address,bytes32)
           handler: handleApiKeyRegenerated
-        - event: DeviceRegistered(indexed address,indexed address,string,string,string,string,string,uint256)
+        - event: DeviceRegistered(indexed address,indexed address,string,string,uint256)
           handler: handleDeviceRegistered
         - event: Initialized(indexed address)
           handler: handleInitialized
-        - event: MetalWalletConfigured(indexed address,indexed address)
-          handler: handleMetalWalletConfigured
+        - event: ServerWalletConfigured(indexed address,indexed address)
+          handler: handleServerWalletConfigured
       file: ./src/franky.ts

@@ -3,7 +3,7 @@ import {
   ApiKeyRegenerated as ApiKeyRegeneratedEvent,
   DeviceRegistered as DeviceRegisteredEvent,
   Initialized as InitializedEvent,
-  MetalWalletConfigured as MetalWalletConfiguredEvent
+  ServerWalletConfigured as ServerWalletConfiguredEvent,
 } from "../generated/Franky/Franky"
 import {
   AgentCreated,

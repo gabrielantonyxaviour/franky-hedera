@@ -54,13 +54,6 @@ contract Franky {
         protocolFeeInBps = _protocolFeeInBps;
     }
 
-    event DeviceRegistered(
-        address indexed deviceAddress,
-        address indexed owner,
-        string deviceMetadata,
-        string ngrokLink,
-        uint256 hostingFee
-    );
     event AgentCreated(
         address indexed agentAddress,
         address indexed deviceAddress,
@@ -71,12 +64,19 @@ contract Franky {
         string characterConfig,
         bool isPublic
     );
+    event ApiKeyRegenerated(address indexed agentAddress, bytes32 keyHash);
+    event DeviceRegistered(
+        address indexed deviceAddress,
+        address indexed owner,
+        string deviceMetadata,
+        string ngrokLink,
+        uint256 hostingFee
+    );
+    event Initialized(address indexed frankyENSRegistrar);
     event ServerWalletConfigured(
         address indexed embeddedWalletAddress,
         address indexed serverWalletAddress
     );
-    event ApiKeyRegenerated(address indexed agentAddress, bytes32 keyHash);
-    event Initialized(address indexed frankyENSRegistrar);
 
     // function intialize(address _frankyENSRegistrar) external {
     //     require(
