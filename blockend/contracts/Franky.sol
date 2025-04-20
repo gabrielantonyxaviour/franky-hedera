@@ -8,10 +8,7 @@ import {Character, IFrankyAgentAccountImplementation} from "./interfaces/IFranky
 
 contract Franky {
     struct Device {
-        string deviceModel;
-        string ram;
-        string storageCapacity;
-        string cpu;
+        string deviceMetadata;
         string ngrokLink;
         address deviceAddress;
         uint256 hostingFee;
@@ -23,9 +20,7 @@ contract Franky {
         address agentAddress;
         address deviceAddress;
         string subname;
-        Character characterConfig;
-        string secrets;
-        bytes32 secretsHash;
+        string characterConfig;
         address owner;
         uint256 perApiCallFee;
         uint8 status;
@@ -66,23 +61,17 @@ contract Franky {
     event DeviceRegistered(
         address indexed deviceAddress,
         address indexed owner,
-        string deviceModel,
-        string ram,
-        string storageCapacity,
-        string cpu,
+        string deviceMetadata,
         string ngrokLink,
         uint256 hostingFee
     );
     event AgentCreated(
         address indexed agentAddress,
         address indexed deviceAddress,
-        string avatar,
         string subname,
         address owner,
         uint256 perApiCallFee,
-        bytes32 secretsHash,
-        Character characterConfig,
-        string secrets,
+        string characterConfig,
         bool isPublic
     );
     event MetalWalletConfigured(
@@ -111,28 +100,19 @@ contract Franky {
     }
 
     function registerDevice(
-        string calldata deviceModel,
-        string calldata ram,
-        string calldata storageCapacity,
-        string calldata cpu,
+        string calldata,
         string calldata ngrokLink,
         uint256 hostingFee,
         address deviceAddress,
         bytes32 verificationHash,
         bytes calldata signature
     ) external {
-        // Recover the signer's address from the signature
         address recoveredAddress = recoverSigner(verificationHash, signature);
 
-        // Verify that the recovered address matches the device address
         require(recoveredAddress == deviceAddress, "Invalid signature");
 
-        // Register the device
         devices[deviceAddress] = Device({
-            deviceModel: deviceModel,
-            ram: ram,
-            storageCapacity: storageCapacity,
-            cpu: cpu,
+            deviceMetadata: deviceMetadata,
             ngrokLink: ngrokLink,
             deviceAddress: deviceAddress,
             agentCount: 0,
@@ -140,31 +120,23 @@ contract Franky {
             isRegistered: true
         });
 
-        // Add the device ID to the owner's list of devices
         ownerDevices[msg.sender][deviceAddress] = true;
 
-        // Assign a new device ID
         devicesCount++;
 
-        // Emit the DeviceRegistered event
         emit DeviceRegistered(
             deviceAddress,
             msg.sender,
-            deviceModel,
-            ram,
-            storageCapacity,
-            cpu,
+            deviceMetadata,
             ngrokLink,
             hostingFee
         );
     }
 
     function createAgent(
+        string calldata avatar,
         string calldata subname,
-        string memory avatar,
-        Character memory characterConfig,
-        string calldata secrets,
-        bytes32 secretsHash,
+        string memory characterConfig,
         address deviceAddress,
         uint256 perApiCallFee,
         bool isPublic
@@ -186,8 +158,6 @@ contract Franky {
             devices[deviceAddress].ngrokLink,
             avatar
         );
-        // Create the agent
-
         agents[agentAddress] = Agent({
             agentAddress: agentAddress,
             deviceAddress: deviceAddress,
@@ -320,12 +290,22 @@ contract Franky {
             );
     }
 
-    function isHostingAgent(address agentAddress) external view returns (bool) {
-        return deviceAgents[msg.sender][agentAddress];
+    function isHostingAgent(
+        address deviceAddress,
+        address agentAddress
+    ) external view returns (bool) {
+        return deviceAgents[deviceAddress][agentAddress];
     }
 
-    function getKeyHash(address agentAddress) external view returns (bytes32) {
-        return agentsKeyHash[agentAddress][msg.sender];
+    function getKeyHash(
+        address agentAddress,
+        address caller
+    ) external view returns (bytes32) {
+        return agentsKeyHash[agentAddress][caller];
+    }
+
+    function isAgentPublic(address agentAddress) external view returns (bool) {
+        return agents[agentAddress].status == 2;
     }
 
     function _deployAgentAccount(

@@ -19,30 +19,29 @@ module.exports = {
     },
   },
   networks: {
-    base: {
-      url:
-        "https://base-mainnet.g.alchemy.com/v2/" + process.env.ALCHEMY_API_KEY,
-      accounts: [PRIVATE_KEY],
-      chainId: 8453,
-    },
     baseSepolia: {
       url: "https://sepolia.base.org",
       accounts: [PRIVATE_KEY],
       chainId: 84532,
     },
+    calibration: {
+      url: "https://rpc.ankr.com/filecoin_testnet",
+      accounts: [PRIVATE_KEY],
+      chainId: 314159,
+    }
   },
   etherscan: {
     apiKey: {
-      base: process.env.BASESCAN_API_KEY,
+      calibration: "empty",
       baseSepolia: process.env.BASESCAN_API_KEY,
     },
     customChains: [
       {
-        network: "base",
-        chainId: 8453,
+        network: "calibration",
+        chainId: 314159,
         urls: {
-          apiURL: "https://api.basescan.org/api",
-          browserURL: "https://basescan.org",
+          apiURL: "https://filecoin-testnet.blockscout.com/api",
+          browserURL: "https://filecoin-testnet.blockscout.com",
         },
       },
       {
