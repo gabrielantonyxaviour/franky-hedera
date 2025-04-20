@@ -36,6 +36,7 @@
     "@web3modal/react": "^2.7.1",
     "@web3modal/wagmi": "^5.1.11",
     "axios": "^1.8.4",
+    "ethers": "^6.13.5",
     "framer-motion": "^12.4.7",
     "lucide-react": "^0.487.0",
     "next": "15.2.0",
