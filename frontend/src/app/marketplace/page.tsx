@@ -12,6 +12,7 @@ import axios from 'axios'
 import { ethers } from 'ethers'
 // Import Privy
 import { usePrivy } from "@privy-io/react-auth";
+import { getAvailableDevices } from '@/lib/graph'
 
 // Contract information
 const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
@@ -285,11 +286,8 @@ export default function MarketplacePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
-
-  // Use Privy for wallet connection (matching create-agent page)
   const { user, login } = usePrivy()
 
-  // Set isClient to true after component mounts to avoid SSR issues
   useEffect(() => {
     setIsClient(true)
   }, [])
@@ -297,217 +295,14 @@ export default function MarketplacePage() {
   // Fetch devices using Nodit API
   useEffect(() => {
     if (!isClient) return;
-
-    // TODO: Fetch devices from Subgraph
-
-    // const fetchDevicesFromNodit = async () => {
-    //   setLoading(true);
-    //   setError(null);
-
-    //   try {
-    //     // Nodit API configuration
-    //     const noditAPIKey = process.env.NEXT_PUBLIC_NODIT_API_KEY || ""; // Use environment variable
-    //     if (!noditAPIKey) {
-    //       console.error("Nodit API key is not configured");
-    //       setError("API configuration error. Please check the application setup.");
-    //       setLoading(false);
-    //       return;
-    //     }
-
-    //     const axiosInstance = axios.create({
-    //       baseURL: "https://web3.nodit.io/v1/base/mainnet",
-    //       headers: {
-    //         "Content-Type": "application/json",
-    //         Accept: "application/json",
-    //         "X-API-KEY": noditAPIKey,
-    //       },
-    //     });
-
-    //     axiosInstance.interceptors.response.use(
-    //       response => response,
-    //       async error => {
-    //         if (error.response?.status === 429) {
-    //           console.log('Rate limit exceeded. Request will be retried with backoff strategy.');
-    //         }
-    //         return Promise.reject(error);
-    //       }
-    //     );
-
-    //     // Dynamically import ethers to support both v5 and v6
-    //     const { ethers } = await import('ethers');
-
-    //     // Create ethers interface for decoding transaction data
-    //     const ethersInterface = new ethers.Interface(abiFragment);
-
-    //     // Get function selector as a string for comparison
-    //     const registerDeviceFunction = ethersInterface.getFunction("registerDevice");
-    //     const registerDeviceSelector = registerDeviceFunction ? registerDeviceFunction.selector.toString() : "";
-
-    //     // Look for event signatures when checking transaction logs - update for new contract
-    //     const deviceRegisteredTopic = ethers.id(
-    //       "DeviceRegistered(address,address,string,string,string,string,string,uint256)"
-    //     );
-
-    //     console.log(`🔍 Searching for all devices registered in contract: ${CONTRACT_ADDRESS}`);
-    //     console.log(`Using function selector: ${registerDeviceSelector}`);
-    //     console.log(`Using event topic: ${deviceRegisteredTopic}`);
-
-    //     // Fetch transactions for the contract with retry mechanism - A SINGLE API CALL
-    //     const txResult = await retryWithBackoff(async () => {
-    //       return await axiosInstance.post(
-    //         "/blockchain/getTransactionsByAccount",
-    //         {
-    //           accountAddress: CONTRACT_ADDRESS,
-    //           withDecode: true,
-    //           fromBlock: 0 // Start from the beginning to get all devices
-    //         }
-    //       );
-    //     });
-
-    //     if (txResult.data && txResult.data.items && txResult.data.items.length > 0) {
-    //       // Filter for device registration transactions (using the function selector)
-    //       const filteredTransactions = txResult.data.items.filter(
-    //         (tx: any) => tx.functionSelector &&
-    //           tx.functionSelector.toLowerCase() === registerDeviceSelector.toLowerCase()
-    //       );
-
-    //       console.log(`✅ Found ${filteredTransactions.length} device registration transactions`);
-
-    //       if (filteredTransactions.length > 0) {
-    //         // Process all transactions in one go (no additional API calls needed)
-    //         const devicesArray: Device[] = [];
-
-    //         // First, collect all transactions with their timestamps
-    //         const transactionsWithTimestamps: Array<{
-    //           txData: any;
-    //           timestamp: number;
-    //         }> = [];
-
-    //         // Process each transaction and collect timestamp info
-    //         filteredTransactions.forEach((tx: any) => {
-    //           try {
-    //             // Skip if transaction input is missing
-    //             if (!tx || !tx.input) {
-    //               console.log("Skipping transaction with missing input data");
-    //               return;
-    //             }
-
-    //             // Get transaction timestamp with fallback
-    //             const timestamp = typeof tx.timestamp === 'number' ? tx.timestamp : Date.now() / 1000;
-
-    //             // Store transaction with its timestamp
-    //             transactionsWithTimestamps.push({
-    //               txData: tx,
-    //               timestamp: timestamp
-    //             });
-    //           } catch (error) {
-    //             console.error(`Error processing transaction timestamp:`, error);
-    //           }
-    //         });
-
-    //         // Sort transactions by timestamp (oldest first)
-    //         transactionsWithTimestamps.sort((a, b) => a.timestamp - b.timestamp);
-
-    //         // Now process the sorted transactions and assign chronological IDs
-    //         transactionsWithTimestamps.forEach((item, index) => {
-    //           try {
-    //             const tx = item.txData;
-    //             const timestamp = item.timestamp;
-
-    //             // Transaction hash handling with fallback
-    //             const txHash = tx.transactionHash || 'unknown';
-
-    //             try {
-    //               // Decode the transaction input data
-    //               const decodedData = ethersInterface.parseTransaction({ data: tx.input }) as any;
-
-    //               // Format timestamp for display
-    //               const txDate = new Date(timestamp * 1000);
-    //               const formattedDate = txDate.toLocaleDateString();
-    //               const formattedTime = txDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    //               // Calculate a pseudo-random "last active" time for UI purposes
-    //               const randomMinutes = Math.floor(Math.random() * 60);
-    //               const lastActive = randomMinutes < 5 ? 'Just now' :
-    //                 randomMinutes < 15 ? 'A few minutes ago' :
-    //                   randomMinutes < 30 ? 'Less than 30 minutes ago' :
-    //                     randomMinutes < 50 ? 'About an hour ago' :
-    //                       'A few hours ago';
-
-    //               // Assign sequential ID (starting from 1) based on chronological order
-    //               const deviceId = (index + 1).toString();
-
-    //               // Extract decoded data from the transaction
-    //               if (decodedData && decodedData.args) {
-    //                 const args = decodedData.args;
-    //                 const deviceModel = String(args[0] || 'Unknown Model');
-    //                 const ram = String(args[1] || 'Unknown RAM');
-    //                 const storage = String(args[2] || 'Unknown Storage');
-    //                 const cpu = String(args[3] || 'Unknown CPU');
-    //                 const ngrokLink = String(args[4] || 'No Link Available');
-    //                 const hostingFee = args[5] ? args[5].toString() : '0';
-    //                 const deviceAddress = String(args[6] || '');
-
-    //                 // Check if the ngrok link exists and is valid
-    //                 const isActive = ngrokLink.includes('ngrok') && ngrokLink.toLowerCase() !== 'no link available';
-
-    //                 // Create device object with decoded data
-    //                 devicesArray.push({
-    //                   id: deviceId,
-    //                   deviceModel,
-    //                   ram,
-    //                   storage,
-    //                   cpu,
-    //                   ngrokLink,
-    //                   walletAddress: deviceAddress,
-    //                   hostingFee,
-    //                   agentCount: 0, // We don't have this info from txn data
-    //                   status: isActive ? 'Active' : 'Inactive',
-    //                   lastActive,
-    //                   txHash,
-    //                   registeredAt: `${formattedDate} ${formattedTime}`
-    //                 });
-    //               }
-    //             } catch (parseError) {
-    //               console.error(`Error parsing transaction ${txHash}:`, parseError);
-    //             }
-    //           } catch (error) {
-    //             console.error(`Error processing transaction:`, error);
-    //           }
-    //         });
-
-    //         // Sort devices by timestamp (newest first) for display
-    //         devicesArray.sort((a, b) => {
-    //           const aDate = new Date(a.registeredAt);
-    //           const bDate = new Date(b.registeredAt);
-    //           return bDate.getTime() - aDate.getTime();
-    //         });
-
-    //         // Update the state with found devices
-    //         setDevices(devicesArray);
-
-    //       } else {
-    //         console.log("No device registration transactions found");
-    //         setDevices([]);
-    //       }
-    //     } else {
-    //       console.log("No transactions found for this contract");
-    //       setDevices([]);
-    //     }
-    //   } catch (error: any) {
-    //     console.error("Error fetching devices from Nodit:", error);
-    //     // Add more specific error message for rate limiting
-    //     if (error.response?.status === 429 || error.status === 429) {
-    //       setError(`Rate limit exceeded when fetching device data. Please try again later.`);
-    //     } else {
-    //       setError(`Error fetching device data: ${error.message || 'Unknown error'}`);
-    //     }
-    //   } finally {
-    //     setLoading(false);
-    //   }
-    // };
-
-    // fetchDevicesFromNodit();
+    (async function () {
+      const fetchedDevices = await getAvailableDevices()
+      console.log("Fetched devices from Subgraph")
+      console.log(fetchedDevices)
+      setDevices(fetchedDevices)
+      setLoading(false)
+      setError(null)
+    })()
   }, [isClient]);
 
 
