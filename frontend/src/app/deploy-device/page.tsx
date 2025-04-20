@@ -6,6 +6,7 @@ import Header from '@/components/ui/Header'
 import { FiCopy, FiCheck, FiSmartphone, FiTerminal, FiDownload, FiServer } from 'react-icons/fi'
 import { useAppKitAccount } from '@reown/appkit/react'
 import { usePrivy } from '@privy-io/react-auth'
+import { QrCode } from 'lucide-react'
 
 // CodeBlock component for displaying commands with copy functionality
 const CodeBlock = ({ code }: { code: string }) => {

@@ -8,6 +8,7 @@ import Link from "next/link";
 // Lucide icons can be directly imported
 import { MailIcon, ArrowLeftIcon, Boxes, Sliders } from "lucide-react";
 import Image from "next/image";
+import { useCreateWallet, useLoginWithEmail, usePrivy } from "@privy-io/react-auth";
 
 // TypeScript interfaces for component props
 interface GlowButtonProps {
@@ -270,29 +271,28 @@ export default function SignIn() {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string>("");
     const router = useRouter();
-
-    // Placeholder for authentication functions
-    const sendCode = async ({ email }: SendCodeParams): Promise<AuthResponse> => {
-        // Simulate API call
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve({ success: true });
-            }, 1500);
-        });
-    };
-
-    const loginWithCode = async ({ code }: LoginWithCodeParams): Promise<AuthResponse> => {
-        // Simulate API call
-        return new Promise((resolve, reject) => {
-            setTimeout(() => {
-                if (code === "123456") {
-                    resolve({ success: true });
-                } else {
-                    reject(new Error("Invalid code"));
-                }
-            }, 1500);
-        });
-    };
+    const { createWallet } = useCreateWallet({
+        onSuccess: ({ wallet }) => {
+            console.log('Created wallet ', wallet);
+        },
+        onError: (error) => {
+            console.error('Failed to create wallet with error ', error)
+        }
+    });
+    const { sendCode, loginWithCode } = useLoginWithEmail({
+        onComplete: (data) => {
+            console.log("Login successful:", data);
+            const { linkedAccounts } = data.user
+            const account = linkedAccounts.find((account) => account.type === "wallet" && account.chainType === "ethereum");
+            if (account) {
+                console.log("Account found:", account);
+            } else {
+                console.log("No account found, creating a new wallet");
+                createWallet()
+            }
+        }
+    });
+    const { ready, user } = usePrivy();
 
     // Function to handle initial button click
     const handleInitialClick = (): void => {

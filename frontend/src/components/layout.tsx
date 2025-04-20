@@ -1,6 +1,5 @@
 'use client';
 
-import { usePathname } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import Image from "next/image";
 import SignIn from "./sign-in";
@@ -51,14 +50,13 @@ export default function Layout({
 }: {
     children: React.ReactNode;
 }) {
-    const pathname = usePathname();
     const { user, ready } = usePrivy()
 
-    return <body className="min-h-screen flex flex-col ">
+    return <body className="min-h-screen flex flex-col sen">
         {!ready ? <div className="w-full h-screen flex flex-col justify-center items-center">
             <Image src="/loading.gif" alt="loading" width={300} height={300} className="pb-8" />
         </div> :
-            pathname == '/' || user != null ? children :
+            user != null ? children :
                 <main className="min-h-screen flex flex-col">
                     <Header />
                     <HeroAnimation />

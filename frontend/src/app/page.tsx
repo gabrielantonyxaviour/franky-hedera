@@ -5,6 +5,7 @@ import Link from "next/link";
 import Header from "@/components/ui/Header";
 import { motion } from "framer-motion";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 const HeroAnimation = () => {
   return (
@@ -118,6 +119,7 @@ const OptionCard = ({
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [getStarted, setGetStarted] = useState(false);
+  const router = useRouter()
 
   // Ensure component is mounted to avoid hydration issues
   useEffect(() => {
@@ -200,7 +202,9 @@ export default function Home() {
                       />
                     </svg>
                   }
-                  onClick={() => window.location.href = "/deploy-device"}
+                  onClick={() => {
+                    router.push("/deploy-device")
+                  }}
                 />
                 <OptionCard
                   title="Host Your AI Agent"
@@ -227,7 +231,7 @@ export default function Home() {
                       />
                     </svg>
                   }
-                  onClick={() => window.location.href = "/marketplace"}
+                  onClick={() => router.push("/marketplace")}
                 />
                 <OptionCard
                   title="Use Public AI Agents"
@@ -253,7 +257,9 @@ export default function Home() {
                       />
                     </svg>
                   }
-                  onClick={() => window.location.href = "/agent-marketplace"}
+                  onClick={() => {
+                    router.push("/agents")
+                  }}
                 />
               </div>
               <motion.button
