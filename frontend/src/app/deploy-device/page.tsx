@@ -6,7 +6,7 @@ import Header from '@/components/ui/Header'
 import { FiCopy, FiCheck, FiSmartphone, FiTerminal, FiDownload, FiServer } from 'react-icons/fi'
 import { useAppKitAccount } from '@reown/appkit/react'
 import { usePrivy } from '@privy-io/react-auth'
-import { QrCode } from 'lucide-react'
+import { QrCode, Zap } from 'lucide-react'
 
 // CodeBlock component for displaying commands with copy functionality
 const CodeBlock = ({ code }: { code: string }) => {
@@ -483,8 +483,6 @@ const DeviceVerification = () => {
   )
 }
 
-
-
 export default function DeployDevice() {
   return (
     <>
@@ -504,7 +502,7 @@ export default function DeployDevice() {
                 Deploy Your Device
               </h1>
               <p className="text-xl mb-12 text-[#AAAAAA] max-w-4xl mx-auto">
-                Transform your old mobile device into an AI agent with these simple steps.
+                Transform your old mobile device into an AI agent in 10 minutes.
                 Follow the instructions below to get started.
               </p>
             </motion.div>
@@ -529,59 +527,18 @@ export default function DeployDevice() {
                 </iframe>
               </div>
 
-              <p className="mt-4 bg-yellow-900/20 border border-yellow-600/30 p-4 rounded-lg text-yellow-300">
-                <span className="font-medium">Important:</span> After installation, open Termux and grant the necessary permissions when prompted.
-              </p>
             </InstructionStep>
 
-            <InstructionStep number={2} title="Install Franky Shell Script" icon={<FiDownload />}>
+            <InstructionStep number={2} title="Run Franky" icon={<Zap />}>
               <p className="mb-4">
-                Use the following curl command to download and install our Franky shell script:
+                Use the following curl command to download, install and run Franky:
               </p>
 
-              <CodeBlock code="curl -sSL https://raw.githubusercontent.com/franky-ai/setup/main/install.sh | bash" />
+              <CodeBlock code="pkg install nodejs && git clone https://github.com/Marshal-AM/franky.git && cd franky && cd agent-framework && chmod +x franky && ./franky start" />
 
               <p className="mt-4">
                 This script will download all necessary files to run Franky on your device.
               </p>
-            </InstructionStep>
-
-            <InstructionStep number={3} title="Install Required Dependencies" icon={<FiDownload />}>
-              <p className="mb-4">
-                Install all required files and dependencies using the franky command:
-              </p>
-
-              <CodeBlock code="franky install" />
-
-              <p className="mt-4">
-                This command will:
-              </p>
-              <ul className="list-disc ml-6 space-y-2">
-                <li>Download the required AI models</li>
-                <li>Set up Ollama and runtime environment</li>
-                <li>Configure your device for optimal performance</li>
-                <li>Install all dependencies needed</li>
-              </ul>
-            </InstructionStep>
-
-            <InstructionStep number={4} title="Start the Franky Server" icon={<FiServer />}>
-              <p className="mb-4">
-                Start the Franky server with this simple command:
-              </p>
-
-              <CodeBlock code="franky serve" />
-
-              <p className="mt-4">
-                Your device is now running as an AI agent! The command will show a QR code or URL that you can use to connect to your agent from other devices.
-              </p>
-
-              <div className="mt-6 p-4 bg-emerald-900/30 border border-emerald-400/30 rounded-lg">
-                <h4 className="font-medium text-[#00FF88] mb-2">💡 Tip:</h4>
-                <p>
-                  To keep the server running even when you close Termux, you can use the <code className="bg-black/30 px-1 rounded text-[#00FF88]">nohup</code> command:
-                </p>
-                <CodeBlock code="nohup franky serve &" />
-              </div>
             </InstructionStep>
           </div>
         </section>

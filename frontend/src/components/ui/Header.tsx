@@ -6,15 +6,18 @@ import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import { useFundWallet, usePrivy } from "@privy-io/react-auth";
 import { useEffect, useRef, useState } from "react";
-import { LogOut, User } from "lucide-react";
+import { LogOut, SeparatorVertical, SeparatorVerticalIcon, User } from "lucide-react";
+import { publicClient } from "@/lib/utils";
+import { formatEther } from "viem";
 
 export default function Header() {
-  const { balance, isLoading } = useTokenBalance();
   const { user, logout } = usePrivy();
   const [showLogout, setShowLogout] = useState(false);
   const { fundWallet } = useFundWallet();
   const logoutTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userProfileRef = useRef(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [balance, setBalance] = useState<string>('0');
 
   const handleMouseEnter = () => {
     if (logoutTimeoutRef.current) {
@@ -23,10 +26,22 @@ export default function Header() {
     setShowLogout(true);
   };
 
+  useEffect(() => {
+    if (user && user.wallet) {
+      console.log(user)
+      publicClient.getBalance({
+        address: user.wallet?.address as `0x${string}`,
+      }).then((fetched) => {
+        setBalance(formatEther(fetched));
+        setIsLoading(false);
+      })
+    }
+  }, [user])
+
   const handleMouseLeave = () => {
     logoutTimeoutRef.current = setTimeout(() => {
       setShowLogout(false);
-    }, 1000);
+    }, 500);
   };
 
   return (
@@ -66,30 +81,24 @@ export default function Header() {
               ) : balance ? (
                 <div className="flex items-center gap-2">
                   <Image
-                    src="/logo.png"
+                    src="/fil.png"
                     alt="Token Logo"
                     width={20}
                     height={20}
                     className="rounded-full"
                   />
                   <span className="text-[#00FF88] font-medium">
-                    {balance.balance.toLocaleString()}
+                    {balance.toLocaleLowerCase()}
                   </span>
                   <span className="text-[#00FF88]/70">
-                    {`$${balance.tokenSymbol}`}
+                    {`tFIL`}
                   </span>
                   <span className="text-[#00FF88]/50 text-sm">
-                    ($
-                    {balance.usdValue.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                    )
+                    ${(parseFloat(balance) * 2.5).toFixed(2)}
                   </span>
                 </div>
               ) : null}
             </motion.div>
-
             <div className="flex flex-1 items-center justify-end space-x-4 relative">
               {user && (
                 <div
