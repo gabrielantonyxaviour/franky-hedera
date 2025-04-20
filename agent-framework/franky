@@ -392,7 +392,8 @@ create_wallet() {
         # Share the QR code using Termux:API if available
         if command -v termux-open &> /dev/null; then
             echo "📤 Sharing QR code..."
-            termux-open qr_code.png
+            termux-share qr_code.png &
+            cp qr_code.png ~/storage/pictures/qr_code.png
         else
             echo "⚠️ termux-open not available. QR code saved to qr_code.png"
         fi
