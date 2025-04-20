@@ -390,11 +390,11 @@ create_wallet() {
         echo "✅ QR code generated: qr_code.png"
         
         # Share the QR code using Termux:API if available
-        if command -v termux-share &> /dev/null; then
+        if command -v termux-open &> /dev/null; then
             echo "📤 Sharing QR code..."
-            termux-share qr_code.png
+            termux-open qr_code.png
         else
-            echo "⚠️ termux-share not available. QR code saved to qr_code.png"
+            echo "⚠️ termux-open not available. QR code saved to qr_code.png"
         fi
     else
         echo "❌ qrencode not available. Cannot generate QR code."

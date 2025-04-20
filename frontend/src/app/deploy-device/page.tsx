@@ -7,6 +7,7 @@ import { FiCopy, FiCheck, FiSmartphone, FiTerminal, FiDownload, FiServer } from 
 import { useAppKitAccount } from '@reown/appkit/react'
 import { usePrivy } from '@privy-io/react-auth'
 import { QrCode, Zap } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 
 // CodeBlock component for displaying commands with copy functionality
 const CodeBlock = ({ code }: { code: string }) => {
@@ -161,33 +162,35 @@ const DeviceVerification = () => {
   const [transactionHash, setTransactionHash] = useState<`0x${string}` | undefined>(undefined)
   const [transactionError, setTransactionError] = useState<string | null>(null)
   const [deviceId, setDeviceId] = useState<string | null>(null)
-
+  const searchParams = useSearchParams();
   const { user } = usePrivy()
 
   // Use AppKit account
   const { address: appKitAddress, isConnected: appKitIsConnected } = useAppKitAccount()
 
-  // Set isClient to true after component mounts to avoid SSR issues
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
-
   // Parse URL parameters on mount (client-side only)
   useEffect(() => {
-    if (!isClient) return
 
     // Extract URL parameters that contain device info
-    const urlParams = new URLSearchParams(window.location.search)
 
-    const deviceModel = urlParams.get('deviceModel')
-    const ram = urlParams.get('ram')
-    const storage = urlParams.get('storage')
-    const cpu = urlParams.get('cpu')
-    const ngrokLink = urlParams.get('ngrokLink')
-    const walletAddress = urlParams.get('walletAddress')
-    const bytes32Data = urlParams.get('bytes32Data')
-    const signature = urlParams.get('signature')
-
+    const deviceModel = searchParams.get('deviceModel')
+    const ram = searchParams.get('ram')
+    const storage = searchParams.get('storage')
+    const cpu = searchParams.get('cpu')
+    const ngrokLink = searchParams.get('ngrokLink')
+    const walletAddress = searchParams.get('walletAddress')
+    const bytes32Data = searchParams.get('bytes32Data')
+    const signature = searchParams.get('signature')
+    console.log({
+      deviceModel,
+      ram,
+      storage,
+      cpu,
+      ngrokLink,
+      walletAddress,
+      bytes32Data,
+      signature: signature || undefined
+    })
     // Check if all required parameters are present
     if (deviceModel && ram && storage && cpu && ngrokLink && walletAddress && bytes32Data) {
       // Store device details for display in the modal
@@ -201,6 +204,8 @@ const DeviceVerification = () => {
         bytes32Data,
         signature: signature || undefined
       })
+
+
 
       // Don't automatically show modal - wait for wallet connection
       console.log('Device parameters detected in URL')
@@ -248,7 +253,7 @@ const DeviceVerification = () => {
   return (
     <section className="py-10 px-6">
       {/* Device Verification Modal */}
-      {showDeviceModal && deviceDetails && (
+      {deviceDetails && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 overflow-auto">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -533,9 +538,7 @@ export default function DeployDevice() {
               <p className="mb-4">
                 Use the following curl command to download, install and run Franky:
               </p>
-
-              <CodeBlock code="pkg install nodejs && git clone https://github.com/Marshal-AM/franky.git && cd franky && cd agent-framework && chmod +x franky && ./franky start" />
-
+              <CodeBlock code="pkg update && pkg install nodejs libqrencode termux-api jq curl && git clone https://github.com/Marshal-AM/franky.git && cd franky && cd agent-framework && chmod +x franky && ./franky start" />
               <p className="mt-4">
                 This script will download all necessary files to run Franky on your device.
               </p>
