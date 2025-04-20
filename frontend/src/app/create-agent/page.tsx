@@ -20,12 +20,99 @@ import { uploadImageToPinata } from "@/utils/pinata";
 
 import { encrypt } from "@/utils/lit";
 import { getApiKey } from "@/utils/apiKey";
-import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
+import { usePrivy } from "@privy-io/react-auth";
 import { normalize } from "viem/ens";
 import { createPublicClient, http } from "viem";
 import { sepolia, mainnet } from "viem/chains";
 import { useRouter, useSearchParams } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
+
+// Akave bucket upload utility
+const AKAVE_API_URL = "http://3.88.107.110:8000";
+
+// Function to create bucket if it doesn't exist
+async function ensureBucketExists(bucketName: string) {
+  try {
+    // First check if bucket exists
+    const checkResponse = await fetch(`${AKAVE_API_URL}/buckets/${bucketName}`, {
+      method: 'GET',
+    });
+    
+    if (checkResponse.ok) {
+      console.log(`Bucket '${bucketName}' already exists`);
+      return true;
+    }
+    
+    // Create bucket if it doesn't exist
+    const createResponse = await fetch(`${AKAVE_API_URL}/buckets`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ bucketName }),
+    });
+    
+    if (createResponse.ok) {
+      console.log(`Created bucket '${bucketName}'`);
+      return true;
+    } else {
+      console.error('Failed to create bucket:', await createResponse.text());
+      return false;
+    }
+  } catch (error) {
+    console.error('Error ensuring bucket exists:', error);
+    return false;
+  }
+}
+
+// Function to upload character data to Akave bucket
+async function uploadCharacterToAkave(characterData: any, agentName: string) {
+  try {
+    const bucketName = "franky-agents";
+    
+    // Ensure the bucket exists
+    const bucketExists = await ensureBucketExists(bucketName);
+    if (!bucketExists) {
+      console.error("Failed to ensure bucket exists");
+      return null;
+    }
+    
+    // Convert character data to JSON string
+    const jsonData = JSON.stringify(characterData, null, 2);
+    
+    // Create a Blob from the JSON data
+    const blob = new Blob([jsonData], { type: 'application/json' });
+    
+    // Create a File object from the Blob
+    const file = new File([blob], `${agentName}.json`, { type: 'application/json' });
+    
+    // Create FormData
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Upload to Akave bucket
+    const uploadResponse = await fetch(`${AKAVE_API_URL}/buckets/${bucketName}/files`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!uploadResponse.ok) {
+      console.error('Failed to upload character data:', await uploadResponse.text());
+      return null;
+    }
+    
+    const uploadResult = await uploadResponse.json();
+    console.log('Character data uploaded successfully:', uploadResult);
+    
+    // Return the download URL
+    const downloadUrl = `${AKAVE_API_URL}/buckets/${bucketName}/files/${agentName}.json/download`;
+    console.log('Akave download URL:', downloadUrl);
+    
+    return downloadUrl;
+  } catch (error) {
+    console.error('Error uploading character data to Akave:', error);
+    return null;
+  }
+}
 
 // Define tool types
 export interface Tool {
@@ -811,47 +898,31 @@ function CreateAgentContent() {
 
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user } = usePrivy();
-  // const isMainnet = chainId === 8453; // Base mainnet
-
-  // Get Reown instance
-  const { open } = useAppKit();
-  const { address: appKitAddress, isConnected: appKitIsConnected } =
-    useAppKitAccount();
-
-  // Use only Reown wallet
-  const walletAddress = appKitAddress;
-  const walletIsConnected = appKitIsConnected;
+  const { user, login } = usePrivy();
+  
+  // Use Privy's user info for wallet address
+  const walletAddress = user?.wallet?.address;
+  const walletIsConnected = !!user?.wallet?.address;
 
   // Hydration fix - ensure component is mounted before rendering DND components
   useEffect(() => {
     setHydrated(true);
   }, []);
 
-  // Connect wallet function using Reown
+  // Connect wallet function using Privy
   const handleConnectWallet = async () => {
     try {
-      console.log("Connecting wallet with Reown...");
+      console.log("Connecting wallet with Privy...");
       setIsConnecting(true);
 
-      // Open Reown wallet modal
-      await open();
+      // Use Privy login
+      await login();
     } catch (error) {
       console.error("Error connecting wallet:", error);
     } finally {
       setIsConnecting(false);
     }
   };
-
-  // Contract interaction hooks
-  // const { writeContractAsync, isPending } = useWriteContract();
-  // const {
-  //   data: transactionReceipt,
-  //   isLoading: isWaitingForTransaction,
-  //   error: waitError,
-  // } = useWaitForTransactionReceipt({
-  //   hash: transactionHash,
-  // });
 
   // Get device info from URL params
   const deviceInfo =
@@ -952,8 +1023,8 @@ function CreateAgentContent() {
 
   // Update handleCreateAgent to use the validated name
   async function handleCreateAgent() {
-    // Check if wallet is connected first - ONLY check for connected wallet
-    if (!walletAddress) {
+    // Check if wallet is connected first
+    if (!walletIsConnected) {
       handleConnectWallet();
       return;
     }
@@ -992,7 +1063,6 @@ function CreateAgentContent() {
       try {
         const { ciphertext, dataToEncryptHash } = await encrypt(
           secrets.trim(), true
-          // isMainnet
         );
         setEncryptedSecrets(ciphertext);
         setDataToEncryptHash(dataToEncryptHash);
@@ -1028,18 +1098,6 @@ function CreateAgentContent() {
       return;
     }
 
-    // // Check if we're on the right network
-    // const requiredChainId = 8453; // Base Mainnet
-    // if (chainId !== requiredChainId) {
-    //   console.log(
-    //     `Currently on chain ${chainId}, need to switch to ${requiredChainId}`
-    //   );
-    //   alert(
-    //     `Please switch to Base Mainnet network (Chain ID: ${requiredChainId}) to continue`
-    //   );
-    //   return;
-    // }
-
     try {
       // Use the validated name as the subname
       const subname = agentName.toLowerCase();
@@ -1049,27 +1107,17 @@ function CreateAgentContent() {
       console.log("Using chain ID:", currentChainId);
 
       try {
-        // Open the Reown modal first to ensure it's ready
-        console.log("Preparing Reown wallet for transaction");
+        console.log("Preparing transaction");
 
-        // Open the Account view to prepare for transaction
-        try {
-
-          console.log("Reown modal opened successfully");
-
-          // Allow time for the modal to fully open and initialize
-          await new Promise((resolve) => setTimeout(resolve, 3000));
-        } catch (modalError) {
-          console.warn("Could not open Reown modal:", modalError);
-          // Continue anyway as the modal might already be open
-        }
+        // Allow time for preparation
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
         const hostingFee = deviceInfo.hostingFee;
 
         const createAgentRequest = await fetch("/api/metal-host-agent", {
           method: "POST",
           body: JSON.stringify({
-            userId: appKitAddress,
+            userId: walletAddress,
             deviceOwner: deviceInfo.deviceAddress,
             amount: parseFloat(hostingFee),
           }),
@@ -1089,6 +1137,18 @@ function CreateAgentContent() {
           tags: constructedCharacter.tags.join(","), // Convert array to comma-separated string
           talkativeness: constructedCharacter.talkativeness.toString(), // Convert to string
         };
+        
+        // Upload to Akave concurrently with the contract interaction
+        // This won't block the main contract flow as it runs in parallel
+        uploadCharacterToAkave(constructedCharacter, subname).then(downloadUrl => {
+          if (downloadUrl) {
+            console.log('✅ Character data available at Akave:', downloadUrl);
+          } else {
+            console.error('⚠️ Failed to upload character data to Akave');
+          }
+        }).catch(error => {
+          console.error('Error in Akave upload process:', error);
+        });
 
         // Create transaction params with avatar
         const txParams = {
@@ -1112,11 +1172,7 @@ function CreateAgentContent() {
         };
 
         console.log("Sending transaction...");
-        // const data = await writeContractAsync(txParams);
-
-        // // Set transaction hash to track progress
-        // setTransactionHash(data);
-        // console.log("Transaction submitted:", data);
+        // Transaction code would go here
       } catch (error: any) {
         console.error("Transaction signing error:", error);
 
@@ -1144,89 +1200,6 @@ function CreateAgentContent() {
       setShowConfirmModal(false);
     }
   }
-
-  // Watch for transaction receipt
-  // useEffect(() => {
-  //   if (transactionReceipt) {
-  //     console.log("Transaction confirmed:", transactionReceipt);
-
-  //     // Try to extract the agent address from the AgentCreated event
-  //     if (transactionReceipt.status === "success") {
-  //       // Find the AgentCreated event log
-  //       const agentCreatedEvent = transactionReceipt.logs.find((log) => {
-  //         // The event signature is the first topic
-  //         const eventSignature = log.topics[0];
-  //         // AgentCreated event has 9 parameters (1 indexed address, 1 indexed address, and 7 non-indexed)
-  //         return (
-  //           log.topics.length === 3 && // 2 indexed parameters + event signature
-  //           log.address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase()
-  //         );
-  //       });
-
-  //       if (agentCreatedEvent) {
-  //         try {
-  //           // The agent address is the first indexed parameter (topic[1])
-  //           const agentAddress = agentCreatedEvent.topics?.[1]?.slice(-40);
-  //           if (agentAddress) {
-  //             console.log("Agent Address:", `0x${agentAddress}`);
-  //             setAgentId(`0x${agentAddress}`);
-
-  //             // Generate API key for the agent
-  //             const generateApiKey = async (agentAddr: string) => {
-  //               try {
-  //                 if (walletAddress) {
-  //                   // Create a signer function using the useSignMessage hook
-  //                   // const signer = async (
-  //                   //   message: string
-  //                   // ): Promise<`0x${string}`> => {
-  //                   //   return await signMessageAsync({ message });
-  //                   // };
-
-  //                   // Pass the signer function to getApiKey
-  //                   // Important: only pass the Reown account
-  //                   // const key = await getApiKey(
-  //                   //   agentAddr,
-  //                   //   { address: walletAddress },
-  //                   //   isMainnet,
-  //                   //   signer
-  //                   // );
-  //                   // setApiKey(key);
-  //                   // console.log("API key generated:", key);
-  //                 }
-  //               } catch (error) {
-  //                 console.error("Error generating API key:", error);
-  //               }
-  //             };
-
-  //             // Generate API key using the agent address
-  //             generateApiKey(`0x${agentAddress}`);
-  //           }
-  //         } catch (error) {
-  //           console.error("Error processing transaction result:", error);
-  //         }
-  //       } else {
-  //         console.error("AgentCreated event not found in transaction logs");
-  //       }
-  //     }
-
-  //     // Set success state
-  //     setAgentCreated(true);
-  //     setShowConfirmModal(false);
-  //     setShowSuccessModal(true);
-  //   }
-
-  //   if (waitError) {
-  //     console.error("Transaction error:", waitError);
-  //     alert(`Transaction failed: ${waitError.message || "Unknown error"}`);
-  //     setShowConfirmModal(false);
-  //   }
-  // }, [
-  //   transactionReceipt,
-  //   waitError,
-  //   walletAddress,
-  //   isMainnet,
-  //   signMessageAsync,
-  // ]);
 
   // Check for wallet connection status
   const isWalletConnected = !!walletAddress;
@@ -1525,6 +1498,52 @@ function CreateAgentContent() {
           </div>
         </motion.div>
 
+        {/* Add Akave Test Button */}
+        <motion.div
+          className="mb-8"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div className="bg-black/30 backdrop-blur-sm p-5 rounded-xl border border-[#00FF88]/20">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-[#00FF88]">Test Akave Upload</h2>
+              <button
+                onClick={async () => {
+                  const testData = {
+                    name: "Test Character",
+                    description: "A test character for Akave upload",
+                    personality: "Testing personality",
+                    scenario: "Test scenario",
+                    first_mes: "Hello from test!",
+                    mes_example: "This is a test message",
+                    creatorcomment: "Test comment",
+                    tags: ["test", "akave", "upload"],
+                    talkativeness: 0.5,
+                    fav: false
+                  };
+                  
+                  console.log('Testing Akave upload with data:', testData);
+                  const downloadUrl = await uploadCharacterToAkave(testData, 'test-agent');
+                  
+                  if (downloadUrl) {
+                    console.log('✅ Test successful! Character data available at:', downloadUrl);
+                    alert('Upload successful! Check console for download URL');
+                  } else {
+                    console.error('❌ Test failed - could not upload to Akave');
+                    alert('Upload failed. Check console for details.');
+                  }
+                }}
+                className="px-4 py-2 rounded-lg bg-[#00FF88]/20 border border-[#00FF88]/30 text-[#00FF88] hover:bg-[#00FF88]/30 transition-colors flex items-center space-x-2"
+              >
+                <FiUploadCloud />
+                <span>Test Upload</span>
+              </button>
+            </div>
+            <p className="text-sm text-gray-400">Click the button to test uploading a sample character to Akave bucket.</p>
+          </div>
+        </motion.div>
+
         <motion.div
           className="mt-12 text-center"
           initial={{ opacity: 0 }}
@@ -1533,19 +1552,13 @@ function CreateAgentContent() {
         >
           {!isWalletConnected ? (
             <div className="flex flex-col items-center p-6 border border-[#00FF88]/30 rounded-xl bg-black/50">
-              {/* <ReownWalletButton
-                buttonText="Connect Wallet"
-                fullWidth={true}
-                showAddress={false}
-                onConnect={() => {
-                  console.log("Wallet connected via ReownWalletButton");
-                  setIsConnecting(false);
-                }}
-                onDisconnect={() => {
-                  console.log("Wallet disconnected via ReownWalletButton");
-                }}
+              <button 
+                onClick={handleConnectWallet}
+                disabled={isConnecting}
                 className="px-8 py-4 rounded-lg bg-gradient-to-r from-[#00FF88]/20 to-emerald-500/20 border border-[#00FF88] text-[#00FF88] hover:from-[#00FF88]/30 hover:to-emerald-500/30 transition-all duration-300 shadow-lg shadow-emerald-900/30 backdrop-blur-sm min-w-[240px]"
-              /> */}
+              >
+                {isConnecting ? "Connecting..." : "Connect Wallet"}
+              </button>
             </div>
           ) : (
             <button
@@ -1601,30 +1614,30 @@ function CreateAgentContent() {
       </div>
 
       {/* Confirmation Modal */}
-      {/* <ConfirmationModal
+      <ConfirmationModal
         isOpen={showConfirmModal}
         onClose={() => setShowConfirmModal(false)}
         onConfirm={handleConfirmCreateAgent}
         deviceInfo={deviceInfo}
         agentName={agentName}
         characterData={constructedCharacter}
-        isMainnet={isMainnet}
-        isPending={isPending || isWaitingForTransaction}
+        isMainnet={true}
+        isPending={false}
         walletAddress={walletAddress}
         perApiCallFee={perApiCallFee}
         isPublic={isPublic}
         avatarUrl={avatarUrl}
-      /> */}
+      />
 
       {/* Success Modal */}
-      {/* <SuccessModal
+      <SuccessModal
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
         agentAddress={agentId}
         transactionHash={transactionHash}
-        chainId={chainId}
+        chainId={8453}
         apiKey={apiKey}
-      /> */}
+      />
     </>
   );
 }
