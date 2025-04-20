@@ -1,15 +1,14 @@
 "use client";
 
-import { useTokenBalance } from "@/hooks/useTokenBalance";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import { useFundWallet, usePrivy } from "@privy-io/react-auth";
 import { useEffect, useRef, useState } from "react";
-import { LogOut, SeparatorVertical, SeparatorVerticalIcon, User } from "lucide-react";
-import { publicClient } from "@/lib/utils";
-import { formatEther } from "viem";
-
+import { LogOut, User } from "lucide-react";
+import { faucetWalletClient, publicClient } from "@/lib/utils";
+import { toast } from "sonner"
+import { formatEther, parseEther } from "viem";
 export default function Header() {
   const { user, logout } = usePrivy();
   const [showLogout, setShowLogout] = useState(false);
@@ -20,6 +19,16 @@ export default function Header() {
   const [balance, setBalance] = useState<string>('0');
 
   const handleMouseEnter = () => {
+    toast.info("Test message", {
+      description: "This is a test message",
+      action: {
+        label: "Test",
+        onClick: () => {
+          console.log("Test action clicked");
+        }
+      }
+    })
+
     if (logoutTimeoutRef.current) {
       clearTimeout(logoutTimeoutRef.current);
     }
@@ -27,15 +36,43 @@ export default function Header() {
   };
 
   useEffect(() => {
-    if (user && user.wallet) {
-      console.log(user)
-      publicClient.getBalance({
-        address: user.wallet?.address as `0x${string}`,
-      }).then((fetched) => {
+    (async function () {
+      if (user && user.wallet) {
+        console.log(user)
+        const fetched = await publicClient.getBalance({
+          address: user.wallet?.address as `0x${string}`,
+        })
+
+        const formattedBalance = formatEther(fetched);
+        if (parseFloat(formattedBalance) < 1) {
+          toast.info("Funding wallet", {
+            description: "Your wallet balance is low to use Franky. Funding with 5 tFIL",
+          });
+          const tx = await faucetWalletClient.sendTransaction({
+            to: user.wallet?.address as `0x${string}`,
+            value: parseEther('5'),
+          })
+          toast.promise(publicClient.waitForTransactionReceipt({
+            hash: tx,
+          }), {
+            loading: "Waiting for confirmation...",
+            success: (data) => {
+              return `Transaction confirmed! `;
+            },
+            action: {
+              label: "View Tx",
+              onClick: () => {
+                window.open(`https://filecoin-testnet.blockscout.com/tx/${tx}`, "_blank");
+              }
+            }
+          })
+          setBalance((parseFloat(formattedBalance) + 5).toString());
+        }
         setBalance(formatEther(fetched));
         setIsLoading(false);
-      })
-    }
+      }
+    })()
+
   }, [user])
 
   const handleMouseLeave = () => {
