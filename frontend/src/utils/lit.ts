@@ -2,8 +2,7 @@ import { LitNodeClient } from "@lit-protocol/lit-node-client";
 import { LIT_NETWORK } from "@lit-protocol/constants";
 import { encryptString } from "@lit-protocol/encryption";
 import { Address } from "viem";
-
-const FRANKY_ADDRESS: Address = '0xA150363e58bF57363fBce25d40e98AC59bCc8E85'
+import { FRANKY_ADDRESS } from "@/lib/constants";
 
 export async function encrypt(dataToEncrypt: string, isMainnet: boolean): Promise<{
     ciphertext: string;
@@ -21,7 +20,7 @@ export async function encrypt(dataToEncrypt: string, isMainnet: boolean): Promis
         const evmContractConditions = [
             {
                 contractAddress: FRANKY_ADDRESS,
-                chain: isMainnet ? "base" : "baseSepolia",
+                chain: "filecoinCalibrationTestnet",
                 functionName: "isRegisteredDevice",
                 functionParams: [],
                 functionAbi: {

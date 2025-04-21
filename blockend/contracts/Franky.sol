@@ -230,10 +230,8 @@ contract Franky {
             agents[agentAddress].perApiCallFee;
     }
 
-    function isDeviceRegistered(
-        address deviceAddress
-    ) external view returns (bool) {
-        return devices[deviceAddress].isRegistered;
+    function isRegisteredDevice() external view returns (bool) {
+        return devices[msg.sender].isRegistered;
     }
 
     function getDevice(
