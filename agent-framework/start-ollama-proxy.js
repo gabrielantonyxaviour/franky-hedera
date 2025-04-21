@@ -77,7 +77,7 @@ async function checkOllamaRunning() {
 
 // Create a proxy API endpoint file for external access
 function createProxyEndpoint() {
-  const proxyFilePath = join(__dirname, 'src', 'endpoints', 'ollama-proxy.js');
+  const proxyFilePath = join(__dirname, 'src', 'endpoints', 'chat.js');
   
   const proxyCode = `
 import express from 'express';
@@ -195,7 +195,7 @@ async function main() {
   const exampleModel = DEFAULT_MODEL;
   
   console.log(`✅ Configuration complete! Starting SillyTavern on port ${SERVER_PORT}...`);
-  console.log(`📝 API endpoint for Postman: http://localhost:${SERVER_PORT}/api/ollama-proxy/generate`);
+  console.log(`📝 API endpoint for Postman: http://localhost:${SERVER_PORT}/api/chat`);
   console.log('📌 Example POST request body:');
   console.log(JSON.stringify({
     model: exampleModel,
