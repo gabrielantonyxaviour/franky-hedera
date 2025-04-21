@@ -8,6 +8,9 @@ import { useAppKitAccount } from '@reown/appkit/react'
 import { usePrivy } from '@privy-io/react-auth'
 import { QrCode, Zap } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
+import GlowButton from '@/components/ui/GlowButton'
+import { publicClient } from '@/lib/utils'
+import { FRANKY_ABI, FRANKY_ADDRESS } from '@/lib/constants'
 
 // CodeBlock component for displaying commands with copy functionality
 const CodeBlock = ({ code }: { code: string }) => {
@@ -153,20 +156,11 @@ const DeviceVerification = () => {
     bytes32Data: string;
     signature?: string;
   } | null>(null)
-  const [isVerifying, setIsVerifying] = useState(false)
-  const [verificationSuccess, setVerificationSuccess] = useState(false)
-  const [isClient, setIsClient] = useState(false)
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [walletAddress, setWalletAddress] = useState<string | null>(null)
-  const [walletType, setWalletType] = useState<string | null>(null)
   const [transactionHash, setTransactionHash] = useState<`0x${string}` | undefined>(undefined)
   const [transactionError, setTransactionError] = useState<string | null>(null)
   const [deviceId, setDeviceId] = useState<string | null>(null)
   const searchParams = useSearchParams();
   const { user } = usePrivy()
-
-  // Use AppKit account
-  const { address: appKitAddress, isConnected: appKitIsConnected } = useAppKitAccount()
 
   // Parse URL parameters on mount (client-side only)
   useEffect(() => {
@@ -192,59 +186,31 @@ const DeviceVerification = () => {
       signature: signature || undefined
     })
     // Check if all required parameters are present
-    if (deviceModel && ram && storage && cpu && ngrokLink && walletAddress && bytes32Data) {
+    if (deviceModel && ram && storage && ngrokLink && walletAddress && bytes32Data) {
       // Store device details for display in the modal
       setDeviceDetails({
         deviceModel,
         ram,
         storage,
-        cpu,
+        cpu: "",
         ngrokLink,
         walletAddress,
         bytes32Data,
         signature: signature || undefined
       })
 
-
-
       // Don't automatically show modal - wait for wallet connection
       console.log('Device parameters detected in URL')
     } else {
       console.log('Some device parameters are missing from the URL')
     }
-  }, [isClient])
-
-  // Check for account changes
-  useEffect(() => {
-    // Only use appKitAddress for Reown wallet
-    if (appKitAddress && appKitIsConnected) {
-      setWalletAddress(appKitAddress)
-      setWalletType("Reown Wallet")
-      setIsWalletConnected(true)
-
-      // Show device modal if we have device details
-      if (deviceDetails && !showDeviceModal) {
-        // Set focus to the hostingFee input when opened
-        setShowDeviceModal(true);
-
-        // Set a default value that's easy to change
-        setHostingFee("20");
-      }
-
-      console.log('Reown wallet connected:', appKitAddress)
-    } else {
-      // No wallet connected
-      setIsWalletConnected(false)
-      setWalletAddress(null)
-      setWalletType(null)
-    }
-  }, [appKitAddress, appKitIsConnected, deviceDetails, showDeviceModal])
+  }, [])
 
   // Handle hosting fee input change
   const handleHostingFeeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
-    // Only allow numeric values
-    if (/^\d*$/.test(value)) {
+    // Allow numeric values including decimals
+    if (/^\d*\.?\d*$/.test(value)) {
       setHostingFee(value)
     }
   }
@@ -295,34 +261,24 @@ const DeviceVerification = () => {
                 </div>
                 <span className="text-[#00FF88] text-sm font-medium">Wallet Status</span>
                 <span className="ml-auto text-xs bg-[#00FF88]/20 px-2 py-0.5 rounded-full text-[#00FF88]">
-                  {isWalletConnected ? 'Connected' : 'Not Connected'}
+                  {user ? 'Connected' : 'Not Connected'}
                 </span>
               </div>
               <div className="text-xs text-gray-400 ml-8">
                 <p className="flex justify-between">
                   <span className="text-gray-300">Address:</span>
                   <span className="text-[#00FF88]">
-                    {walletAddress ? `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}` : 'Not connected'}
+                    {user ? `${user.wallet?.address.substring(0, 6)}...${user.wallet?.address.substring(user.wallet.address.length - 4)}` : 'Not connected'}
                   </span>
                 </p>
-                {walletType && (
-                  <p className="flex justify-between">
-                    <span className="text-gray-300">Type:</span>
-                    <span className="text-[#00FF88] flex items-center">
-                      {walletType.toLowerCase().includes('metamask') && (
-                        <img src="/metamask-icon.svg" alt="MetaMask" className="h-3 w-3 mr-1" onError={(e) => e.currentTarget.style.display = 'none'} />
-                      )}
-                      {walletType}
-                    </span>
-                  </p>
-                )}
+
               </div>
             </div>
 
             {/* Integrated hosting fee input section */}
             <div className="p-4 rounded-lg bg-emerald-900/20 border border-emerald-400/30 mb-4">
               <label htmlFor="hostingFee" className="block text-emerald-300 text-sm font-medium mb-2">
-                Hosting Fee ($FRANKY)
+                Hosting Fee ($FIL)
               </label>
               <div className="relative">
                 <input
@@ -335,7 +291,7 @@ const DeviceVerification = () => {
                   autoFocus
                 />
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <span className="text-emerald-400">$FRANKY</span>
+                  <span className="text-emerald-400">$FIL</span>
                 </div>
               </div>
 
@@ -442,7 +398,7 @@ const DeviceVerification = () => {
               </details>
             </div>
 
-            {verificationSuccess ? (
+            {transactionHash && transactionHash.length > 0 ? (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -458,27 +414,52 @@ const DeviceVerification = () => {
                   </div>
                 )}
 
-                {transactionHash && (
-                  <div className="mt-2 text-xs text-emerald-300">
-                    <p>Transaction confirmed on-chain</p>
-                    <a
-                      href={`https://filecoin-testnet.blockscout.com/tx/${transactionHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#00FF88] underline hover:text-emerald-200 text-xs mt-1 inline-block"
-                    >
-                      View
-                    </a>
-                  </div>
-                )}
+                <div className="mt-2 text-xs text-emerald-300">
+                  <p>Transaction confirmed on-chain</p>
+                  <a
+                    href={`https://filecoin-testnet.blockscout.com/tx/${transactionHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#00FF88] underline hover:text-emerald-200 text-xs mt-1 inline-block"
+                  >
+                    View
+                  </a>
+                </div>
               </motion.div>
             ) : (
               <div className="flex flex-col">
-                {transactionError && (
+                {transactionError ? (
                   <div className="p-3 mb-3 rounded-lg bg-red-900/30 border border-red-400/30 text-center text-red-300 text-xs">
                     <p>{transactionError}</p>
                   </div>
-                )}
+                ) : <GlowButton
+                  onClick={async () => {
+                    if (user && user.wallet) {
+                      const deviceMetadata = {
+                        deviceModel: deviceDetails.deviceModel,
+                        ram: deviceDetails.ram,
+                        storage: deviceDetails.storage,
+                        cpu: deviceDetails.cpu,
+                        ngrokLink: deviceDetails.ngrokLink,
+                        walletAddress: user.wallet.address,
+                        bytes32Data: deviceDetails.bytes32Data,
+                        signature: deviceDetails.signature
+                      }
+                      const { request } = await publicClient.simulateContract({
+                        address: FRANKY_ADDRESS,
+                        abi: FRANKY_ABI,
+                        functionName: 'registerDevice',
+                        args: ['', deviceMetadata.ngrokLink, hostingFee, deviceId, deviceMetadata.bytes32Data, deviceMetadata.signature]
+                      })
+                      const tx = await 
+                    }
+                  }}
+                  className="text-sm mx-auto cursor-pointer"
+                >
+                  <div className="flex space-x-2 items-center">
+                    <p className='text-[#00FF88]'>Register Device</p>
+                  </div>
+                </GlowButton>}
               </div>
             )}
           </motion.div>

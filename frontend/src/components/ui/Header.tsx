@@ -95,7 +95,7 @@ export default function Header() {
             </motion.div>
           </Link>
 
-          <div className="flex items-center gap-4">
+          {user && <div className="flex items-center gap-4">
             {/* Balance Display */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -120,9 +120,9 @@ export default function Header() {
                   <span className="text-[#00FF88]/70">
                     {`tFIL`}
                   </span>
-                  <span className="text-[#00FF88]/50 text-sm">
+                  {/* <span className="text-[#00FF88]/50 text-sm">
                     ${(parseFloat(balance) * 2.5).toFixed(2)}
-                  </span>
+                  </span> */}
                 </div>
               ) : null}
             </motion.div>
@@ -167,7 +167,7 @@ export default function Header() {
                 </div>
               )}
             </div>
-          </div>
+          </div>}
         </div>
       </header>
     </>
