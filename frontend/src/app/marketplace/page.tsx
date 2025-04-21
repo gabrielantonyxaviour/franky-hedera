@@ -13,6 +13,7 @@ import { ethers } from 'ethers'
 // Import Privy
 import { usePrivy } from "@privy-io/react-auth";
 import { getAvailableDevices } from '@/lib/graph'
+import { formatEther } from 'viem'
 
 // Contract information
 const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
@@ -177,9 +178,14 @@ const Background = () => {
 }
 
 // Device card component
-const DeviceCard = ({ device, onClick }: { device: Device, onClick: () => void }) => {
+const DeviceCard = ({ keyVal, device, onClick }: { keyVal: string, device: Device, onClick: () => void }) => {
+  useEffect(() => {
+    console.log("Device Card Mounted")
+    console.log(device)
+  }, [])
   return (
     <motion.div
+      key={keyVal}
       className="p-6 rounded-xl border border-[#00FF88] border-opacity-30 bg-black/50 backdrop-blur-sm h-full flex flex-col"
       whileHover={{
         y: -5,
@@ -209,7 +215,7 @@ const DeviceCard = ({ device, onClick }: { device: Device, onClick: () => void }
       <div className="space-y-3 flex-grow">
         <div className="flex items-center text-[#CCCCCC]">
           <FiCpu className="mr-2 text-[#00FF88]" />
-          <span>CPU: {device.cpu}</span>
+          <span>CPU: {device.cpu.length == 0 ? "N/A" : device.cpu}</span>
         </div>
 
         <div className="flex items-center text-[#CCCCCC]">
@@ -239,7 +245,7 @@ const DeviceCard = ({ device, onClick }: { device: Device, onClick: () => void }
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span>Hosting Fee: <span className="text-[#00FF88] font-medium">
-            {parseInt(device.hostingFee) > 0 ? `${device.hostingFee} TFIL` : 'Free'}
+            {parseInt(device.hostingFee) > 0 ? `${formatEther(BigInt(device.hostingFee))} TFIL` : 'Free'}
           </span></span>
         </div>
       </div>
@@ -296,10 +302,34 @@ export default function MarketplacePage() {
   useEffect(() => {
     if (!isClient) return;
     (async function () {
-      const fetchedDevices = await getAvailableDevices()
+      const fetchedDevicesRequest = await fetch('/api/graph/devices')
+      const fetchedDevices = await fetchedDevicesRequest.json()
       console.log("Fetched devices from Subgraph")
-      console.log(fetchedDevices)
-      setDevices(fetchedDevices)
+      const formattedDevices = await Promise.all(
+        fetchedDevices.map(async (device: any) => {
+          if (device.agents.length > 0) return;
+          const baseUrl = device.deviceMetadata.split("/download")[0];
+          const formattedDeviceMetadata = baseUrl.endsWith(".json") ? baseUrl + "/download" : baseUrl + ".json/download";
+          const metadataRequest = await fetch(formattedDeviceMetadata);
+          const metadata = await metadataRequest.json();
+
+          return {
+            id: device.id,
+            deviceModel: metadata.deviceModal ?? 'Samsung Galaxy S23',
+            ram: metadata.ram ?? '8GB',
+            storage: metadata.storage ?? '128GB',
+            cpu: metadata.cpu ?? 'Snapdragon 8 Gen 2',
+            ngrokLink: device.ngrokLink,
+            walletAddress: device.id,
+            hostingFee: device.hostingFee,
+            agentCount: device.agents.length,
+            status: device.agents.length > 0 ? 'In Use' : 'Available',
+            lastActive: new Date(device.updatedAt * 1000).toLocaleDateString(),
+            registeredAt: new Date(device.createdAt * 1000).toLocaleDateString(),
+          };
+        })
+      );
+      setDevices(formattedDevices.filter(Boolean));
       setLoading(false)
       setError(null)
     })()
@@ -363,9 +393,10 @@ export default function MarketplacePage() {
               </div>
             ) : devices.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {devices.map(device => (
+                {devices.map((device, idx) => (
                   <DeviceCard
-                    key={device.id}
+                    key={idx.toString()}
+                    keyVal={idx.toString()}
                     device={device}
                     onClick={() => handleDeviceSelect(device)}
                   />

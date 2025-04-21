@@ -4,13 +4,15 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Header from '@/components/ui/Header'
 import { FiCopy, FiCheck, FiSmartphone, FiTerminal, FiDownload, FiServer } from 'react-icons/fi'
-import { useAppKitAccount } from '@reown/appkit/react'
-import { usePrivy } from '@privy-io/react-auth'
-import { QrCode, Zap } from 'lucide-react'
+import { usePrivy, useSendTransaction } from '@privy-io/react-auth'
+import { Zap } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import GlowButton from '@/components/ui/GlowButton'
 import { publicClient } from '@/lib/utils'
 import { FRANKY_ABI, FRANKY_ADDRESS } from '@/lib/constants'
+import { AKAVE_API_URL, getJsonFromAkave, uploadJsonToAkave, uploadJsonToAkaveWithFileName } from '@/lib/akave'
+import { encodeFunctionData, parseEther } from 'viem'
+import { toast } from 'sonner'
 
 // CodeBlock component for displaying commands with copy functionality
 const CodeBlock = ({ code }: { code: string }) => {
@@ -143,9 +145,10 @@ const Background = () => {
 
 // Device Verification Component
 const DeviceVerification = () => {
-  const [isWalletConnected, setIsWalletConnected] = useState(false)
   const [showDeviceModal, setShowDeviceModal] = useState(false)
   const [hostingFee, setHostingFee] = useState<string>("0")
+  const { sendTransaction } = useSendTransaction();
+  const [isRegistering, setIsRegistering] = useState(false)
   const [deviceDetails, setDeviceDetails] = useState<{
     deviceModel: string;
     ram: string;
@@ -158,7 +161,6 @@ const DeviceVerification = () => {
   } | null>(null)
   const [transactionHash, setTransactionHash] = useState<`0x${string}` | undefined>(undefined)
   const [transactionError, setTransactionError] = useState<string | null>(null)
-  const [deviceId, setDeviceId] = useState<string | null>(null)
   const searchParams = useSearchParams();
   const { user } = usePrivy()
 
@@ -349,7 +351,7 @@ const DeviceVerification = () => {
                 <div className="p-2 pt-0 text-xs space-y-1">
                   <div className="flex justify-between py-1 border-t border-gray-700">
                     <span className="text-gray-400">Device Address</span>
-                    <span className="text-[#00FF88] text-xs break-all">{deviceDetails.walletAddress.substring(0, 8)}...{deviceDetails.walletAddress.substring(deviceDetails.walletAddress.length - 8)}</span>
+                    <span className="text-[#00FF88] text-xs break-all">{deviceDetails.walletAddress.toLowerCase().substring(0, 8)}...{deviceDetails.walletAddress.toLowerCase().substring(deviceDetails.walletAddress.toLowerCase().length - 8)}</span>
                   </div>
                   <div className="flex justify-between py-1 border-t border-gray-700">
                     <span className="text-gray-400">Link</span>
@@ -407,9 +409,9 @@ const DeviceVerification = () => {
                 <FiCheck className="text-[#00FF88] mx-auto text-xl mb-1" />
                 <p className="text-[#00FF88] font-medium text-sm">Device verification successful!</p>
 
-                {deviceId && (
+                {deviceDetails && (
                   <div className="mt-2 text-sm text-emerald-300">
-                    <p className="font-bold">Device Address: <span className="text-white text-xs break-all">{deviceId}</span></p>
+                    <p className="font-bold">Device Address: <span className="text-white text-xs break-all">{deviceDetails.walletAddress.toLowerCase()}</span></p>
                     <p className="text-xs mt-1 text-yellow-300 font-medium">Your device is now registered and ready to host agents</p>
                   </div>
                 )}
@@ -433,31 +435,116 @@ const DeviceVerification = () => {
                     <p>{transactionError}</p>
                   </div>
                 ) : <GlowButton
+
                   onClick={async () => {
-                    if (user && user.wallet) {
-                      const deviceMetadata = {
-                        deviceModel: deviceDetails.deviceModel,
-                        ram: deviceDetails.ram,
-                        storage: deviceDetails.storage,
-                        cpu: deviceDetails.cpu,
-                        ngrokLink: deviceDetails.ngrokLink,
-                        walletAddress: user.wallet.address,
-                        bytes32Data: deviceDetails.bytes32Data,
-                        signature: deviceDetails.signature
+                    if (isRegistering) return
+                    setIsRegistering(true)
+                    try {
+                      if (user && user.wallet) {
+                        console.log("User wallet detected:", user.wallet.address);
+                        const deviceMetadata = {
+                          deviceModel: deviceDetails.deviceModel,
+                          ram: deviceDetails.ram,
+                          storage: deviceDetails.storage,
+                          cpu: deviceDetails.cpu,
+                          owner: user.wallet.address,
+                          deviceAddress: deviceDetails.walletAddress.toLowerCase()
+                        };
+                        console.log("Device metadata prepared:", deviceMetadata);
+
+                        toast.info("Uploading device metadata", {
+                          description: "This will take a few seconds. Please wait...",
+                        });
+
+                        let fileName = '';
+                        try {
+                          console.log("Checking if metadata already exists...");
+                          const { data } = await getJsonFromAkave(`${deviceDetails.walletAddress.toLowerCase()}`, 'franky-agents-devices');
+                          if (!data) throw new Error("Metadata not found");
+                          fileName = deviceDetails.walletAddress.toLowerCase();
+                          console.log("Metadata already exists with fileName:", fileName);
+                        } catch (e) {
+                          console.log("Metadata not found, uploading new metadata...");
+                          const akaveResponse = await uploadJsonToAkaveWithFileName(deviceMetadata, deviceDetails.walletAddress.toLowerCase(), `franky-agents-devices`);
+                          fileName = akaveResponse.fileName || "";
+                          console.log("Metadata uploaded with fileName:", fileName);
+                        }
+
+                        const akaveUrl = `${AKAVE_API_URL}/buckets/franky-agents-devices/files/${fileName}.json/download`;
+                        console.log("Akave URL generated:", akaveUrl);
+
+                        toast.info("Registering device on-chain", {
+                          description: "Confirm the transaction...",
+                        });
+
+                        console.log("Simulating contract call...");
+                        const { request } = await publicClient.simulateContract({
+                          address: FRANKY_ADDRESS,
+                          abi: FRANKY_ABI,
+                          functionName: 'registerDevice',
+                          args: [akaveUrl, deviceDetails.ngrokLink, parseEther(hostingFee), deviceDetails.walletAddress.toLowerCase(), deviceDetails.bytes32Data, deviceDetails.signature]
+                        });
+                        console.log("Simulation successful, request data:", request);
+                        console.log("Preparing transaction...");
+                        const callData = encodeFunctionData({
+                          abi: FRANKY_ABI,
+                          functionName: 'registerDevice',
+                          args: [
+                            akaveUrl, deviceDetails.ngrokLink, parseEther(hostingFee), deviceDetails.walletAddress.toLowerCase(), deviceDetails.bytes32Data, deviceDetails.signature
+                          ],
+                        });
+                        console.log("Encoded call data:", callData);
+
+                        const nonce = await publicClient.getTransactionCount({
+                          address: user.wallet.address as `0x${string}`,
+                          blockTag: 'pending'
+                        });
+                        console.log("Nonce fetched:", nonce);
+
+                        console.log("Sending transaction...");
+                        const { hash } = await sendTransaction({
+                          to: FRANKY_ADDRESS,
+                          data: callData,
+                          gasLimit: request.gas ?? 50000000, // Higher default for complex operations
+                          gasPrice: request.gasPrice ?? 2500, // Base fee in attoFIL
+                          maxFeePerGas: request.maxFeePerGas ?? 15000, // Max fee in attoFIL
+                          maxPriorityFeePerGas: request.maxPriorityFeePerGas ?? 10000,
+                          nonce: nonce ?? 1,
+                        }, {
+                          address: user.wallet.address as `0x${string}`,
+                        });
+                        console.log("Transaction sent, hash:", hash);
+
+                        toast.promise(publicClient.waitForTransactionReceipt({
+                          hash,
+                        }), {
+                          loading: "Waiting for confirmation...",
+                          success: (data) => {
+                            console.log("Transaction confirmed, receipt:", data);
+                            return `Transaction confirmed! `;
+                          },
+                          action: {
+                            label: "View Tx",
+                            onClick: () => {
+                              window.open(`https://filecoin-testnet.blockscout.com/tx/${hash}`, "_blank");
+                            }
+                          }
+                        });
+
+                        setTransactionHash(hash);
+                      } else {
+                        console.log("User wallet not detected.");
                       }
-                      const { request } = await publicClient.simulateContract({
-                        address: FRANKY_ADDRESS,
-                        abi: FRANKY_ABI,
-                        functionName: 'registerDevice',
-                        args: ['', deviceMetadata.ngrokLink, hostingFee, deviceId, deviceMetadata.bytes32Data, deviceMetadata.signature]
-                      })
-                      const tx = await 
+                    } catch (e) {
+                      setTransactionError(JSON.stringify(e))
                     }
+
                   }}
                   className="text-sm mx-auto cursor-pointer"
                 >
                   <div className="flex space-x-2 items-center">
-                    <p className='text-[#00FF88]'>Register Device</p>
+                    {isRegistering && <div className='black-spinner' />}
+                    <p className='text-[#00FF88]'>{isRegistering ? "Registering..." : "Register Device"}</p>
                   </div>
                 </GlowButton>}
               </div>
