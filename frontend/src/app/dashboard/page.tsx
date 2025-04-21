@@ -187,7 +187,7 @@ export default function DashboardPage() {
                         strokeLinejoin="round"
                       />
                     </svg>
-                    $FRANKY faucet
+                    $TFIL faucet
                   </motion.button>
                 )}
               </div>

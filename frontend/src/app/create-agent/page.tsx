@@ -725,7 +725,7 @@ function ConfirmationModal({
                 </p>
                 <p className="text-white">
                   <span className="text-gray-400">Hosting Fee:</span>{" "}
-                  {deviceInfo.hostingFee} $FRANKY
+                  {deviceInfo.hostingFee} TFIL
                 </p>
               </div>
             </div>
@@ -736,7 +736,7 @@ function ConfirmationModal({
             <div className="bg-black/50 rounded-lg p-3 space-y-2">
               <p className="text-white">
                 <span className="text-gray-400">Per API Call Fee:</span>{" "}
-                {perApiCallFee} $FRANKY
+                {perApiCallFee} TFIL
               </p>
               <p className="text-white">
                 <span className="text-gray-400">Visibility:</span>{" "}
@@ -1425,7 +1425,7 @@ function CreateAgentContent() {
                 htmlFor="per-api-call-fee"
                 className="block mb-2 text-gray-300"
               >
-                Per API Call Fee ($FRANKY)
+                Per API Call Fee (TFIL)
               </label>
               <input
                 id="per-api-call-fee"

@@ -116,10 +116,10 @@ if ! grep -q "ollamaProxyRouter" src/server-startup.js; then
     echo "⚠️ ollamaProxyRouter not found in server-startup.js. Adding it..."
     
     # Add the import
-    sed -i "1s|^|import { router as ollamaProxyRouter } from './endpoints/ollama-proxy.js';\n|" src/server-startup.js
+    sed -i "1s|^|import { router as ollamaProxyRouter } from './endpoints/chat.js';\n|" src/server-startup.js
     
     # Add the endpoint registration
-    sed -i "/app\.use('\/api\/azure', azureRouter);/a \ \ \ \ app.use('/api/ollama-proxy', ollamaProxyRouter);" src/server-startup.js
+    sed -i "/app\.use('\/api\/azure', azureRouter);/a \ \ \ \ app.use('/api/chat', ollamaProxyRouter);" src/server-startup.js
     
     echo "✅ Updated server-startup.js"
 fi

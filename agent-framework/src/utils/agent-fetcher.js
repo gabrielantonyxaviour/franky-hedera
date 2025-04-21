@@ -1,36 +1,279 @@
-import { createPublicClient, http } from "viem";
-import { base, baseSepolia } from 'viem/chains';
+import { ApolloClient, InMemoryCache, gql } from '@apollo/client';
+import { LitNodeClient } from "@lit-protocol/lit-node-client";
+import { LIT_NETWORK, LIT_ABILITY, LIT_RPC } from "@lit-protocol/constants";
+import { decryptToString } from "@lit-protocol/encryption";
+import {
+    createSiweMessage,
+    generateAuthSig,
+    LitAccessControlConditionResource,
+} from "@lit-protocol/auth-helpers";
+import { ethers } from "ethers";
+import fs from 'fs';
+import path from 'path';
 import dotenv from 'dotenv';
 
-dotenv.config();
+// Create Apollo Client for GraphQL queries
+const graphqlClient = new ApolloClient({
+  uri: 'https://1ca6-124-123-105-119.ngrok-free.app/subgraphs/name/graph-indexer',
+  cache: new InMemoryCache(),
+});
 
-const FRANKY_ADDRESS = '0xA150363e58bF57363fBce25d40e98AC59bCc8E85';
+// FRANKY contract address on Filecoin Calibration Testnet
+const FRANKY_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29';
 
-// Full contract ABI
-const agentAbi = [{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"agentId","type":"uint256"},{"indexed":true,"internalType":"uint256","name":"deviceId","type":"uint256"},{"indexed":false,"internalType":"string","name":"prefix","type":"string"},{"indexed":false,"internalType":"address","name":"owner","type":"address"},{"indexed":false,"internalType":"bytes32","name":"keyHash","type":"bytes32"},{"indexed":false,"internalType":"bytes32","name":"secretsHash","type":"bytes32"},{"indexed":false,"internalType":"string","name":"character","type":"string"},{"indexed":false,"internalType":"string","name":"secrets","type":"string"}],"name":"AgentCreated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"agentId","type":"uint256"},{"indexed":true,"internalType":"uint256","name":"deviceId","type":"uint256"}],"name":"AgentTerminated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"agentId","type":"uint256"},{"indexed":false,"internalType":"bytes32","name":"keyHash","type":"bytes32"}],"name":"ApiKeyRegenerated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"deviceId","type":"uint256"},{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":false,"internalType":"string","name":"deviceModel","type":"string"},{"indexed":false,"internalType":"string","name":"ram","type":"string"},{"indexed":false,"internalType":"string","name":"storageCapacity","type":"string"},{"indexed":false,"internalType":"string","name":"cpu","type":"string"},{"indexed":false,"internalType":"string","name":"ngrokLink","type":"string"},{"indexed":false,"internalType":"address","name":"deviceAddress","type":"address"}],"name":"DeviceRegistered","type":"event"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"agents","outputs":[{"internalType":"uint256","name":"deviceId","type":"uint256"},{"internalType":"string","name":"prefix","type":"string"},{"internalType":"string","name":"config","type":"string"},{"internalType":"string","name":"secrets","type":"string"},{"internalType":"bytes32","name":"keyHash","type":"bytes32"},{"internalType":"bytes32","name":"secretsHash","type":"bytes32"},{"internalType":"address","name":"owner","type":"address"},{"internalType":"bool","name":"isActive","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"string","name":"","type":"string"}],"name":"checkENSPrefixAvailable","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"pure","type":"function"},{"inputs":[{"internalType":"string","name":"prefix","type":"string"},{"internalType":"string","name":"config","type":"string"},{"internalType":"string","name":"secrets","type":"string"},{"internalType":"bytes32","name":"secretsHash","type":"bytes32"},{"internalType":"uint256","name":"deviceId","type":"uint256"}],"name":"createAgent","outputs":[{"internalType":"uint256","name":"agentId","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"deviceAgents","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"deviceRegistered","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"devices","outputs":[{"internalType":"string","name":"deviceModel","type":"string"},{"internalType":"string","name":"ram","type":"string"},{"internalType":"string","name":"storageCapacity","type":"string"},{"internalType":"string","name":"cpu","type":"string"},{"internalType":"string","name":"ngrokLink","type":"string"},{"internalType":"address","name":"deviceAddress","type":"address"},{"internalType":"uint256","name":"agentCount","type":"uint256"},{"internalType":"bool","name":"isRegistered","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"agentId","type":"uint256"}],"name":"getAgent","outputs":[{"components":[{"internalType":"uint256","name":"deviceId","type":"uint256"},{"internalType":"string","name":"prefix","type":"string"},{"internalType":"string","name":"config","type":"string"},{"internalType":"string","name":"secrets","type":"string"},{"internalType":"bytes32","name":"keyHash","type":"bytes32"},{"internalType":"bytes32","name":"secretsHash","type":"bytes32"},{"internalType":"address","name":"owner","type":"address"},{"internalType":"bool","name":"isActive","type":"bool"}],"internalType":"struct Franky.Agent","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"deviceId","type":"uint256"}],"name":"getDevice","outputs":[{"components":[{"internalType":"string","name":"deviceModel","type":"string"},{"internalType":"string","name":"ram","type":"string"},{"internalType":"string","name":"storageCapacity","type":"string"},{"internalType":"string","name":"cpu","type":"string"},{"internalType":"string","name":"ngrokLink","type":"string"},{"internalType":"address","name":"deviceAddress","type":"address"},{"internalType":"uint256","name":"agentCount","type":"uint256"},{"internalType":"bool","name":"isRegistered","type":"bool"}],"internalType":"struct Franky.Device","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"agentId","type":"uint256"}],"name":"getKeyHash","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getRandomBytes32","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"agentId","type":"uint256"}],"name":"isAgentOwned","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"deviceId","type":"uint256"}],"name":"isDeviceOwned","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"deviceId","type":"uint256"}],"name":"isDeviceRegistered","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"isRegisteredDevice","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"ownerDevices","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"_hash","type":"bytes32"},{"internalType":"bytes","name":"_signature","type":"bytes"}],"name":"recoverSigner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"pure","type":"function"},{"inputs":[{"internalType":"uint256","name":"agentId","type":"uint256"}],"name":"regenerateApiKey","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"deviceModel","type":"string"},{"internalType":"string","name":"ram","type":"string"},{"internalType":"string","name":"storageCapacity","type":"string"},{"internalType":"string","name":"cpu","type":"string"},{"internalType":"string","name":"ngrokLink","type":"string"},{"internalType":"address","name":"deviceAddress","type":"address"},{"internalType":"bytes32","name":"verificationHash","type":"bytes32"},{"internalType":"bytes","name":"signature","type":"bytes"}],"name":"registerDevice","outputs":[{"internalType":"uint256","name":"deviceId","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"agentId","type":"uint256"}],"name":"terminateAgent","outputs":[],"stateMutability":"nonpayable","type":"function"}];
-
-const isMainnet = true;
-
-async function fetchIPFSData(hash) {
-    // Try different gateways
-    const gateways = [
-        `https://ipfs.io/ipfs/${hash}`
-    ];
-    
-    for (const gateway of gateways) {
-        try {
-            console.log(`Trying ${gateway}...`);
-            const response = await fetch(gateway);
-            const text = await response.text();
-            console.log(`Success with ${gateway}`);
-            console.log(text); // Log the actual content
-            return text;
-        } catch (err) {
-            console.log(`Failed with ${gateway}: ${err.message}`);
-        }
+// GraphQL query for agent details
+const AGENT_DETAILS_QUERY = gql`
+  query($agentId: ID!) {
+    agents(where: {id: $agentId}, first: 1) {
+      id
+      owner {
+        id
+      }
+      deviceAddress {
+        id
+        ngrokLink
+      }
+      avatar
+      subname
+      perApiCallFee
+      characterConfig
+      isPublic
+      keyHash
+      createdAt
+      updatedAt
     }
+  }
+`;
+
+// Function to read device credentials from file
+async function readDeviceCredentials() {
+    try {
+        const credentialsPath = path.resolve(process.cwd(), 'device_credentials.txt');
+        console.log(`📋 Looking for device credentials at: ${credentialsPath}`);
+        
+        if (!fs.existsSync(credentialsPath)) {
+            throw new Error('Device credentials file not found');
+        }
+        
+        const fileContent = fs.readFileSync(credentialsPath, 'utf8');
+        const credentials = {};
+        
+        // Parse credentials file
+        const lines = fileContent.split('\n');
+        for (const line of lines) {
+            if (line.includes(':')) {
+                const [key, value] = line.split(':', 2).map(part => part.trim());
+                credentials[key] = value;
+            }
+        }
+        
+        if (!credentials['Private Key']) {
+            throw new Error('Private key not found in credentials file');
+        }
+        
+        console.log('✅ Successfully read device credentials');
+        return credentials;
+    } catch (error) {
+        console.error(`❌ Error reading device credentials: ${error.message}`);
+        throw error;
+    }
+}
+
+// Function to decrypt the encrypted secrets
+async function decryptSecrets(encryptedSecrets, secretsHash, isMainnet = false) {
+    console.log('🔐 Starting secrets decryption process');
     
-    throw new Error('Failed to retrieve content from any gateway');
+    try {
+        // Read device credentials to get private key
+        const credentials = await readDeviceCredentials();
+        const privateKey = credentials['Private Key'];
+        
+        if (!privateKey) {
+            throw new Error('Private key is required for decryption');
+        }
+        
+        // Initialize Lit Node Client
+        const litNodeClient = new LitNodeClient({
+            litNetwork: LIT_NETWORK.DatilDev,
+            debug: false,
+        });
+        
+        // Connect to Lit Network
+        await litNodeClient.connect();
+        console.log("✅ Connected to Lit Network");
+        
+        // Create Ethers wallet
+        const ethersWallet = new ethers.Wallet(
+            privateKey,
+            new ethers.providers.JsonRpcProvider(LIT_RPC.CHRONICLE_YELLOWSTONE)
+        );
+        
+        // Define the chain for Filecoin network
+        const chain = isMainnet ? "filecoin" : "filecoinCalibrationTestnet";
+        console.log(`🔗 Using chain: ${chain}`);
+        
+        // Define contract conditions for Filecoin network
+        // Note: We're creating the conditions in the format expected by Lit Protocol
+        const evmContractConditions = [
+            {
+                contractAddress: FRANKY_ADDRESS,
+                standardContractType: "",
+                chain,
+                method: "isRegisteredDevice",
+                parameters: [],
+                returnValueTest: {
+                    comparator: "=",
+                    value: "true"
+                }
+            }
+        ];
+        
+        console.log("🔄 Generating session signatures");
+        
+        // Get session signatures
+        const sessionSigs = await litNodeClient.getSessionSigs({
+            chain,
+            expiration: new Date(Date.now() + 1000 * 60 * 10).toISOString(), // 10 minutes
+            resourceAbilityRequests: [
+                {
+                    resource: new LitAccessControlConditionResource(
+                        await LitAccessControlConditionResource.generateResourceString(
+                            evmContractConditions,
+                            secretsHash
+                        )
+                    ),
+                    ability: LIT_ABILITY.AccessControlConditionDecryption,
+                },
+            ],
+            authNeededCallback: async ({
+                uri,
+                expiration,
+                resourceAbilityRequests,
+            }) => {
+                const toSign = await createSiweMessage({
+                    uri,
+                    expiration,
+                    resources: resourceAbilityRequests,
+                    walletAddress: ethersWallet.address,
+                    nonce: await litNodeClient.getLatestBlockhash(),
+                    litNodeClient,
+                });
+
+                return await generateAuthSig({
+                    signer: ethersWallet,
+                    toSign,
+                });
+            },
+        });
+        
+        // Decrypt the secrets
+        console.log("🔄 Decrypting secrets");
+        const decryptionResult = await decryptToString(
+            {
+                chain,
+                ciphertext: encryptedSecrets,
+                dataToEncryptHash: secretsHash,
+                evmContractConditions,
+                sessionSigs,
+            },
+            litNodeClient
+        );
+        
+        console.log("✅ Successfully decrypted secrets");
+        
+        // Save to .env file
+        await saveDecryptedSecretsToEnv(decryptionResult);
+        
+        return decryptionResult;
+    } catch (error) {
+        console.error(`❌ Decryption error: ${error.message}`);
+        throw error;
+    }
+}
+
+// Function to save decrypted secrets to .env file
+async function saveDecryptedSecretsToEnv(decryptedSecretsStr) {
+    try {
+        console.log("💾 Saving decrypted secrets to .env file");
+        
+        // Parse the JSON string to get key-value pairs
+        const secretsObject = JSON.parse(decryptedSecretsStr);
+        
+        // Create or read existing .env file
+        const envPath = path.resolve(process.cwd(), '.env');
+        let existingEnv = {};
+        
+        if (fs.existsSync(envPath)) {
+            const envContent = fs.readFileSync(envPath, 'utf8');
+            existingEnv = dotenv.parse(envContent);
+        }
+        
+        // Merge new secrets with existing .env content
+        const mergedEnv = { ...existingEnv };
+        
+        // Add each secret to the merged env
+        for (const [key, value] of Object.entries(secretsObject)) {
+            mergedEnv[key] = value;
+        }
+        
+        // Write the merged content back to .env
+        let envContent = '';
+        for (const [key, value] of Object.entries(mergedEnv)) {
+            envContent += `${key}=${value}\n`;
+        }
+        
+        fs.writeFileSync(envPath, envContent);
+        console.log("✅ Successfully saved secrets to .env file");
+        
+        // Reload environment variables
+        dotenv.config();
+        
+        return true;
+    } catch (error) {
+        console.error(`❌ Error saving secrets to .env: ${error.message}`);
+        throw error;
+    }
+}
+
+// Function to fetch character data from URL and handle decryption of secrets
+async function fetchCharacterConfigData(characterConfig) {
+    console.log(`🔍 Processing character config URL: ${characterConfig}`);
+    
+    try {
+        // Make a direct GET request to the URL
+        const response = await fetch(characterConfig);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        
+        // Parse the JSON response
+        const characterData = await response.json();
+        console.log(`✅ Successfully fetched character data from URL`);
+        
+        // Check if we have encrypted secrets that need decryption
+        if (characterData.encryptedSecrets && characterData.secretsHash) {
+            console.log('🔐 Found encrypted secrets, starting parallel decryption');
+            
+            // Start decryption process in parallel - using Filecoin Calibration (false means testnet)
+            decryptSecrets(characterData.encryptedSecrets, characterData.secretsHash, false)
+                .then(() => {
+                    console.log('✅ Secrets decryption completed in the background');
+                })
+                .catch(error => {
+                    console.error('❌ Secrets decryption failed:', error.message);
+                });
+        }
+        
+        // Remove sensitive fields from the character data
+        const { encryptedSecrets, secretsHash, ...cleanCharacterData } = characterData;
+        
+        console.log('🔒 Removed sensitive fields from character data');
+        return cleanCharacterData;
+    } catch (error) {
+        console.error(`❌ Failed to fetch character data: ${error.message}`);
+        throw error;
+    }
 }
 
 export async function getAgentCharacter(agentId) {
@@ -38,89 +281,72 @@ export async function getAgentCharacter(agentId) {
     console.log(`\n🔍 [${startTime.toISOString()}] AGENT FETCH: Starting agent data fetch for ID: ${agentId}`);
     
     try {
-        // Step 1: Initialize blockchain client
-        console.log(`🔗 [${new Date().toISOString()}] AGENT FETCH: Initializing blockchain client...`);
-        const client = createPublicClient({
-            chain: base,
-            transport: http()
-        });
-        console.log(`✅ [${new Date().toISOString()}] AGENT FETCH: Client initialized for ${isMainnet ? 'mainnet (Base)' : 'testnet (Base Sepolia)'}`);
-
-        // Step 2: Fetch agents from API
-        console.log(`🌐 [${new Date().toISOString()}] AGENT FETCH: Requesting data from https://frankyagent.xyz/api/agents`);
+        // Fetch agent details using GraphQL
+        console.log(`🌐 [${new Date().toISOString()}] AGENT FETCH: Querying GraphQL API for agent details...`);
         const apiStartTime = new Date();
-        const request = await fetch(`https://frankyagent.xyz/api/agents`);
         
-        // Step 3: Parse API response
-        console.log(`📊 [${new Date().toISOString()}] AGENT FETCH: Parsing API response (Status: ${request.status})`);
-        const { agents } = await request.json();
+        const { data } = await graphqlClient.query({
+            query: AGENT_DETAILS_QUERY,
+            variables: {
+                agentId
+            }
+        });
+        
         const apiEndTime = new Date();
         const apiDuration = apiEndTime.getTime() - apiStartTime.getTime();
-        console.log(`📋 [${new Date().toISOString()}] AGENT FETCH: Retrieved ${agents.length} agents in ${apiDuration}ms`);
-
-        // Step 4: Find specific agent by address
-        console.log(`🔎 [${new Date().toISOString()}] AGENT FETCH: Searching for agent with address: ${agentId}`);
-        const agent = agents.find(a => a.agentAddress.toLowerCase() === agentId.toLowerCase());
         
-        // Step 5: Validate agent exists
-        if (!agent) {
-            console.error(`❌ [${new Date().toISOString()}] AGENT FETCH: Agent not found with address ${agentId}`);
-            throw new Error(`Agent with address ${agentId} not found`);
+        // Validate agent exists
+        if (!data.agents || data.agents.length === 0) {
+            console.error(`❌ [${new Date().toISOString()}] AGENT FETCH: Agent not found with ID ${agentId}`);
+            throw new Error(`Agent with ID ${agentId} not found`);
         }
         
-        console.log(`✅ [${new Date().toISOString()}] AGENT FETCH: Found agent "${agent.name}" (prefix: ${agent.prefix})`);
-        console.log(`👤 [${new Date().toISOString()}] AGENT FETCH: Owner address: ${agent.owner || 'UNDEFINED'}`);
+        const agent = data.agents[0];
+        console.log(`📋 [${new Date().toISOString()}] AGENT FETCH: Retrieved agent data in ${apiDuration}ms`);
+        console.log(`✅ [${new Date().toISOString()}] AGENT FETCH: Found agent with ID: ${agent.id}`);
         
-        // Step 6: Process agent data for return
-        console.log(`🔄 [${new Date().toISOString()}] AGENT FETCH: Processing agent data...`);
+        // Fetch character config from URL
+        console.log(`🔄 [${new Date().toISOString()}] AGENT FETCH: Fetching character from URL...`);
         
-        // Create return object with comprehensive agent data
+        let characterData;
+        try {
+            characterData = await fetchCharacterConfigData(agent.characterConfig);
+            console.log(`✅ [${new Date().toISOString()}] AGENT FETCH: Successfully fetched character data`);
+        } catch (error) {
+            console.error(`❌ [${new Date().toISOString()}] AGENT FETCH: Error fetching character data: ${error.message}`);
+            throw error;
+        }
+        
+        // Create return object with agent data
         const agentData = {
             // Basic agent info
-            prefix: agent.prefix,
-            name: agent.name,
-            description: agent.description,
-            owner: agent.owner,
-            agentAddress: agent.agentAddress,
-            deviceAddress: agent.deviceAddress,
+            id: agent.id,
+            subname: agent.subname,
+            owner: agent.owner?.id,
+            agentAddress: agent.id,
+            deviceAddress: agent.deviceAddress?.id,
+            ngrokLink: agent.deviceAddress?.ngrokLink,
+            
+            // Avatar and visibility
+            avatar: agent.avatar,
+            isPublic: agent.isPublic,
             
             // Fee information
-            perApiCallAmount: parseFloat(agent.perApiCallFee),
+            perApiCallAmount: parseFloat(agent.perApiCallFee || '0'),
             
             // Character configuration - the complete object
-            character: agent.characterConfig,
+            character: characterData,
             
             // Additional metadata
-            isPublic: agent.isPublic,
-            txHash: agent.txHash,
-            blockNumber: agent.blockNumber,
-            timestamp: agent.timestamp,
-            secretsHash: agent.secretsHash,
-            
-            // Original character URL if needed
-            characterUrl: agent.character
+            keyHash: agent.keyHash,
+            createdAt: agent.createdAt,
+            updatedAt: agent.updatedAt
         };
-
-        if (!agentData.owner) {
-            console.error(`⚠️ [${new Date().toISOString()}] AGENT FETCH: WARNING - Owner field is undefined or null in processed data`);
-            console.log(`🔍 [${new Date().toISOString()}] AGENT FETCH: Raw agent data:`, JSON.stringify(agent));
-        } else {
-            console.log(`✅ [${new Date().toISOString()}] AGENT FETCH: Owner field verified: ${agentData.owner}`);
-        }
         
-        // Step 7: Log completion and return data
+        // Log completion and return data
         const endTime = new Date();
         const totalDuration = endTime.getTime() - startTime.getTime();
         console.log(`✅ [${endTime.toISOString()}] AGENT FETCH: Completed agent fetch in ${totalDuration}ms`);
-        
-        // Log selected important fields for debugging
-        console.log(`📌 AGENT FETCH SUMMARY:
-  - Name: ${agentData.name}
-  - Address: ${agentData.agentAddress}
-  - Owner: ${agentData.owner}
-  - API Fee: ${agentData.perApiCallAmount}
-  - Character Config: ${JSON.stringify(agentData.character.name || {})}
-`);
         
         return agentData;
     } catch (error) {

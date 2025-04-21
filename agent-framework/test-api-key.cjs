@@ -21,7 +21,7 @@ const agentId = process.argv[2] || DEFAULT_AGENT_ID;
 const apiKey = process.argv[3] || DEFAULT_API_KEY;
 
 // Endpoint URL - update with your ngrok URL if testing externally
-const endpointUrl = "http://localhost:8000/api/ollama-proxy/generate";
+const endpointUrl = "http://localhost:8000/api/chat/generate";
 
 async function testApiKeyVerification() {
   console.log("🔍 Testing API key verification");
