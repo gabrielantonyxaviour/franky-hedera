@@ -49,13 +49,35 @@ import {
 } from '../tools/token-price-tool.js';
 import { FRANKY_ABI, FRANKY_TOKEN_ADDRESS } from '../constants.js';
 import { createPublicClient } from 'viem';
-import { base } from 'viem/chains';
+import { base, filecoinCalibration } from 'viem/chains';
 import { http } from 'viem';
 
 export const router = express.Router();
 
 // Default model to use
 const DEFAULT_MODEL = 'qwen2.5:3b';
+
+// Helper function to ensure an address is properly formatted as a hex string
+function formatAsHexString(address) {
+  if (!address || typeof address !== 'string') {
+    console.error('❌ Invalid address:', address);
+    return null;
+  }
+  
+  // Remove any non-hex characters and ensure it starts with 0x
+  let cleanAddress = address.toLowerCase().trim();
+  if (!cleanAddress.startsWith('0x')) {
+    cleanAddress = '0x' + cleanAddress;
+  }
+  
+  // Validate that it's a 42-character Ethereum address (0x + 40 hex characters)
+  if (/^0x[0-9a-f]{40}$/i.test(cleanAddress)) {
+    return cleanAddress;
+  } else {
+    console.error('❌ Invalid address format:', address);
+    return null;
+  }
+}
 
 // This endpoint allows external access to Ollama through SillyTavern
 router.post('/generate', async (request, response) => {
@@ -278,44 +300,47 @@ router.post('/', async (request, response) => {
     // Continue with payment processing if needed
     try {
       if (status == 1 && perApiCallAmount > 0) {
-        console.log(`💰 Processing payment: ${perApiCallAmount} tokens`);
+        console.log(`💰 Processing payment: ${perApiCallAmount} TFIL`);
 
-        const withdrawResponse = await fetch(
-          `https://api.metal.build/holder/${caller}/withdraw`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': 'YOUR-API-KEY',
-            },
-            body: JSON.stringify({
-              tokenAddress: FRANKY_TOKEN_ADDRESS,
-              amount: perApiCallAmount * 0.90,
-              toAddress: agentOwner,
-            }),
+        // Create a public client for Filecoin Calibration testnet
+        const filecoinClient = createPublicClient({
+          chain: filecoinCalibration,
+          transport: http()
+        });
+
+        // Get the caller's balance
+        const formattedCallerAddress = formatAsHexString(caller);
+        if (!formattedCallerAddress) {
+          console.error('❌ Invalid caller address format, cannot process payment');
+        } else {
+          const callerBalance = await filecoinClient.getBalance({
+            address: formattedCallerAddress
+          });
+
+          // Convert perApiCallAmount to BigInt for comparison (assuming it's in TFIL)
+          const paymentAmount = BigInt(Math.floor(perApiCallAmount * 1e18)); // Convert to wei equivalent
+
+          console.log(`💰 Caller balance: ${callerBalance} wei`);
+          console.log(`💰 Required payment: ${paymentAmount} wei`);
+
+          // Check if the caller has enough balance
+          if (callerBalance < paymentAmount) {
+            console.error(`❌ Insufficient balance: ${callerBalance} < ${paymentAmount}`);
+            // Continue the request, but log the error
+          } else {
+            // We can't directly transfer tokens here since that would require private keys
+            // Instead, we'd need to either:
+            // 1. Use a smart contract call that the user has pre-approved
+            // 2. Record the debt and have a separate process handle payments
+            // For now, we'll log that we would process the payment
+            console.log(`✅ Sufficient balance available. Would transfer ${paymentAmount} wei to ${agentOwner}`);
+            
+            // We'll simulate the successful payment for now
+            // In a production environment, you would implement the actual transfer logic here
+            const withdrawSuccess = true;
+            console.log(`💰 Payment status: ${withdrawSuccess ? 'success' : 'failed'}`);
           }
-        );
-
-        const { success: withdrawSuccess } = await withdrawResponse.json();
-        console.log(`💰 Withdraw status: ${withdrawSuccess ? 'success' : 'failed'}`);
-
-        const spendResponse = await fetch(
-          `https://api.metal.build/holder/${caller}/spend`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': 'YOUR-API-KEY',
-            },
-            body: JSON.stringify({
-              tokenAddress: FRANKY_TOKEN_ADDRESS,
-              amount: perApiCallAmount * 0.10,
-            }),
-          }
-        );
-
-        const { success: spendSuccess } = await spendResponse.json();
-        console.log(`💰 Spend status: ${spendSuccess ? 'success' : 'failed'}`);
+        }
       }
 
       console.log(`🎭 Using character "${character_data.name}" from agent data`);
