@@ -39,6 +39,7 @@
     "axios": "^1.8.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "ethers": "^6.13.5",
     "framer-motion": "^12.4.7",
     "graphql": "^16.10.0",
     "lucide-react": "^0.487.0",

@@ -53,6 +53,7 @@
     "png-chunks-encode": "^1.0.0",
     "png-chunks-extract": "^1.0.0",
     "proxy-agent": "^6.5.0",
+    "randomness-js": "github:randa-mu/randomness-js",
     "rate-limiter-flexible": "^5.0.5",
     "response-time": "^2.3.3",
     "sanitize-filename": "^1.6.3",
