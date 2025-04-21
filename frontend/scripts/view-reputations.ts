@@ -8,43 +8,12 @@
 import fetch from 'node-fetch';
 import { formatDistanceToNow } from 'date-fns';
 import chalk from 'chalk';
+import type { StandardizedReputation } from '../types/checker-network';
 
 const AKAVE_API_URL = 'http://3.88.107.110:8000';
 const DEVICE_REPUTATION_BUCKET = 'device-reputation';
 
-interface ReputationData {
-  deviceAddress: string;
-  ngrokLink: string;
-  lastChecked: string;
-  reputationScore: number;
-  retrievalStats: {
-    successRate: number;
-    averageResponseTime: number;
-    totalChecks: number;
-  };
-  retrievalResults: Array<{
-    success: boolean;
-    status: number;
-    statusText: string;
-    duration: number;
-    characterVerified: boolean;
-    timestamp: string;
-  }>;
-  _checkerMetadata: {
-    subnet: string;
-    version: string;
-    timestamp: string;
-    verificationMethod: string;
-    storageProtocol: string;
-    metrics: {
-      successRate: { weight: number; description: string };
-      responseTime: { weight: number; description: string };
-      consistency: { weight: number; description: string };
-    };
-  };
-}
-
-async function getLatestReputations(): Promise<Map<string, ReputationData>> {
+async function getLatestReputations(): Promise<Map<string, StandardizedReputation>> {
   try {
     // Get all files in the bucket
     const filesResponse = await fetch(`${AKAVE_API_URL}/buckets/${DEVICE_REPUTATION_BUCKET}/files`);
@@ -73,7 +42,7 @@ async function getLatestReputations(): Promise<Map<string, ReputationData>> {
     });
 
     // Fetch the latest reputation data for each device
-    const reputations = new Map<string, ReputationData>();
+    const reputations = new Map<string, StandardizedReputation>();
     
     await Promise.all(Array.from(deviceFiles.entries()).map(async ([address, { filename }]) => {
       try {
@@ -97,7 +66,7 @@ async function getLatestReputations(): Promise<Map<string, ReputationData>> {
   }
 }
 
-function printReputationSummary(reputations: Map<string, ReputationData>) {
+function printReputationSummary(reputations: Map<string, StandardizedReputation>) {
   if (reputations.size === 0) {
     console.log(chalk.yellow('\nNo reputation data found. The checker might not have run yet.'));
     return;
@@ -108,10 +77,10 @@ function printReputationSummary(reputations: Map<string, ReputationData>) {
 
   // Sort devices by reputation score
   const sortedDevices = Array.from(reputations.entries())
-    .sort((a, b) => b[1].reputationScore - a[1].reputationScore);
+    .sort((a, b) => (b[1].round.finalScore || 0) - (a[1].round.finalScore || 0));
 
   sortedDevices.forEach(([address, data]) => {
-    const score = data.reputationScore;
+    const score = data.round.finalScore || 0;
     let scoreColor;
     if (score >= 90) scoreColor = chalk.green;
     else if (score >= 70) scoreColor = chalk.cyan;
@@ -120,27 +89,58 @@ function printReputationSummary(reputations: Map<string, ReputationData>) {
 
     console.log(`\nDevice: ${chalk.blue(address)}`);
     console.log(`Reputation Score: ${scoreColor(score.toFixed(2))}`);
-    console.log(`Success Rate: ${(data.retrievalStats.successRate * 100).toFixed(1)}%`);
-    console.log(`Avg Response Time: ${data.retrievalStats.averageResponseTime.toFixed(0)}ms`);
-    console.log(`Total Checks: ${data.retrievalStats.totalChecks}`);
-    console.log(`Last Checked: ${formatDistanceToNow(new Date(data.lastChecked))} ago`);
-    console.log(`Ngrok URL: ${data.ngrokLink}`);
+    console.log(`Consensus Status: ${chalk.magenta(data.round.status)}`);
+    console.log(`Number of Checkers: ${data.round.participants.length}`);
+    
+    // Availability metrics
+    console.log('\nAvailability:');
+    console.log(`  Uptime: ${data.metrics.availability.uptime.toFixed(1)}%`);
+    console.log(`  Response Time: ${data.metrics.availability.responseTime.toFixed(0)}ms`);
+    console.log(`  Consistency: ${data.metrics.availability.consistency.toFixed(2)}`);
+    console.log(`  Last Seen: ${formatDistanceToNow(new Date(data.metrics.availability.lastSeen))} ago`);
+    
+    // Performance metrics
+    console.log('\nPerformance:');
+    console.log(`  Throughput: ${data.metrics.performance.throughput.toFixed(2)} req/s`);
+    console.log(`  Error Rate: ${(data.metrics.performance.errorRate * 100).toFixed(1)}%`);
+    console.log(`  Latency (p50/p95/p99): ${data.metrics.performance.latency.p50}/${data.metrics.performance.latency.p95}/${data.metrics.performance.latency.p99}ms`);
+    
+    // Security metrics
+    console.log('\nSecurity:');
+    console.log(`  TLS Version: ${data.metrics.security.tlsVersion}`);
+    console.log(`  Certificate Valid: ${data.metrics.security.certificateValid ? chalk.green('✓') : chalk.red('✗')}`);
+    
+    // Verification details
+    console.log('\nVerification:');
+    console.log(`  Checker ID: ${data.proof.checkerId}`);
+    console.log(`  Block Height: ${data.proof.blockHeight}`);
+    console.log(`  Timestamp: ${formatDistanceToNow(new Date(data.proof.timestamp))} ago`);
+    
+    // Storage details
+    console.log('\nStorage:');
+    console.log(`  Protocol: ${data.storageProtocol}`);
+    console.log(`  Location: ${data.storageDetails.bucket}/${data.storageDetails.path}`);
+    if (data.storageDetails.cid) {
+      console.log(`  CID: ${data.storageDetails.cid}`);
+    }
     
     // Show recent issues if any
-    const recentFailures = data.retrievalResults
-      .filter(r => !r.success)
+    const recentFailures = data.checks
+      .filter(check => !check.success)
       .slice(-3);
     
     if (recentFailures.length > 0) {
       console.log(chalk.yellow('\nRecent Issues:'));
       recentFailures.forEach(failure => {
-        console.log(`  - ${failure.statusText} (Status: ${failure.status})`);
+        console.log(`  - ${failure.error || 'Unknown error'} (Status: ${failure.statusCode})`);
       });
     }
+    
+    console.log('-'.repeat(100));
   });
 
   // Print network stats
-  const scores = sortedDevices.map(([, data]) => data.reputationScore);
+  const scores = sortedDevices.map(([, data]) => data.round.finalScore || 0);
   const avgScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
   const minScore = Math.min(...scores);
   const maxScore = Math.max(...scores);
@@ -151,6 +151,22 @@ function printReputationSummary(reputations: Map<string, ReputationData>) {
   console.log(`Average Score: ${avgScore.toFixed(2)}`);
   console.log(`Highest Score: ${maxScore.toFixed(2)}`);
   console.log(`Lowest Score: ${minScore.toFixed(2)}`);
+  
+  // Consensus statistics
+  const consensusStats = {
+    complete: 0,
+    pending: 0,
+    failed: 0
+  };
+  
+  sortedDevices.forEach(([, data]) => {
+    consensusStats[data.round.status as keyof typeof consensusStats]++;
+  });
+  
+  console.log('\nConsensus Status:');
+  console.log(`  Complete: ${consensusStats.complete}`);
+  console.log(`  Pending: ${consensusStats.pending}`);
+  console.log(`  Failed: ${consensusStats.failed}`);
 }
 
 // Run the viewer

@@ -38,6 +38,7 @@
     "@web3modal/react": "^2.7.1",
     "@web3modal/wagmi": "^5.1.11",
     "axios": "^1.8.4",
+    "chalk": "^5.4.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",

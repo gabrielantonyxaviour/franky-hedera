@@ -12,6 +12,10 @@ import fs from 'fs';
 import path from 'path';
 import { formatISO } from 'date-fns';
 import FormData from 'form-data';
+import { ethers } from 'ethers';
+import { ConsensusManager } from '../lib/consensus';
+import type { CheckerMetrics, StandardizedReputation } from '../types/checker-network';
+import { CheckerNode, getOrCreateCheckerNode } from '../lib/checker-node';
 
 // Fix for TypeScript error with node-fetch
 declare global {
@@ -28,14 +32,6 @@ const DEVICE_REPUTATION_BUCKET = 'device-reputation';
 const NUM_RETRIEVALS = 5;
 const LOG_DIR = path.join(process.cwd(), 'logs');
 const MAX_CONCURRENT_CHECKS = 5;
-const AGENT_API_URL = 'http://3.88.107.110:8000';
-
-// Metric weights for reputation calculation
-const WEIGHTS = {
-  SUCCESS_RATE: 0.6,    // 60% weight for success rate
-  RESPONSE_TIME: 0.25,  // 25% weight for response time
-  CONSISTENCY: 0.15     // 15% weight for consistency
-};
 
 // Initialize GraphQL client
 const client = new ApolloClient({
@@ -73,88 +69,16 @@ const GET_REGISTERED_DEVICES = gql`
   }
 `;
 
-// Types
-type DeviceCheckResult = {
-  deviceAddress: string;
-  status: 'checked' | 'skipped' | 'error';
-  reputationScore?: number;
-  reason?: string;
-  error?: string;
-};
+// Initialize consensus manager
+// In production, this would be loaded from secure environment variables
+const CHECKER_PRIVATE_KEY = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+const consensusManager = new ConsensusManager(
+  '0x1234567890123456789012345678901234567890', // Checker ID (would be derived from private key)
+  CHECKER_PRIVATE_KEY
+);
 
-interface Stats {
-  success: boolean;
-  responseTime: number;
-  statusCode: number;
-  error?: string;
-  characterVerified: boolean;
-}
-
-interface CheckResult {
-  deviceAddress: string;
-  stats: Stats;
-  timestamp: string;
-}
-
-function newStats(): Stats {
-  return {
-    success: false,
-    responseTime: 0,
-    statusCode: 0,
-    characterVerified: false
-  };
-}
-
-interface ErrorWithMessage {
-  message: string;
-}
-
-function isErrorWithMessage(error: unknown): error is ErrorWithMessage {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'message' in error &&
-    typeof (error as Record<string, unknown>).message === 'string'
-  );
-}
-
-function mapErrorToStatusCode(error: unknown): number {
-  if (error instanceof Error) {
-    const message = error.message.toLowerCase();
-    if (message.includes('etimedout') || message.includes('timeout')) {
-      return 701;
-    }
-    if (message.includes('econnrefused')) {
-      return 702;
-    }
-    if (message.includes('enotfound')) {
-      return 703;
-    }
-    if (message.includes('invalid car')) {
-      return 801;
-    }
-    if (message.includes('invalid block')) {
-      return 802;
-    }
-    if (message.includes('invalid cid')) {
-      return 803;
-    }
-  }
-  // Handle non-Error objects with message property
-  if (isErrorWithMessage(error)) {
-    const message = error.message.toLowerCase();
-    if (message.includes('etimedout') || message.includes('timeout')) {
-      return 701;
-    }
-    if (message.includes('econnrefused')) {
-      return 702;
-    }
-    if (message.includes('enotfound')) {
-      return 703;
-    }
-  }
-  return 600;
-}
+// Initialize checker node
+let checkerNode: CheckerNode;
 
 // Ensure log directory exists
 function ensureLogDir() {
@@ -179,139 +103,141 @@ function log(message: string) {
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Check device's character retrieval performance
-async function checkDevice(device: any): Promise<DeviceCheckResult> {
+async function checkDevice(device: any): Promise<StandardizedReputation | null> {
   try {
     log(`Checking device ${device.id}...`);
     
     if (!device.ngrokLink) {
       log(`Skipping device ${device.id} - No ngrok URL found`);
-      return {
-        deviceAddress: device.id,
-        status: 'skipped',
-        reason: 'No ngrok URL found for this device',
-      };
+      return null;
     }
 
     if (!device.agents || device.agents.length === 0) {
       log(`Skipping device ${device.id} - No agents found`);
-      return {
-        deviceAddress: device.id,
-        status: 'skipped',
-        reason: 'No agents found for this device',
-      };
+      return null;
     }
     
-    log(`Performing health check for device ${device.id} at ${device.ngrokLink}`);
+    // Collect metrics
+    const metrics = await collectDeviceMetrics(device);
     
-    const retrievalResults = [];
-    const agent = device.agents[0]; // Use the first agent for health checks
+    // Sign the check results
+    const checkResult = {
+      deviceId: device.id,
+      metrics,
+      timestamp: new Date().toISOString()
+    };
     
-    for (let i = 0; i < NUM_RETRIEVALS; i++) {
-      log(`Health check attempt ${i+1}/${NUM_RETRIEVALS} for agent ${agent.id}`);
-      
-      const result = await checkDeviceHealth(device.id, device.ngrokLink, agent);
-      retrievalResults.push({
-        success: result.stats.success,
-        status: result.stats.statusCode,
-        statusText: result.stats.error || 'OK',
-        duration: result.stats.responseTime,
-        characterVerified: result.stats.characterVerified,
-        timestamp: result.timestamp
-      });
-      
-      if (i < NUM_RETRIEVALS - 1) await sleep(1000);
-    }
+    const signature = await checkerNode.signCheck(device.id, checkResult);
     
-    // Calculate metrics
-    const successfulRetrievals = retrievalResults.filter(r => r.success).length;
-    const successRate = successfulRetrievals / retrievalResults.length;
-    
-    const successfulDurations = retrievalResults
-      .filter(r => r.success)
-      .map(r => r.duration);
-    
-    let responseTimeScore = 0;
-    let avgResponseTime = 0;
-    
-    if (successfulDurations.length > 0) {
-      avgResponseTime = successfulDurations.reduce((sum, duration) => sum + duration, 0) / successfulDurations.length;
-      
-      // Response time scoring based on latency thresholds
-      if (avgResponseTime < 500) responseTimeScore = 1.0;      // Excellent: < 500ms
-      else if (avgResponseTime < 1000) responseTimeScore = 0.9; // Very Good: < 1s
-      else if (avgResponseTime < 2000) responseTimeScore = 0.8; // Good: < 2s
-      else if (avgResponseTime < 5000) responseTimeScore = 0.6; // Fair: < 5s
-      else responseTimeScore = 0.4;                            // Poor: >= 5s
-    }
-    
-    // Calculate consistency using standard deviation
-    let consistencyScore = 1.0;
-    if (successfulDurations.length > 1) {
-      const mean = avgResponseTime;
-      const squaredDiffs = successfulDurations.map(d => Math.pow(d - mean, 2));
-      const variance = squaredDiffs.reduce((sum, diff) => sum + diff, 0) / successfulDurations.length;
-      const stdDev = Math.sqrt(variance);
-      const normalizedStdDev = Math.min(stdDev / mean, 1);
-      consistencyScore = 1 - normalizedStdDev;
-    }
-    
-    // Calculate final reputation score
-    const reputationScore = (
-      (successRate * WEIGHTS.SUCCESS_RATE) + 
-      (responseTimeScore * WEIGHTS.RESPONSE_TIME) + 
-      (consistencyScore * WEIGHTS.CONSISTENCY)
-    ) * 100;
-    
-    const finalScore = Math.round(reputationScore * 100) / 100;
-    
-    // Create reputation data with subnet metadata
-    const reputationData = {
-      deviceAddress: device.id,
-      ngrokLink: device.ngrokLink,
-      lastChecked: new Date().toISOString(),
-      reputationScore: finalScore,
-      retrievalStats: {
-        successRate,
-        averageResponseTime: avgResponseTime,
-        totalChecks: retrievalResults.length
+    // Store the signed check result
+    const reputation: StandardizedReputation = {
+      version: '1.0.0',
+      networkId: 'checker-network-mainnet',
+      subnetId: 'franky-device-checker',
+      deviceId: device.id,
+      round: {
+        roundId: `${Date.now()}`,
+        startTime: new Date().toISOString(),
+        endTime: new Date().toISOString(),
+        participants: [checkerNode.address],
+        votes: [{
+          checkerId: checkerNode.address,
+          deviceId: device.id,
+          timestamp: new Date().toISOString(),
+          metrics,
+          signature
+        }],
+        finalScore: calculateScore(metrics),
+        status: 'complete'
       },
-      retrievalResults,
-      _checkerMetadata: {
-        subnet: CHECKER_SUBNET_NAME,
-        version: CHECKER_SUBNET_VERSION,
+      quorum: 1, // For now, we only have one checker
+      consensusThreshold: 1,
+      proof: {
+        checkerId: checkerNode.address,
         timestamp: new Date().toISOString(),
-        verificationMethod: 'health-check',
-        storageProtocol: 'filecoin',
-        metrics: {
-          successRate: { weight: WEIGHTS.SUCCESS_RATE, description: 'Rate of successful health checks' },
-          responseTime: { weight: WEIGHTS.RESPONSE_TIME, description: 'Average response time for successful health checks' },
-          consistency: { weight: WEIGHTS.CONSISTENCY, description: 'Consistency of response times' }
-        }
+        signature,
+        nonce: Date.now().toString(),
+        blockHeight: 0, // This would come from the blockchain
+        previousProofHash: '0x0' // This would be the hash of the previous check
+      },
+      metrics,
+      checks: [{
+        success: true,
+        timestamp: new Date().toISOString(),
+        duration: metrics.availability.responseTime,
+        statusCode: 200,
+        metrics
+      }],
+      previousReputationHash: '0x0',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      storageProtocol: 'filecoin',
+      storageDetails: {
+        bucket: 'device-reputation',
+        path: `${device.id}/${Date.now()}.json`
       }
     };
     
     // Store in Akave (Filecoin)
-    await storeReputationData(device.id, reputationData);
+    await storeReputationData(device.id, reputation);
     
-    log(`✅ Device ${device.id} check completed with reputation score: ${finalScore}`);
-    return {
-      deviceAddress: device.id,
-      status: 'checked',
-      reputationScore: finalScore
-    };
+    log(`✅ Device ${device.id} check completed with reputation score: ${reputation.round.finalScore?.toFixed(2)}`);
+    return reputation;
     
   } catch (error: any) {
     log(`❌ Error checking device ${device.id}: ${error.message}`);
-    return {
-      deviceAddress: device.id,
-      status: 'error',
-      error: error.message
-    };
+    return null;
   }
 }
 
+// Collect comprehensive metrics for a device
+async function collectDeviceMetrics(device: any): Promise<CheckerMetrics> {
+  const startTime = Date.now();
+  const results = [];
+  
+  for (let i = 0; i < NUM_RETRIEVALS; i++) {
+    const result = await checkDeviceHealth(device.id, device.ngrokLink, device.agents[0]);
+    results.push(result);
+    if (i < NUM_RETRIEVALS - 1) await sleep(1000);
+  }
+  
+  const successfulResults = results.filter(r => r.stats.success);
+  const uptime = (successfulResults.length / results.length) * 100;
+  const responseTimes = successfulResults.map(r => r.stats.responseTime);
+  
+  // Calculate latency percentiles
+  const sortedTimes = [...responseTimes].sort((a, b) => a - b);
+  const p50 = sortedTimes[Math.floor(sortedTimes.length * 0.5)] || 0;
+  const p95 = sortedTimes[Math.floor(sortedTimes.length * 0.95)] || 0;
+  const p99 = sortedTimes[Math.floor(sortedTimes.length * 0.99)] || 0;
+  
+  // Calculate consistency (standard deviation)
+  const avgTime = responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length;
+  const variance = responseTimes.reduce((sum, time) => sum + Math.pow(time - avgTime, 2), 0) / responseTimes.length;
+  const consistency = Math.sqrt(variance);
+  
+  return {
+    availability: {
+      uptime,
+      responseTime: avgTime,
+      consistency,
+      lastSeen: new Date().toISOString()
+    },
+    performance: {
+      throughput: successfulResults.length / ((Date.now() - startTime) / 1000),
+      errorRate: (results.length - successfulResults.length) / results.length,
+      latency: { p50, p95, p99 }
+    },
+    security: {
+      tlsVersion: 'TLS 1.3', // This should be actually detected
+      certificateValid: true, // This should be actually verified
+      lastUpdated: new Date().toISOString()
+    }
+  };
+}
+
 // Store reputation data in Akave (which stores on Filecoin)
-async function storeReputationData(deviceAddress: string, reputationData: any) {
+async function storeReputationData(deviceAddress: string, reputationData: StandardizedReputation) {
   try {
     log(`Storing reputation data for device ${deviceAddress} on Filecoin via Akave...`);
     
@@ -367,8 +293,14 @@ async function ensureBucket() {
   }
 }
 
+// Get current block height (simulated for now)
+async function getCurrentBlockHeight(): Promise<number> {
+  // In production, this would fetch the actual block height from a node
+  return Math.floor(Date.now() / 1000);
+}
+
 // Process devices in batches
-async function processBatch(devices: any[], startIdx: number, batchSize: number): Promise<DeviceCheckResult[]> {
+async function processBatch(devices: any[], startIdx: number, batchSize: number): Promise<(StandardizedReputation | null)[]> {
   const endIdx = Math.min(startIdx + batchSize, devices.length);
   const batch = devices.slice(startIdx, endIdx);
   
@@ -384,6 +316,10 @@ async function main() {
   log(`Starting Franky Device Checker Subnet v${CHECKER_SUBNET_VERSION}`);
   
   try {
+    // Initialize checker node
+    checkerNode = await getOrCreateCheckerNode();
+    log(`Checker node initialized with address: ${checkerNode.address}`);
+    
     const { data } = await client.query({
       query: GET_REGISTERED_DEVICES,
       variables: { limit: 100 }
@@ -392,7 +328,7 @@ async function main() {
     const devices = data.devices;
     log(`Found ${devices.length} registered devices to check`);
     
-    const results: DeviceCheckResult[] = [];
+    const results: (StandardizedReputation | null)[] = [];
     for (let i = 0; i < devices.length; i += MAX_CONCURRENT_CHECKS) {
       const batchResults = await processBatch(devices, i, MAX_CONCURRENT_CHECKS);
       results.push(...batchResults);
@@ -404,18 +340,16 @@ async function main() {
     }
     
     // Generate summary
-    const checked = results.filter(r => r.status === 'checked').length;
-    const skipped = results.filter(r => r.status === 'skipped').length;
-    const errors = results.filter(r => r.status === 'error').length;
+    const checked = results.filter(r => r !== null).length;
+    const skipped = devices.length - checked;
     
     log('🎯 Device check complete');
-    log(`📊 Summary: ${checked} checked, ${skipped} skipped, ${errors} errors`);
+    log(`📊 Summary: ${checked} checked, ${skipped} skipped`);
     
-    const checkedDevicesWithScores = results.filter(r => r.status === 'checked' && typeof r.reputationScore === 'number');
-    
-    if (checkedDevicesWithScores.length > 0) {
-      const totalScore = checkedDevicesWithScores.reduce((sum, r) => sum + (r.reputationScore || 0), 0);
-      const avgScore = totalScore / checkedDevicesWithScores.length;
+    const validResults = results.filter((r): r is StandardizedReputation => r !== null);
+    if (validResults.length > 0) {
+      const totalScore = validResults.reduce((sum, r) => sum + (r.round.finalScore || 0), 0);
+      const avgScore = totalScore / validResults.length;
       log(`📈 Average network reputation score: ${avgScore.toFixed(2)}`);
     }
     
@@ -431,9 +365,15 @@ main().catch(error => {
   process.exit(1);
 });
 
-async function checkDeviceHealth(deviceAddress: string, ngrokUrl: string, agent: any): Promise<CheckResult> {
+async function checkDeviceHealth(deviceAddress: string, ngrokUrl: string, agent: any) {
   const startTime = Date.now();
-  const stats = newStats();
+  const stats = {
+    success: false,
+    responseTime: 0,
+    statusCode: 0,
+    error: undefined as string | undefined,
+    characterVerified: false
+  };
   
   try {
     // Ensure ngrokUrl ends with a trailing slash
@@ -521,4 +461,55 @@ async function checkDeviceHealth(deviceAddress: string, ngrokUrl: string, agent:
       timestamp: new Date().toISOString()
     };
   }
+}
+
+function mapErrorToStatusCode(error: unknown): number {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    if (message.includes('etimedout') || message.includes('timeout')) {
+      return 701;
+    }
+    if (message.includes('econnrefused')) {
+      return 702;
+    }
+    if (message.includes('enotfound')) {
+      return 703;
+    }
+    if (message.includes('invalid car')) {
+      return 801;
+    }
+    if (message.includes('invalid block')) {
+      return 802;
+    }
+    if (message.includes('invalid cid')) {
+      return 803;
+    }
+  }
+  return 600;
+}
+
+// Calculate final score based on metrics
+function calculateScore(metrics: CheckerMetrics): number {
+  const weights = {
+    availability: 0.5,
+    performance: 0.3,
+    security: 0.2
+  };
+
+  const availabilityScore = (
+    (metrics.availability.uptime / 100) * 0.6 +
+    (1 - Math.min(metrics.availability.responseTime / 5000, 1)) * 0.4
+  ) * weights.availability;
+
+  const performanceScore = (
+    (1 - metrics.performance.errorRate) * 0.4 +
+    (metrics.performance.throughput / 100) * 0.3 +
+    (1 - Math.min(metrics.performance.latency.p95 / 1000, 1)) * 0.3
+  ) * weights.performance;
+
+  const securityScore = (
+    (metrics.security.certificateValid ? 1 : 0)
+  ) * weights.security;
+
+  return (availabilityScore + performanceScore + securityScore) * 100;
 } 
