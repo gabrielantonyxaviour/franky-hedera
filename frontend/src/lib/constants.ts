@@ -1,4 +1,4 @@
-export const FRANKY_ADDRESS = "0x486989cd189ED5DB6f519712eA794Cee42d75b29";
+export const FRANKY_ADDRESS = "0x8E4d7c116fbdC7B689a6c9421aA64CcD65407f57";
 
 export const FRANKY_ABI = [
   {
@@ -718,9 +718,14 @@ export const FRANKY_ABI = [
         "internalType": "address",
         "name": "deviceAddress",
         "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "agentAddress",
+        "type": "address"
       }
     ],
-    "name": "isDeviceRegistered",
+    "name": "isHostingAgent",
     "outputs": [
       {
         "internalType": "bool",
@@ -732,19 +737,8 @@ export const FRANKY_ABI = [
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "deviceAddress",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "agentAddress",
-        "type": "address"
-      }
-    ],
-    "name": "isHostingAgent",
+    "inputs": [],
+    "name": "isRegisteredDevice",
     "outputs": [
       {
         "internalType": "bool",

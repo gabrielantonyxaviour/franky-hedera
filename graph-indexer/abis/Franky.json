@@ -716,9 +716,14 @@
         "internalType": "address",
         "name": "deviceAddress",
         "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "agentAddress",
+        "type": "address"
       }
     ],
-    "name": "isDeviceRegistered",
+    "name": "isHostingAgent",
     "outputs": [
       {
         "internalType": "bool",
@@ -730,19 +735,8 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "deviceAddress",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "agentAddress",
-        "type": "address"
-      }
-    ],
-    "name": "isHostingAgent",
+    "inputs": [],
+    "name": "isRegisteredDevice",
     "outputs": [
       {
         "internalType": "bool",
