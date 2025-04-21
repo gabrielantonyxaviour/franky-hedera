@@ -7,8 +7,7 @@
  */
 
 import { ApolloClient, InMemoryCache, gql, NormalizedCacheObject, HttpLink } from '@apollo/client';
-import fetch from 'node-fetch';
-import type { Response, RequestInit } from 'node-fetch';
+import fetch, { Response, RequestInit } from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
 import { formatISO } from 'date-fns';
@@ -29,6 +28,7 @@ const DEVICE_REPUTATION_BUCKET = 'device-reputation';
 const NUM_RETRIEVALS = 5;
 const LOG_DIR = path.join(process.cwd(), 'logs');
 const MAX_CONCURRENT_CHECKS = 5;
+const AGENT_API_URL = 'http://3.88.107.110:8000';
 
 // Metric weights for reputation calculation
 const WEIGHTS = {
@@ -82,6 +82,80 @@ type DeviceCheckResult = {
   error?: string;
 };
 
+interface Stats {
+  success: boolean;
+  responseTime: number;
+  statusCode: number;
+  error?: string;
+  characterVerified: boolean;
+}
+
+interface CheckResult {
+  deviceAddress: string;
+  stats: Stats;
+  timestamp: string;
+}
+
+function newStats(): Stats {
+  return {
+    success: false,
+    responseTime: 0,
+    statusCode: 0,
+    characterVerified: false
+  };
+}
+
+interface ErrorWithMessage {
+  message: string;
+}
+
+function isErrorWithMessage(error: unknown): error is ErrorWithMessage {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as Record<string, unknown>).message === 'string'
+  );
+}
+
+function mapErrorToStatusCode(error: unknown): number {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    if (message.includes('etimedout') || message.includes('timeout')) {
+      return 701;
+    }
+    if (message.includes('econnrefused')) {
+      return 702;
+    }
+    if (message.includes('enotfound')) {
+      return 703;
+    }
+    if (message.includes('invalid car')) {
+      return 801;
+    }
+    if (message.includes('invalid block')) {
+      return 802;
+    }
+    if (message.includes('invalid cid')) {
+      return 803;
+    }
+  }
+  // Handle non-Error objects with message property
+  if (isErrorWithMessage(error)) {
+    const message = error.message.toLowerCase();
+    if (message.includes('etimedout') || message.includes('timeout')) {
+      return 701;
+    }
+    if (message.includes('econnrefused')) {
+      return 702;
+    }
+    if (message.includes('enotfound')) {
+      return 703;
+    }
+  }
+  return 600;
+}
+
 // Ensure log directory exists
 function ensureLogDir() {
   if (!fs.existsSync(LOG_DIR)) {
@@ -109,6 +183,15 @@ async function checkDevice(device: any): Promise<DeviceCheckResult> {
   try {
     log(`Checking device ${device.id}...`);
     
+    if (!device.ngrokLink) {
+      log(`Skipping device ${device.id} - No ngrok URL found`);
+      return {
+        deviceAddress: device.id,
+        status: 'skipped',
+        reason: 'No ngrok URL found for this device',
+      };
+    }
+
     if (!device.agents || device.agents.length === 0) {
       log(`Skipping device ${device.id} - No agents found`);
       return {
@@ -118,62 +201,23 @@ async function checkDevice(device: any): Promise<DeviceCheckResult> {
       };
     }
     
-    const agent = device.agents[0];
-    log(`Using agent ${agent.id} for checking device ${device.id}`);
-
+    log(`Performing health check for device ${device.id} at ${device.ngrokLink}`);
+    
     const retrievalResults = [];
+    const agent = device.agents[0]; // Use the first agent for health checks
     
     for (let i = 0; i < NUM_RETRIEVALS; i++) {
-      log(`Retrieval attempt ${i+1}/${NUM_RETRIEVALS} for agent ${agent.id}`);
+      log(`Health check attempt ${i+1}/${NUM_RETRIEVALS} for agent ${agent.id}`);
       
-      const startTime = Date.now();
-      try {
-        const response = await fetch(agent.characterConfig, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json'
-          },
-          // @ts-ignore
-          timeout: 15000
-        });
-        
-        const endTime = Date.now();
-        const duration = endTime - startTime;
-        
-        let success = false;
-        let data = null;
-        
-        if (response.ok) {
-          try {
-            data = await response.json();
-            success = true;
-          } catch (e) {
-            success = false;
-          }
-        }
-        
-        retrievalResults.push({
-          success,
-          status: response.status,
-          statusText: success ? 'OK' : response.statusText,
-          duration,
-          data,
-          timestamp: new Date().toISOString()
-        });
-        
-        log(success ? `✅ Successful retrieval in ${duration}ms` : `❌ Failed retrieval: ${response.status} ${response.statusText}`);
-        
-      } catch (error: any) {
-        retrievalResults.push({
-          success: false,
-          status: 0,
-          statusText: error.message || 'Unknown error',
-          duration: Date.now() - startTime,
-          data: null,
-          timestamp: new Date().toISOString()
-        });
-        log(`❌ Error during retrieval: ${error.message}`);
-      }
+      const result = await checkDeviceHealth(device.id, device.ngrokLink, agent);
+      retrievalResults.push({
+        success: result.stats.success,
+        status: result.stats.statusCode,
+        statusText: result.stats.error || 'OK',
+        duration: result.stats.responseTime,
+        characterVerified: result.stats.characterVerified,
+        timestamp: result.timestamp
+      });
       
       if (i < NUM_RETRIEVALS - 1) await sleep(1000);
     }
@@ -236,11 +280,11 @@ async function checkDevice(device: any): Promise<DeviceCheckResult> {
         subnet: CHECKER_SUBNET_NAME,
         version: CHECKER_SUBNET_VERSION,
         timestamp: new Date().toISOString(),
-        verificationMethod: 'character-retrieval',
+        verificationMethod: 'health-check',
         storageProtocol: 'filecoin',
         metrics: {
-          successRate: { weight: WEIGHTS.SUCCESS_RATE, description: 'Rate of successful character data retrievals' },
-          responseTime: { weight: WEIGHTS.RESPONSE_TIME, description: 'Average response time for successful retrievals' },
+          successRate: { weight: WEIGHTS.SUCCESS_RATE, description: 'Rate of successful health checks' },
+          responseTime: { weight: WEIGHTS.RESPONSE_TIME, description: 'Average response time for successful health checks' },
           consistency: { weight: WEIGHTS.CONSISTENCY, description: 'Consistency of response times' }
         }
       }
@@ -385,4 +429,96 @@ async function main() {
 main().catch(error => {
   log(`❌ Unhandled error in Checker subnet: ${error.message}`);
   process.exit(1);
-}); 
+});
+
+async function checkDeviceHealth(deviceAddress: string, ngrokUrl: string, agent: any): Promise<CheckResult> {
+  const startTime = Date.now();
+  const stats = newStats();
+  
+  try {
+    // Ensure ngrokUrl ends with a trailing slash
+    const baseUrl = ngrokUrl.endsWith('/') ? ngrokUrl : `${ngrokUrl}/`;
+    const healthEndpoint = `${baseUrl}api/chat/health`;
+
+    // Step 1: Make POST request to health endpoint with agent address
+    const healthResponse = await fetch(healthEndpoint, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        agentAddress: agent.id,
+        deviceAddress: deviceAddress
+      }),
+      // @ts-ignore
+      timeout: 15000
+    });
+
+    if (!healthResponse.ok) {
+      const error = await healthResponse.text();
+      throw new Error(`Health check failed: ${error}`);
+    }
+
+    const healthData = await healthResponse.json();
+    
+    if (!healthData.success) {
+      throw new Error('Health check returned unsuccessful status');
+    }
+
+    // Step 2: Fetch the character file from the URL returned by health check
+    if (!healthData.characterUrl) {
+      throw new Error('No character URL returned from health check');
+    }
+
+    const characterResponse = await fetch(healthData.characterUrl, {
+      // @ts-ignore
+      timeout: 15000
+    });
+
+    if (!characterResponse.ok) {
+      throw new Error(`Failed to fetch character file: ${characterResponse.status}`);
+    }
+
+    const characterData = await characterResponse.json();
+    
+    // Step 3: Compare the fetched character data with agent's character config
+    const agentCharacterData = await fetch(agent.characterConfig, {
+      // @ts-ignore
+      timeout: 15000
+    }).then(res => res.json());
+
+    // Deep compare the character configurations
+    const characterMatch = JSON.stringify(characterData) === JSON.stringify(agentCharacterData);
+    
+    if (!characterMatch) {
+      throw new Error('Character configuration mismatch');
+    }
+
+    // Record successful health check
+    stats.success = true;
+    stats.responseTime = Date.now() - startTime;
+    stats.statusCode = healthResponse.status;
+    stats.characterVerified = true;
+
+    return {
+      deviceAddress,
+      stats,
+      timestamp: new Date().toISOString()
+    };
+
+  } catch (error: unknown) {
+    // Record failed health check
+    stats.success = false;
+    stats.responseTime = Date.now() - startTime;
+    stats.error = error instanceof Error ? error.message : 'Unknown error';
+    stats.statusCode = mapErrorToStatusCode(error);
+    stats.characterVerified = false;
+
+    return {
+      deviceAddress,
+      stats,
+      timestamp: new Date().toISOString()
+    };
+  }
+} 

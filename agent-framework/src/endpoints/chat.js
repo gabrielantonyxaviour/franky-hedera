@@ -1454,4 +1454,59 @@ async function processLilypadRequest(userQuery, characterData, userName) {
   }
 }
 
+// Health check endpoint to verify character config retrieval
+router.post('/health', async (request, response) => {
+  try {
+    const { agentAddress } = request.body;
+    
+    if (!agentAddress) {
+      return response.status(400).json({
+        success: false,
+        error: 'Agent address is required'
+      });
+    }
+
+    // Get agent character data using existing utility
+    const agentData = await getAgentCharacter(agentAddress);
+    
+    if (!agentData || !agentData.characterConfig) {
+      return response.status(404).json({
+        success: false,
+        error: 'Character configuration not found for agent'
+      });
+    }
+
+    // Fetch the character data from the characterConfig URL
+    try {
+      const characterResponse = await fetch(agentData.characterConfig);
+      if (!characterResponse.ok) {
+        throw new Error(`Failed to fetch character data: ${characterResponse.statusText}`);
+      }
+
+      const characterData = await characterResponse.json();
+      
+      // Return the character data for verification
+      return response.status(200).json({
+        success: true,
+        agentAddress,
+        characterData,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (fetchError) {
+      return response.status(502).json({
+        success: false,
+        error: `Failed to fetch character data: ${fetchError.message}`
+      });
+    }
+    
+  } catch (error) {
+    console.error('Health check error:', error);
+    return response.status(500).json({
+      success: false,
+      error: error.message || 'Internal server error'
+    });
+  }
+});
+
 export default router;
