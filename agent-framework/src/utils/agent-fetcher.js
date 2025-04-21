@@ -18,7 +18,7 @@ const graphqlClient = new ApolloClient({
   cache: new InMemoryCache(),
 });
 
-// Franky contract address on Filecoin Calibration Testnet
+// FRANKY contract address on Filecoin Calibration Testnet
 const FRANKY_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29';
 
 // GraphQL query for agent details
@@ -112,7 +112,7 @@ async function decryptSecrets(encryptedSecrets, secretsHash, isMainnet = false) 
         const chain = isMainnet ? "filecoin" : "filecoinCalibrationTestnet";
         console.log(`🔗 Using chain: ${chain}`);
         
-        // Define EVM contract conditions
+        // Define contract conditions for Filecoin network
         // Note: We're creating the conditions in the format expected by Lit Protocol
         const evmContractConditions = [
             {

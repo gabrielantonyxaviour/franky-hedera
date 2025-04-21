@@ -51,10 +51,11 @@ import {
   tokenPriceTool,
   tokenPriceQueryPatterns
 } from '../tools/token-price-tool.js';
-import { FRANKY_ABI, FRANKY_TOKEN_ADDRESS } from '../constants.js';
+import { FRANKY_ABI, TFIL_NATIVE_CHAIN } from '../constants.js';
 import { createPublicClient } from 'viem';
 import { base, filecoinCalibration } from 'viem/chains';
 import { http } from 'viem';
+import { ethers } from 'ethers';
 
 // Load environment variables
 dotenv.config();
@@ -432,7 +433,7 @@ router.post('/', async (request, response) => {
         console.error(`❌ Failed to retrieve chat history with ID: ${history}`);
         // Continue with empty chat history
       }
-    } else {
+      } else {
       console.log(`ℹ️ No history ID provided, starting new conversation`);
     }
 
@@ -448,51 +449,119 @@ router.post('/', async (request, response) => {
         });
 
         // Get the caller's balance
-        const formattedCallerAddress = formatAsHexString(caller);
+        const formattedCallerAddress = formatAddressForViem(caller);
+        const formattedAgentOwnerAddress = formatAddressForViem(agentOwner);
+        
         if (!formattedCallerAddress) {
           console.error('❌ Invalid caller address format, cannot process payment');
-        } else {
+          return response.status(400).send({ error: 'Invalid caller address format' });
+        }
+        
+        if (!formattedAgentOwnerAddress) {
+          console.error('❌ Invalid agent owner address format, cannot process payment');
+          return response.status(400).send({ error: 'Invalid agent owner address format' });
+        }
+
+        try {
           // Convert the string to a properly formatted hex string for viem
-          // We need to ensure it's a valid 0x-prefixed hex string with the right length
-          // This is a workaround for TypeScript's type constraints in a JavaScript environment
-          let validHexAddress = formattedCallerAddress;
+          let validCallerAddress = formattedCallerAddress;
+          let validOwnerAddress = formattedAgentOwnerAddress;
           
-          // Check if it's a proper format for viem
-          if (!/^0x[0-9a-f]{40}$/i.test(validHexAddress)) {
-            console.error(`❌ Address format not compatible with viem: ${validHexAddress}`);
-          } else {
-            try {
-              const callerBalance = await filecoinClient.getBalance({
-                address: validHexAddress
-              });
-              
-              // Convert perApiCallAmount to BigInt for comparison (assuming it's in TFIL)
-              const paymentAmount = BigInt(Math.floor(perApiCallAmount * 1e18)); // Convert to wei equivalent
-
-              console.log(`💰 Caller balance: ${callerBalance} wei`);
-              console.log(`💰 Required payment: ${paymentAmount} wei`);
-
-              // Check if the caller has enough balance
-              if (callerBalance < paymentAmount) {
-                console.error(`❌ Insufficient balance: ${callerBalance} < ${paymentAmount}`);
-                // Continue the request, but log the error
-              } else {
-                // We can't directly transfer tokens here since that would require private keys
-                // Instead, we'd need to either:
-                // 1. Use a smart contract call that the user has pre-approved
-                // 2. Record the debt and have a separate process handle payments
-                // For now, we'll log that we would process the payment
-                console.log(`✅ Sufficient balance available. Would transfer ${paymentAmount} wei to ${agentOwner}`);
-                
-                // We'll simulate the successful payment for now
-                // In a production environment, you would implement the actual transfer logic here
-                const withdrawSuccess = true;
-                console.log(`💰 Payment status: ${withdrawSuccess ? 'success' : 'failed'}`);
-              }
-            } catch (balanceError) {
-              console.error(`❌ Error getting balance: ${balanceError.message}`);
-            }
+          // Check if addresses are in proper format for viem
+          if (!/^0x[0-9a-f]{40}$/i.test(validCallerAddress)) {
+            console.error(`❌ Caller address format not compatible with viem: ${validCallerAddress}`);
+            return response.status(400).send({ error: 'Invalid caller address format' });
           }
+          
+          if (!/^0x[0-9a-f]{40}$/i.test(validOwnerAddress)) {
+            console.error(`❌ Owner address format not compatible with viem: ${validOwnerAddress}`);
+            return response.status(400).send({ error: 'Invalid owner address format' });
+          }
+          
+          // Get caller balance
+          const callerBalance = await filecoinClient.getBalance({
+            address: validCallerAddress
+          });
+          
+          // Convert perApiCallAmount to BigInt for comparison (assuming it's in TFIL)
+          const paymentAmount = BigInt(Math.floor(perApiCallAmount * 1e18)); // Convert to attoFIL (10^18)
+
+          console.log(`💰 Caller balance: ${callerBalance} attoFIL`);
+          console.log(`💰 Required payment: ${paymentAmount} attoFIL`);
+
+          // Check if the caller has enough balance
+          if (callerBalance < paymentAmount) {
+            console.error(`❌ Insufficient balance: ${callerBalance} < ${paymentAmount}`);
+            return response.status(402).send({ 
+              error: 'Insufficient balance', 
+              balance: callerBalance.toString(),
+              required: paymentAmount.toString() 
+            });
+          }
+          
+          // Construct transaction to send TFIL from caller to agent owner
+          const privateKey = process.env.PRIVATE_KEY;
+          if (!privateKey) {
+            console.error('❌ No device private key available for transaction signing');
+            return response.status(500).send({ error: 'Payment processing error' });
+          }
+          
+          try {
+            // Create wallet from private key
+            console.log(`🔐 Creating wallet for transaction`);
+            const wallet = new ethers.Wallet(privateKey, 
+              new ethers.providers.JsonRpcProvider(filecoinCalibration.rpcUrls.default.http[0]));
+            
+            // Get current gas price
+            const gasPrice = await wallet.provider.getGasPrice();
+            console.log(`⛽ Current gas price: ${gasPrice.toString()}`);
+            
+            // Estimate gas for the transaction
+            const gasLimit = ethers.BigNumber.from(21000); // Standard gas limit for transfer
+            
+            // Create and sign transaction
+            console.log(`📝 Creating transaction from ${validCallerAddress} to ${validOwnerAddress}`);
+            const tx = {
+              from: validCallerAddress,
+              to: validOwnerAddress,
+              value: ethers.BigNumber.from(paymentAmount.toString()),
+              gasPrice: gasPrice,
+              gasLimit: gasLimit,
+              nonce: await wallet.provider.getTransactionCount(validCallerAddress, "latest")
+            };
+            
+            // Send transaction
+            console.log(`🚀 Sending transaction`);
+            const signedTx = await wallet.signTransaction(tx);
+            const txResponse = await wallet.provider.sendTransaction(signedTx);
+            
+            // Wait for transaction to be mined
+            console.log(`⏳ Waiting for transaction to be mined: ${txResponse.hash}`);
+            const receipt = await txResponse.wait();
+            
+            if (receipt.status === 1) {
+              console.log(`✅ Payment successful! Transaction hash: ${txResponse.hash}`);
+              
+              // Store transaction in a payment log or database if needed
+              // This would be expanded in a production environment
+              
+      } else {
+              console.error(`❌ Transaction failed with status: ${receipt.status}`);
+              return response.status(500).send({ 
+                error: 'Payment transaction failed',
+                txHash: txResponse.hash
+              });
+            }
+          } catch (txError) {
+            console.error(`❌ Transaction error: ${txError.message}`);
+            return response.status(500).send({ 
+              error: 'Payment transaction error',
+              message: txError.message
+            });
+          }
+        } catch (balanceError) {
+          console.error(`❌ Error getting balance: ${balanceError.message}`);
+          return response.status(500).send({ error: 'Failed to verify balance' });
         }
       }
 
@@ -529,7 +598,7 @@ router.post('/', async (request, response) => {
             ...lilypadResponse,
             history: fileName
           });
-        } else {
+            } else {
           console.error(`❌ Failed to save chat history`);
           return response.send(lilypadResponse);
         }
@@ -546,16 +615,16 @@ router.post('/', async (request, response) => {
     
     // Build a roleplay prompt with the chat history
     const roleplayPrompt = buildRoleplayPrompt(
-      character_data,
+                character_data,
       request.body.user_name || 'User',
-      prompt,
+                prompt,
       chat_history
     );
     
     // Process the request using Ollama
     const model = request.body.model || DEFAULT_MODEL;
     const ollamaResponse = await processOllamaRequest(
-      ollamaUrl,
+                ollamaUrl,
       model,
       roleplayPrompt,
       false,
@@ -566,18 +635,18 @@ router.post('/', async (request, response) => {
     // Check if the response contains a JSON tool call in the text
     const jsonInTextResult = await handleJsonInTextResponse(
       ollamaResponse.response,
-      ollamaUrl,
+              ollamaUrl,
       model,
-      character_data,
+              character_data,
       request.body.user_name || 'User',
-      prompt,
+              prompt,
       chat_history
     );
     
     let finalResponse;
     if (jsonInTextResult.processed) {
       finalResponse = jsonInTextResult.response;
-    } else {
+            } else {
       finalResponse = ollamaResponse;
     }
     
@@ -600,7 +669,7 @@ router.post('/', async (request, response) => {
         ...finalResponse,
         history: fileName
       });
-    } else {
+          } else {
       console.error(`❌ Failed to save chat history`);
       return response.send(finalResponse);
     }
