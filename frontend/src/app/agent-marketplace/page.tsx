@@ -10,6 +10,7 @@ import axios from 'axios'
 import { ethers } from 'ethers'
 import { getApiKey } from '@/utils/apiKey'
 import { usePrivy } from '@privy-io/react-auth'
+import { getPublicAgents } from '@/lib/graph'
 
 // Updated contract information for Base Mainnet
 const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
@@ -634,66 +635,15 @@ export default function AgentMarketplacePage() {
   // Fetch agents using API
   useEffect(() => {
     if (!isClient) return
-
-    const fetchAgents = async () => {
-      setLoading(true)
+    (async function () {
+      const fetchedAgents = await getPublicAgents()
+      console.log("Public Agents from Graph:", agents)
+      setAgents(fetchedAgents)
+      setLoading(false)
       setError(null)
-
-      try {
-        const response = await fetch('/api/agents')
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const data = await response.json()
-        if (data.error) {
-          throw new Error(data.error)
-        }
-
-        // Log raw response for debugging
-        console.log('Agent Marketplace Response:', data)
-
-        // Process agents - map response to our Agent interface
-        const agentsArray = data.agents.map((agent: any, index: number) => {
-          return {
-            id: index + 1,
-            prefix: agent.prefix || '',
-            agentAddress: agent.agentAddress || '',
-            deviceAddress: agent.deviceAddress || '',
-            owner: agent.owner || '',
-            perApiCallFee: agent.perApiCallFee || '0',
-            character: agent.character || '', // This is the avatar URL
-            avatar: agent.character || '',    // Alias for consistency
-            isPublic: Boolean(agent.isPublic),
-            txHash: agent.txHash || '',
-            blockNumber: agent.blockNumber || 0,
-            timestamp: agent.timestamp || Date.now() / 1000,
-            // Directly use name and description from API response
-            name: agent.name || '',
-            description: agent.description || '',
-            characterConfig: agent.characterConfig || undefined
-          };
-        });
-
-        // Sort agents by timestamp (newest first)
-        agentsArray.sort((a: Agent, b: Agent) => b.timestamp - a.timestamp)
-
-        // Log final processed agents
-        console.log('Final processed agents:', agentsArray)
-
-        setAgents(agentsArray)
-      } catch (error: any) {
-        console.error("Error fetching agents:", error)
-        setError(error.message || "Failed to load agents")
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchAgents()
+    })()
   }, [isClient])
 
-  // Handle agent selection
   const handleAgentSelect = async (agent: Agent) => {
     setSelectedAgent(agent)
   }
