@@ -1657,6 +1657,14 @@ function CreateAgentContent() {
                       if (!ciphertext || !dataToEncryptHash) {
                         throw new Error("Encryption failed to produce valid output");
                       }
+                      
+                      // Check if hash has 0x prefix
+                      if (!dataToEncryptHash.startsWith('0x')) {
+                        console.log("Note: Encryption produced hash without 0x prefix:", dataToEncryptHash);
+                      } else {
+                        console.log("Encryption produced correctly prefixed hash:", dataToEncryptHash);
+                      }
+                      
                       console.log("✅ Encryption test successful");
                       setIsEncrypting(false);
                     } catch (encryptError) {
@@ -1680,24 +1688,31 @@ function CreateAgentContent() {
                         const response = await fetch(downloadUrl);
                         const uploadedData = await response.json();
                         console.log('Uploaded data contains:', Object.keys(uploadedData));
-                        if (uploadedData.encryptedSecrets && uploadedData.secretsHash) {
-                          console.log('✅ Successfully verified encrypted secrets in upload!');
-                          setTestResult({
-                            success: true,
-                            message: `Upload successful! Data contains encrypted secrets and is available at: ${downloadUrl}`
-                          });
-                        } else {
-                          console.warn('⚠️ Uploaded data does not contain encrypted secrets!');
-                          setTestResult({
-                            success: false,
-                            message: "Upload succeeded but encrypted secrets are missing from the uploaded data."
-                          });
+                        
+                        // Check for encrypted secrets and properly formatted secretsHash
+                        if (!uploadedData.encryptedSecrets) {
+                          throw new Error("Encrypted secrets are missing from uploaded data");
                         }
+                        
+                        if (!uploadedData.secretsHash) {
+                          throw new Error("secretsHash is missing from uploaded data");
+                        }
+                        
+                        // Verify 0x prefix
+                        if (!uploadedData.secretsHash.startsWith('0x')) {
+                          throw new Error("secretsHash does not have 0x prefix");
+                        }
+                        
+                        console.log('✅ Successfully verified encrypted secrets with proper 0x-prefixed hash:', uploadedData.secretsHash);
+                        setTestResult({
+                          success: true,
+                          message: `Upload successful! Data contains encrypted secrets with proper 0x-prefixed hash (${uploadedData.secretsHash.substring(0, 10)}...) and is available at: ${downloadUrl}`
+                        });
                       } catch (e) {
-                        console.error('Error fetching uploaded data:', e);
+                        console.error('Error validating uploaded data:', e);
                         setTestResult({
                           success: false,
-                          message: `Upload succeeded but error verifying data: ${e instanceof Error ? e.message : String(e)}`
+                          message: `Upload succeeded but error validating data: ${e instanceof Error ? e.message : String(e)}`
                         });
                       }
                     } else {
