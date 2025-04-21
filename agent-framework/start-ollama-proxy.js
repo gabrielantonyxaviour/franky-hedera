@@ -151,7 +151,7 @@ function updateServerConfig() {
     const importMatch = content.match(/import.*from '\.\/endpoints\/.*\.js';/g);
     if (importMatch) {
       const lastImport = importMatch[importMatch.length - 1];
-      const newImport = lastImport + '\nimport { router as ollamaProxyRouter } from \'./endpoints/ollama-proxy.js\';';
+      const newImport = lastImport + '\nimport { router as ollamaProxyRouter } from \'./endpoints/chat.js\';';
       content = content.replace(lastImport, newImport);
     }
     
@@ -161,7 +161,7 @@ function updateServerConfig() {
       const routeMatch = content.match(/app\.use\('\/api\/.*',.*Router\);/g);
       if (routeMatch) {
         const lastRoute = routeMatch[routeMatch.length - 1];
-        const newRoute = lastRoute + '\n    app.use(\'/api/ollama-proxy\', ollamaProxyRouter);';
+        const newRoute = lastRoute + '\n    app.use(\'/api/chat\', ollamaProxyRouter);';
         content = content.replace(lastRoute, newRoute);
       }
     }

@@ -89,14 +89,14 @@ start_sillytavern() {
     echo "📋 Available models: $MODELS"
 
     # Check if the ollama-proxy.js file exists
-    if [ ! -f "src/endpoints/ollama-proxy.js" ]; then
-        echo "⚠️ ollama-proxy.js file not found. Creating it..."
+    if [ ! -f "src/endpoints/chat.js" ]; then
+        echo "⚠️ chat.js file not found. Creating it..."
         
         # Create the directory if it doesn't exist
         mkdir -p src/endpoints
         
         # Create the ollama-proxy.js file
-        cat > src/endpoints/ollama-proxy.js << 'EOL'
+        cat > src/endpoints/chat.js << 'EOL'
 import express from 'express';
 import { trimV1 } from '../util.js';
 
@@ -156,7 +156,7 @@ router.get('/models', async (request, response) => {
   }
 });
 EOL
-        echo "✅ Created ollama-proxy.js"
+        echo "✅ Created chat.js"
     fi
 
     # Update server-startup.js to include our ollama-proxy endpoint
@@ -164,10 +164,10 @@ EOL
         echo "⚠️ ollamaProxyRouter not found in server-startup.js. Adding it..."
         
         # Add the import
-        sed -i "1s|^|import { router as ollamaProxyRouter } from './endpoints/ollama-proxy.js';\n|" src/server-startup.js
+        sed -i "1s|^|import { router as ollamaProxyRouter } from './endpoints/chat.js';\n|" src/server-startup.js
         
         # Add the endpoint registration
-        sed -i "/app\.use('\/api\/azure', azureRouter);/a \ \ \ \ app.use('/api/ollama-proxy', ollamaProxyRouter);" src/server-startup.js
+        sed -i "/app\.use('\/api\/azure', azureRouter);/a \ \ \ \ app.use('/api/chat', ollamaProxyRouter);" src/server-startup.js
         
         echo "✅ Updated server-startup.js"
     fi
@@ -193,7 +193,7 @@ EOL
             NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels | grep -o '"public_url":"[^"]*' | cut -d'"' -f4 | head -1)
             if [ -n "$NGROK_URL" ]; then
                 echo "🌍 ngrok tunnel URL: $NGROK_URL"
-                echo "📝 API endpoint for Postman: $NGROK_URL/api/ollama-proxy/generate"
+                echo "📝 API endpoint for Postman: $NGROK_URL/api/chat"
             else
                 echo "⚠️ Could not get ngrok URL. Is ngrok running properly?"
             fi
@@ -202,7 +202,7 @@ EOL
             NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels | grep -o '"public_url":"[^"]*' | cut -d'"' -f4 | head -1)
             if [ -n "$NGROK_URL" ]; then
                 echo "🌍 ngrok tunnel already running at: $NGROK_URL"
-                echo "📝 API endpoint for Postman: $NGROK_URL/api/ollama-proxy/generate"
+                echo "📝 API endpoint for Postman: $NGROK_URL/api/chat"
             else
                 echo "⚠️ ngrok is running but could not get URL"
             fi
