@@ -65,7 +65,7 @@ async function ensureBucketExists(bucketName: string) {
 }
 
 // Function to upload character data to Akave bucket
-async function uploadCharacterToAkave(characterData: any, agentName: string) {
+async function uploadCharacterToAkave(characterData: any, agentName: string, secretsText: string = "") {
   try {
     const bucketName = "franky-agents";
     
@@ -75,9 +75,28 @@ async function uploadCharacterToAkave(characterData: any, agentName: string) {
       console.error("Failed to ensure bucket exists");
       return null;
     }
+
+    // Create a copy of character data to modify
+    const dataToUpload = { ...characterData };
+    
+    // If secrets are provided, encrypt them
+    if (secretsText.trim()) {
+      try {
+        console.log("Encrypting secrets with Lit Protocol...");
+        const { ciphertext, dataToEncryptHash } = await encrypt(secretsText, false);
+        
+        // Add encrypted secrets to the character data
+        dataToUpload.encryptedSecrets = ciphertext;
+        dataToUpload.secretsHash = dataToEncryptHash;
+        console.log("Secrets encrypted successfully");
+      } catch (error) {
+        console.error("Failed to encrypt secrets:", error);
+        return null;
+      }
+    }
     
     // Convert character data to JSON string
-    const jsonData = JSON.stringify(characterData, null, 2);
+    const jsonData = JSON.stringify(dataToUpload, null, 2);
     
     // Create a Blob from the JSON data
     const blob = new Blob([jsonData], { type: 'application/json' });
@@ -436,8 +455,10 @@ OTHER_SECRET=value"
         className="w-full h-64 p-3 rounded-lg bg-black/50 border border-[#00FF88]/30 focus:border-[#00FF88] focus:outline-none text-white font-mono text-sm"
       />
       <div className="mt-3 text-xs text-gray-400">
-        <p>• Your secrets will be encrypted before storage</p>
-        <p>• They will only be accessible by your agent</p>
+        <p>• Your secrets will be encrypted using Lit Protocol before storage</p>
+        <p>• They will be stored alongside your character data in the Akave bucket</p>
+        <p>• They will only be accessible by your agent with proper authentication</p>
+        <p className="text-[#00FF88] mt-1">• Sensitive API keys will never be stored in plaintext</p>
       </div>
     </div>
   );
@@ -533,26 +554,9 @@ const CONTRACT_ADDRESS = "0x486989cd189ED5DB6f519712eA794Cee42d75b29";
 const CONTRACT_ABI = [
   {
     inputs: [
-      { internalType: "string", name: "subname", type: "string" },
       { internalType: "string", name: "avatar", type: "string" },
-      {
-        internalType: "tuple",
-        name: "characterConfig",
-        type: "tuple",
-        components: [
-          { internalType: "string", name: "name", type: "string" },
-          { internalType: "string", name: "description", type: "string" },
-          { internalType: "string", name: "personality", type: "string" },
-          { internalType: "string", name: "scenario", type: "string" },
-          { internalType: "string", name: "first_mes", type: "string" },
-          { internalType: "string", name: "mes_example", type: "string" },
-          { internalType: "string", name: "creatorcomment", type: "string" },
-          { internalType: "string", name: "tags", type: "string" },
-          { internalType: "string", name: "talkativeness", type: "string" },
-        ],
-      },
-      { internalType: "string", name: "secrets", type: "string" },
-      { internalType: "bytes32", name: "secretsHash", type: "bytes32" },
+      { internalType: "string", name: "subname", type: "string" },
+      { internalType: "string", name: "characterConfig", type: "string" },
       { internalType: "address", name: "deviceAddress", type: "address" },
       { internalType: "uint256", name: "perApiCallFee", type: "uint256" },
       { internalType: "bool", name: "isPublic", type: "bool" },
@@ -566,7 +570,11 @@ const CONTRACT_ABI = [
 
 // Helper function to get explorer URL
 const getExplorerUrl = (chainId: number, hash: string) => {
-  // Base Mainnet
+  // Filecoin Calibration testnet
+  if (chainId === 314159) {
+    return `https://calibration.filfox.info/en/message/${hash}`;
+  }
+  // Base network fallbacks
   if (chainId === 8453) {
     return `https://basescan.org/tx/${hash}`;
   }
@@ -712,7 +720,7 @@ function ConfirmationModal({
               </p>
               <p className="text-white">
                 <span className="text-gray-400">Network:</span>{" "}
-                {isMainnet ? "Base Mainnet" : "Base Sepolia"}
+                Filecoin Calibration Testnet
               </p>
             </div>
           </div>
@@ -762,6 +770,8 @@ function SuccessModal({
   const handleBackToHome = () => {
     router.push("/");
   };
+
+  const explorerUrl = transactionHash ? getExplorerUrl(chainId, transactionHash) : "";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
@@ -822,12 +832,12 @@ function SuccessModal({
             <div>
               <p className="text-gray-400 text-sm">Transaction</p>
               <a
-                href={getExplorerUrl(chainId, transactionHash)}
+                href={explorerUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[#00FF88] hover:underline text-sm break-all"
               >
-                View on Block Explorer
+                View on Filecoin Explorer
               </a>
             </div>
           )}
@@ -1056,33 +1066,17 @@ function CreateAgentContent() {
       return;
     }
 
-    // If secrets are provided, encrypt them
-    if (secrets.trim()) {
-      setIsEncrypting(true);
-
-      try {
-        const { ciphertext, dataToEncryptHash } = await encrypt(
-          secrets.trim(), true
-        );
-        setEncryptedSecrets(ciphertext);
-        setDataToEncryptHash(dataToEncryptHash);
-      } catch (encryptError: any) {
-        console.error("Error encrypting secrets:", encryptError);
-        alert(
-          "Failed to encrypt secrets. Please try again or continue without secrets."
-        );
-        setIsEncrypting(false);
-        return;
-      }
-
-      setIsEncrypting(false);
+    // Check if avatar is uploaded
+    if (!avatarUrl) {
+      alert("Please upload an avatar image first");
+      return;
     }
 
     // Show confirmation modal
     setShowConfirmModal(true);
   }
 
-  // Update handleConfirmCreateAgent to include avatar
+  // Update handleConfirmCreateAgent to include avatar and secrets
   async function handleConfirmCreateAgent() {
     if (
       !deviceInfo?.deviceAddress ||
@@ -1102,8 +1096,8 @@ function CreateAgentContent() {
       // Use the validated name as the subname
       const subname = agentName.toLowerCase();
 
-      // Always use Base Mainnet chainId
-      const currentChainId = 8453; // Base Mainnet
+      // Always use Filecoin Calibration testnet chainId
+      const currentChainId = 314159; // Filecoin Calibration testnet
       console.log("Using chain ID:", currentChainId);
 
       try {
@@ -1125,53 +1119,53 @@ function CreateAgentContent() {
 
         const createAgetnResopnse = await createAgentRequest.json();
 
-        // Prepare character config
-        const characterConfig = {
-          name: constructedCharacter.name,
-          description: constructedCharacter.description,
-          personality: constructedCharacter.personality,
-          scenario: constructedCharacter.scenario,
-          first_mes: constructedCharacter.first_mes,
-          mes_example: constructedCharacter.mes_example,
-          creatorcomment: constructedCharacter.creatorcomment,
-          tags: constructedCharacter.tags.join(","), // Convert array to comma-separated string
-          talkativeness: constructedCharacter.talkativeness.toString(), // Convert to string
-        };
+        // Upload to Akave concurrently with encrypted secrets
+        console.log('Uploading character data to Akave with encrypted secrets...');
+        let characterConfigUrl = null;
         
-        // Upload to Akave concurrently with the contract interaction
-        // This won't block the main contract flow as it runs in parallel
-        uploadCharacterToAkave(constructedCharacter, subname).then(downloadUrl => {
-          if (downloadUrl) {
-            console.log('✅ Character data available at Akave:', downloadUrl);
-          } else {
+        try {
+          // Pass secrets to the upload function
+          characterConfigUrl = await uploadCharacterToAkave(constructedCharacter, subname, secrets);
+          if (!characterConfigUrl) {
             console.error('⚠️ Failed to upload character data to Akave');
+            alert('Failed to upload character data. Please try again.');
+            return;
           }
-        }).catch(error => {
+          console.log('✅ Character data with encrypted secrets available at Akave:', characterConfigUrl);
+        } catch (error) {
           console.error('Error in Akave upload process:', error);
-        });
+          alert('Error uploading character data. Please try again.');
+          return;
+        }
 
-        // Create transaction params with avatar
+        // Create transaction params with updated structure
         const txParams = {
           address: CONTRACT_ADDRESS as `0x${string}`,
           abi: CONTRACT_ABI,
           functionName: "createAgent" as const,
           args: [
-            subname, // Use validated name as subname
-            avatarUrl, // Add avatar URL
-            characterConfig, // Direct character config
-            encryptedSecrets || "", // Encrypted secrets (or empty string)
-            dataToEncryptHash
-              ? (`0x${dataToEncryptHash}` as `0x${string}`)
-              : (`0x${"0".repeat(64)}` as `0x${string}`), // secretsHash
+            avatarUrl, // Avatar URL from Pinata
+            subname, // ENS subname for the agent
+            characterConfigUrl, // Download link from Akave upload with encrypted secrets
             deviceInfo.deviceAddress as `0x${string}`, // Device address
             BigInt(perApiCallFee), // Per API call fee
             isPublic, // Is public flag
           ] as const,
           chainId: currentChainId,
-          gas: BigInt(20000000), // 6M gas limit to ensure plenty of room
+          gas: BigInt(20000000), // Gas limit to ensure plenty of room
         };
 
-        console.log("Sending transaction...");
+        console.log("Transaction parameters:", {
+          avatar: avatarUrl,
+          subname,
+          characterConfig: characterConfigUrl,
+          deviceAddress: deviceInfo.deviceAddress,
+          perApiCallFee,
+          isPublic,
+          chainId: currentChainId
+        });
+
+        console.log("Sending transaction to Filecoin Calibration testnet...");
         // Transaction code would go here
       } catch (error: any) {
         console.error("Transaction signing error:", error);
@@ -1179,7 +1173,7 @@ function CreateAgentContent() {
         // Simple error handling
         if (error.message?.includes("Request was aborted")) {
           setTransactionError(
-            "Transaction was aborted. Please ensure you are connected to Base Mainnet network and try again."
+            "Transaction was aborted. Please ensure you are connected to Filecoin Calibration testnet and try again."
           );
         } else if (
           error.message?.includes("user rejected") ||
@@ -1523,12 +1517,31 @@ function CreateAgentContent() {
                     fav: false
                   };
                   
+                  // Add test secrets
+                  const testSecrets = "API_KEY=test123\nOPENAI_KEY=sk-test456\nTEST_SECRET=value789";
+                  
                   console.log('Testing Akave upload with data:', testData);
-                  const downloadUrl = await uploadCharacterToAkave(testData, 'test-agent');
+                  console.log('Including test secrets for encryption');
+                  
+                  const downloadUrl = await uploadCharacterToAkave(testData, 'test-agent', testSecrets);
                   
                   if (downloadUrl) {
-                    console.log('✅ Test successful! Character data available at:', downloadUrl);
+                    console.log('✅ Test successful! Character data with encrypted secrets available at:', downloadUrl);
                     alert('Upload successful! Check console for download URL');
+                    
+                    // Fetch the uploaded data to verify
+                    try {
+                      const response = await fetch(downloadUrl);
+                      const uploadedData = await response.json();
+                      console.log('Uploaded data contains:', Object.keys(uploadedData));
+                      if (uploadedData.encryptedSecrets && uploadedData.secretsHash) {
+                        console.log('✅ Successfully verified encrypted secrets in upload!');
+                      } else {
+                        console.warn('⚠️ Uploaded data does not contain encrypted secrets!');
+                      }
+                    } catch (e) {
+                      console.error('Error fetching uploaded data:', e);
+                    }
                   } else {
                     console.error('❌ Test failed - could not upload to Akave');
                     alert('Upload failed. Check console for details.');
@@ -1537,10 +1550,10 @@ function CreateAgentContent() {
                 className="px-4 py-2 rounded-lg bg-[#00FF88]/20 border border-[#00FF88]/30 text-[#00FF88] hover:bg-[#00FF88]/30 transition-colors flex items-center space-x-2"
               >
                 <FiUploadCloud />
-                <span>Test Upload</span>
+                <span>Test Upload with Secrets</span>
               </button>
             </div>
-            <p className="text-sm text-gray-400">Click the button to test uploading a sample character to Akave bucket.</p>
+            <p className="text-sm text-gray-400">Click the button to test uploading a sample character with encrypted secrets to Akave bucket.</p>
           </div>
         </motion.div>
 
@@ -1566,7 +1579,6 @@ function CreateAgentContent() {
               disabled={
                 !constructedCharacter ||
                 isUploading ||
-                isEncrypting ||
                 agentCreated
               }
               className={`px-8 py-4 rounded-lg transition-all duration-300 shadow-lg shadow-emerald-900/30 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed
@@ -1574,15 +1586,10 @@ function CreateAgentContent() {
                   ? "bg-[#00FF88]/30 border border-[#00FF88] text-white"
                   : "bg-gradient-to-r from-[#00FF88]/20 to-emerald-500/20 border border-[#00FF88] text-[#00FF88] hover:from-[#00FF88]/30 hover:to-emerald-500/30"
                 } 
-                ${isUploading || isEncrypting ? "animate-pulse" : ""}`}
+                ${isUploading ? "animate-pulse" : ""}`}
             >
               {!constructedCharacter ? (
                 "Construct Character First"
-              ) : isEncrypting ? (
-                <span className="flex items-center justify-center">
-                  <span className="mr-2">Encrypting Secrets...</span>
-                  <FiUploadCloud className="animate-bounce" />
-                </span>
               ) : isUploading ? (
                 <span className="flex items-center justify-center">
                   <span className="mr-2">Uploading to IPFS...</span>
