@@ -1,0 +1,14 @@
+{
+  "name": "franky-agent-framework-test",
+  "version": "1.0.0",
+  "description": "Test scripts for Franky Agent Framework",
+  "type": "module",
+  "scripts": {
+    "test": "node test-flow.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "node-fetch": "^3.3.2",
+    "uuid": "^9.0.1"
+  }
+} 

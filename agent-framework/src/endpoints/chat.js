@@ -1203,6 +1203,29 @@ async function executeModelTask(taskType, query, sessionId) {
 }
 
 /**
+ * Execute a function with a timeout
+ * @param {Function} fn - The function to execute
+ * @param {number} timeoutMs - The timeout in milliseconds
+ * @returns {Promise<any>} - The result of the function
+ */
+async function executeWithTimeout(fn, timeoutMs = 120000) {
+  return new Promise(async (resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(`Operation timed out after ${timeoutMs/1000} seconds`));
+    }, timeoutMs);
+    
+    try {
+      const result = await fn();
+      clearTimeout(timeoutId);
+      resolve(result);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      reject(error);
+    }
+  });
+}
+
+/**
  * Process a query using Lilypad's multi-model approach (matches Python process_query_stream function)
  * @param {string} userQuery - The user query
  * @param {object} characterData - Character data for roleplay
@@ -1217,14 +1240,24 @@ async function processLilypadRequest(userQuery, characterData, userName) {
   const usedModels = new Set();
   const results = [];
   
+  // Record start time separately to avoid session data issues
+  const startTime = Date.now();
+  
   try {
-    // Step 1: Orchestration (just like Python version)
+    // Initialize session data
+    activeLilypadSessions[sessionId] = {
+      logs: [],
+      status: "processing",
+      startTime: startTime
+    };
+    
+    // Step 1: Orchestration
     logger.log("==== PROCESSING STARTED ====", `Query: ${userQuery}`);
-    const orchestration = await orchestrateQuery(userQuery, sessionId);
+    const orchestration = await executeWithTimeout(() => orchestrateQuery(userQuery, sessionId));
     usedModels.add(LILYPAD_MODELS.orchestrator);
     
     if ("direct_response" in orchestration) {
-      // Simple queries get a direct response
+      // Simple queries get a direct response - no changes needed here
       logger.log("Using direct response for simple query", "");
       
       // Create a character-tailored system prompt for simple queries
@@ -1256,7 +1289,7 @@ async function processLilypadRequest(userQuery, characterData, userName) {
         response: cleanedResponse,
         character_name: characterData.name,
         models_used: Array.from(usedModels),
-        processing_time: `${(Date.now() - activeLilypadSessions[sessionId].startTime) / 1000} seconds`
+        processing_time: `${(Date.now() - startTime) / 1000} seconds`
       };
     }
     
@@ -1270,56 +1303,81 @@ async function processLilypadRequest(userQuery, characterData, userName) {
       throw new Error("Failed to generate subtasks");
     }
     
-    // Step 2: Execute subtasks (just like Python version)
-    for (const subtask of orchestration.subtasks) {
+    // Step 2: Execute subtasks with better timeout handling
+    // Process subtasks in parallel to improve performance
+    const subtaskPromises = orchestration.subtasks.map(async (subtask) => {
       const taskType = subtask.task_type || "default";
       const taskQuery = subtask.query;
       
-      logger.log(`EXECUTING ${taskType.toUpperCase()}`, { query: taskQuery });
+      logger.log(`SCHEDULING ${taskType.toUpperCase()}`, { query: taskQuery });
       
-      const messages = [
-        { role: "system", content: `Route this ${taskType} task` },
-        { role: "user", content: taskQuery }
-      ];
-      
-      const routingResponse = await callLilypadModel(
-        LILYPAD_MODELS.orchestrator,
-        messages,
-        LILYPAD_TOOLS,
-        0.2,
-        logger
-      );
-      
-      usedModels.add(LILYPAD_MODELS.orchestrator);
-      
-      if (routingResponse && routingResponse.tool_calls) {
-        for (const toolCall of routingResponse.tool_calls) {
-          if (toolCall.function?.name === "route_to_model") {
-            try {
-              const args = JSON.parse(toolCall.function.arguments);
-              const result = await executeModelTask(
-                args.task_type,
-                args.query,
-                sessionId
-              );
-              
-              if (result) {
-                results.push({
-                  task_type: args.task_type,
-                  query: args.query,
-                  result: result
-                });
-                usedModels.add(LILYPAD_MODELS[args.task_type] || LILYPAD_MODELS.default);
+      try {
+        const messages = [
+          { role: "system", content: `Route this ${taskType} task` },
+          { role: "user", content: taskQuery }
+        ];
+        
+        // Use a shorter timeout for routing to keep things moving
+        const routingResponse = await executeWithTimeout(() => 
+          callLilypadModel(
+            LILYPAD_MODELS.orchestrator,
+            messages,
+            LILYPAD_TOOLS,
+            0.2,
+            logger
+          ), 
+          45000 // 45 seconds timeout for routing
+        );
+        
+        usedModels.add(LILYPAD_MODELS.orchestrator);
+        
+        if (routingResponse && routingResponse.tool_calls) {
+          for (const toolCall of routingResponse.tool_calls) {
+            if (toolCall.function?.name === "route_to_model") {
+              try {
+                const args = JSON.parse(toolCall.function.arguments);
+                logger.log(`EXECUTING ${args.task_type.toUpperCase()}`, { query: args.query });
+                
+                // Execute the actual task with a model-specific timeout
+                const result = await executeWithTimeout(() =>
+                  executeModelTask(
+                    args.task_type,
+                    args.query,
+                    sessionId
+                  ),
+                  90000 // 90 seconds timeout for model execution
+                );
+                
+                if (result) {
+                  logger.log(`COMPLETED ${args.task_type.toUpperCase()}`, { result: result.substring(0, 100) + "..." });
+                  usedModels.add(LILYPAD_MODELS[args.task_type] || LILYPAD_MODELS.default);
+                  return {
+                    task_type: args.task_type,
+                    query: args.query,
+                    result: result
+                  };
+                }
+              } catch (error) {
+                logger.log(`Failed ${taskType} task`, error.message, "ERROR");
               }
-            } catch (error) {
-              logger.log("Failed to parse tool arguments", error.message, "ERROR");
             }
           }
         }
+      } catch (error) {
+        logger.log(`Subtask error for ${taskType}`, error.message, "ERROR");
       }
-    }
+      return null;
+    });
     
-    // Step 3: Combine results (just like Python version)
+    // Wait for all subtasks to complete or timeout
+    const subtaskResults = await Promise.allSettled(subtaskPromises);
+    subtaskResults.forEach(result => {
+      if (result.status === 'fulfilled' && result.value) {
+        results.push(result.value);
+      }
+    });
+    
+    // Step 3: Combine results - even if only some subtasks succeeded
     if (results.length === 0) {
       logger.log("No results from subtasks", "", "ERROR");
       throw new Error("No results from subtasks");
@@ -1330,19 +1388,23 @@ async function processLilypadRequest(userQuery, characterData, userName) {
       `${characterData.name}, a character with the personality: ${characterData.personality}:\n\n` + 
       results.map(res => `### ${res.task_type}\n${res.result}`).join("\n\n");
     
-    const finalResponse = await callLilypadModel(
-      LILYPAD_MODELS.orchestrator,
-      [
-        { 
-          role: "system", 
-          content: `You are ${characterData.name}, a character with the following personality: ${characterData.personality}. 
-          Synthesize these inputs into one polished response that sounds like you.` 
-        },
-        { role: "user", content: combinePrompt }
-      ],
-      [],
-      0.7,
-      logger
+    // Use a timeout for the final combination
+    const finalResponse = await executeWithTimeout(() =>
+      callLilypadModel(
+        LILYPAD_MODELS.orchestrator,
+        [
+          { 
+            role: "system", 
+            content: `You are ${characterData.name}, a character with the following personality: ${characterData.personality}. 
+            Synthesize these inputs into one polished response that sounds like you.` 
+          },
+          { role: "user", content: combinePrompt }
+        ],
+        [],
+        0.7,
+        logger
+      ),
+      90000 // 90 seconds timeout for final response
     );
     
     usedModels.add(LILYPAD_MODELS.orchestrator);
@@ -1356,7 +1418,7 @@ async function processLilypadRequest(userQuery, characterData, userName) {
         response: cleanRoleplayResponse(fallbackResponse, characterData.name),
         character_name: characterData.name,
         models_used: Array.from(usedModels),
-        processing_time: `${(Date.now() - activeLilypadSessions[sessionId].startTime) / 1000} seconds`,
+        processing_time: `${(Date.now() - startTime) / 1000} seconds`,
         fallback: true
       };
     }
@@ -1371,21 +1433,80 @@ async function processLilypadRequest(userQuery, characterData, userName) {
       response: cleanedResponse,
       character_name: characterData.name,
       models_used: Array.from(usedModels),
-      processing_time: `${(Date.now() - activeLilypadSessions[sessionId].startTime) / 1000} seconds`
+      processing_time: `${(Date.now() - startTime) / 1000} seconds`
     };
     
   } catch (error) {
     console.error(`❌ Lilypad processing error: ${error.message}`);
     
-    // Clean up session data
-    delete activeLilypadSessions[sessionId];
+    // Clean up session data (if it exists)
+    if (activeLilypadSessions[sessionId]) {
+      delete activeLilypadSessions[sessionId];
+    }
     
     return {
       response: `I'm sorry, I encountered an error while processing your request: ${error.message}`,
       character_name: characterData.name,
+      models_used: Array.from(usedModels),
+      processing_time: `${(Date.now() - startTime) / 1000} seconds`,
       error: error.message
     };
   }
 }
+
+// Health check endpoint to verify character config retrieval
+router.post('/health', async (request, response) => {
+  try {
+    const { agentAddress } = request.body;
+    
+    if (!agentAddress) {
+      return response.status(400).json({
+        success: false,
+        error: 'Agent address is required'
+      });
+    }
+
+    // Get agent character data using existing utility
+    const agentData = await getAgentCharacter(agentAddress);
+    
+    if (!agentData || !agentData.characterConfig) {
+      return response.status(404).json({
+        success: false,
+        error: 'Character configuration not found for agent'
+      });
+    }
+
+    // Fetch the character data from the characterConfig URL
+    try {
+      const characterResponse = await fetch(agentData.characterConfig);
+      if (!characterResponse.ok) {
+        throw new Error(`Failed to fetch character data: ${characterResponse.statusText}`);
+      }
+
+      const characterData = await characterResponse.json();
+      
+      // Return the character data for verification
+      return response.status(200).json({
+        success: true,
+        agentAddress,
+        characterData,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (fetchError) {
+      return response.status(502).json({
+        success: false,
+        error: `Failed to fetch character data: ${fetchError.message}`
+      });
+    }
+    
+  } catch (error) {
+    console.error('Health check error:', error);
+    return response.status(500).json({
+      success: false,
+      error: error.message || 'Internal server error'
+    });
+  }
+});
 
 export default router;

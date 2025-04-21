@@ -112,19 +112,30 @@ async function decryptSecrets(encryptedSecrets, secretsHash, isMainnet = false) 
         const chain = isMainnet ? "filecoin" : "filecoinCalibrationTestnet";
         console.log(`🔗 Using chain: ${chain}`);
         
-        // Define contract conditions for Filecoin network
-        // Note: We're creating the conditions in the format expected by Lit Protocol
+        // Define contract conditions for Filecoin network - updated to match frontend format exactly
         const evmContractConditions = [
             {
                 contractAddress: FRANKY_ADDRESS,
-                standardContractType: "",
                 chain,
-                method: "isRegisteredDevice",
-                parameters: [],
+                functionName: "isRegisteredDevice",
+                functionParams: [],
+                functionAbi: {
+                    stateMutability: "view",
+                    type: "function",
+                    outputs: [
+                        {
+                            type: "bool",
+                            name: "",
+                        },
+                    ],
+                    name: "isRegisteredDevice",
+                    inputs: [],
+                },
                 returnValueTest: {
+                    key: "",
                     comparator: "=",
-                    value: "true"
-                }
+                    value: "true",
+                },
             }
         ];
         
