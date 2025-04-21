@@ -19,16 +19,6 @@ export default function Header() {
   const [balance, setBalance] = useState<string>('0');
 
   const handleMouseEnter = () => {
-    toast.info("Test message", {
-      description: "This is a test message",
-      action: {
-        label: "Test",
-        onClick: () => {
-          console.log("Test action clicked");
-        }
-      }
-    })
-
     if (logoutTimeoutRef.current) {
       clearTimeout(logoutTimeoutRef.current);
     }
