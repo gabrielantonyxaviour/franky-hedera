@@ -460,9 +460,10 @@ function SecretsEditor({
       <textarea
         value={secrets}
         onChange={(e) => setSecrets(e.target.value)}
-        placeholder="API_KEY=your_api_key_here
-OPENAI_KEY=sk-xxxxxxxxxxxx
-OTHER_SECRET=value"
+        placeholder="{
+        'LILYPAD_TOKEN' : 'absjckbjfewnlkdjcbjqjbcqa',
+        'PRIVATE_KEY' : 'bewbfaalb7cf87qwngo8ewg8wn8g98cwgnmwc'
+        }"
         className="w-full h-64 p-3 rounded-lg bg-black/50 border border-[#00FF88]/30 focus:border-[#00FF88] focus:outline-none text-white font-mono text-sm"
       />
       <div className="mt-3 text-xs text-gray-400">
