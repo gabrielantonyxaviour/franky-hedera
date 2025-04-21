@@ -1,0 +1,55 @@
+name: Publish
+on:
+  release:
+    types: [released]
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: curl -L ${{ github.event.release.tarball_url }} > source.tar.gz
+      - uses: filecoin-station/publish-zinnia-module-action@v0.2.0
+        id: publish
+        with:
+          source: source.tar.gz
+          w3up-private-key: ${{ secrets.W3UP_PRIVATE_KEY }}
+          w3up-proof: ${{ secrets.W3UP_PROOF }}
+          w3name-private-key: ${{ secrets.W3NAME_PRIVATE_KEY }}
+          w3name-revision: ${{ secrets.W3NAME_REVISION }}
+      - if: failure()
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            {
+              "channel": "alerts",
+              "text": "Publishing `${{ github.event.repository.name }}` failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":warning: *<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Publishing `${{ github.event.repository.name }}` failed>*"
+                  }
+                }
+              ]
+            }
+      - uses: slackapi/slack-github-action@v1.27.0
+        with:
+          channel-id: filecoin-slack-spark
+          payload: |
+            {
+              "text": "SPARK checker version ${{ github.event.release.tag_name }} released",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "<${{ github.server_url }}/${{ github.repository }}/tree/${{ github.event.release.tag_name }}|Source code> published to IPFS as <https://${{ steps.publish.outputs.cid }}.ipfs.w3s.link|${{ steps.publish.outputs.cid }}> (tar.gz)"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_SPARK_RELEASES_TOKEN }}
