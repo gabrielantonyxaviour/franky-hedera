@@ -46,12 +46,15 @@ export class CheckerNode {
     }
 
     const wallet = new ethers.Wallet(this.privateKey);
-    const message = JSON.stringify({
+    // Create a simple serializable object without any complex properties
+    // that might cause circular references
+    const simpleObject = {
       deviceId,
-      checkResult,
-      timestamp: new Date().toISOString(),
-      checkerNode: this.address
-    });
+      timestamp: checkResult.timestamp,
+      metricsHash: checkResult.metricsHash || 'none',
+      checkerAddress: this.address
+    };
+    const message = JSON.stringify(simpleObject);
 
     return wallet.signMessage(message);
   }

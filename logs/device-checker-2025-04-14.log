@@ -1,0 +1,42 @@
+[2025-04-14T14:50:00.479Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T14:50:00.480Z] Checker node initialized with address: 0xb5999b710Ea9e2272E98DD081797F7Eed9819798
+[2025-04-14T14:50:00.481Z] Fetching up to 100 registered devices from subgraph...
+[2025-04-14T14:50:00.481Z] Error fetching devices: fetch is not a function
+[2025-04-14T14:50:00.482Z] Found 0 registered devices to check
+[2025-04-14T14:50:00.482Z] 🎯 Device check complete
+[2025-04-14T14:50:00.482Z] 📊 Summary: 0 checked, 0 skipped
+[2025-04-14T14:52:00.437Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T14:52:00.439Z] Checker node initialized with address: 0xA6F8565A966eA13a1B88c5d10391a214095dD612
+[2025-04-14T14:52:00.439Z] Fetching up to 100 registered devices from subgraph...
+[2025-04-14T14:52:00.439Z] Error fetching devices: fetch is not a function
+[2025-04-14T14:52:00.440Z] Found 0 registered devices to check
+[2025-04-14T14:52:00.440Z] 🎯 Device check complete
+[2025-04-14T14:52:00.440Z] 📊 Summary: 0 checked, 0 skipped
+[2025-04-14T14:53:57.321Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T14:53:57.322Z] Checker node initialized with address: 0x0264Cc748BB923d9a72DB414E8231b011fdf5695
+[2025-04-14T14:53:57.322Z] Fetching up to 100 registered devices from subgraph...
+[2025-04-14T14:53:57.322Z] Error fetching devices: fetch is not a function
+[2025-04-14T14:53:57.323Z] Found 0 registered devices to check
+[2025-04-14T14:53:57.323Z] 🎯 Device check complete
+[2025-04-14T14:53:57.323Z] 📊 Summary: 0 checked, 0 skipped
+[2025-04-14T14:54:00.316Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T14:54:00.318Z] Checker node initialized with address: 0x7DF9f1dfcFA3dafc0Bb6acB6c6810f8114cA2dc0
+[2025-04-14T14:54:00.318Z] Fetching up to 100 registered devices from subgraph...
+[2025-04-14T14:54:00.318Z] Error fetching devices: fetch is not a function
+[2025-04-14T14:54:00.319Z] Found 0 registered devices to check
+[2025-04-14T14:54:00.319Z] 🎯 Device check complete
+[2025-04-14T14:54:00.319Z] 📊 Summary: 0 checked, 0 skipped
+[2025-04-14T14:55:16.471Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T14:55:16.472Z] Checker node initialized with address: 0xE46BF2f0708e36C7c34C95C44d0Df61eA2e5Cc4b
+[2025-04-14T14:55:16.473Z] Fetching up to 100 registered devices from subgraph...
+[2025-04-14T14:55:16.809Z] Error fetching devices: GraphQL errors: [{"message":"This endpoint has been removed. If you have any questions, reach out to support@thegraph.zendesk.com"}]
+[2025-04-14T14:55:16.810Z] Found 0 registered devices to check
+[2025-04-14T14:55:16.810Z] 🎯 Device check complete
+[2025-04-14T14:55:16.810Z] 📊 Summary: 0 checked, 0 skipped
+[2025-04-14T14:56:00.440Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T14:56:00.442Z] Checker node initialized with address: 0x916a848C0dEE4934BAca972073Ba73f743e73457
+[2025-04-14T14:56:00.442Z] Fetching up to 100 registered devices from subgraph...
+[2025-04-14T14:56:00.552Z] Error fetching devices: GraphQL errors: [{"message":"This endpoint has been removed. If you have any questions, reach out to support@thegraph.zendesk.com"}]
+[2025-04-14T14:56:00.553Z] Found 0 registered devices to check
+[2025-04-14T14:56:00.553Z] 🎯 Device check complete
+[2025-04-14T14:56:00.553Z] 📊 Summary: 0 checked, 0 skipped
