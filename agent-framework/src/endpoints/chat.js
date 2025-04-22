@@ -4,7 +4,6 @@ import { getAgentCharacter } from '../utils/agent-fetcher.js';
 import dotenv from 'dotenv';
 import { v4 as uuidv4 } from 'uuid';
 import { uploadJsonToAkave, getJsonFromAkave } from '../utils/akave-storage.js';
-import { formatAddressForViem } from '../utils/address-utils.js';
 
 // Import the gas price tool functions
 import {
@@ -377,10 +376,6 @@ router.post('/', async (request, response) => {
 
         try {
           console.log(`🔄 Initializing blockchain client`);
-          const publicClient = createPublicClient({
-            chain: base,
-            transport: http()
-          });
 
           // NOTE: We're no longer trying to call agentsKeyHash on the owner address
           // Instead, we'll get the key hash from the agent verification flow
@@ -438,131 +433,131 @@ router.post('/', async (request, response) => {
 
     // Continue with payment processing if needed
     try {
-      if (status == 1 && perApiCallAmount > 0) {
-        console.log(`💰 Processing payment: ${perApiCallAmount} TFIL`);
+      // if (status == 1 && perApiCallAmount > 0) {
+      //   console.log(`💰 Processing payment: ${perApiCallAmount} TFIL`);
 
-        // Create a public client for Filecoin Calibration testnet
-        const filecoinClient = createPublicClient({
-          chain: filecoinCalibration,
-          transport: http()
-        });
+      //   // Create a public client for Filecoin Calibration testnet
+      //   const filecoinClient = createPublicClient({
+      //     chain: filecoinCalibration,
+      //     transport: http()
+      //   });
 
-        // Get the caller's balance
-        const formattedCallerAddress = formatAddressForViem(caller);
-        const formattedAgentOwnerAddress = formatAddressForViem(agentOwner);
+      //   // Get the caller's balance
+      //   const formattedCallerAddress = formatAddressForViem(caller);
+      //   const formattedAgentOwnerAddress = formatAddressForViem(agentOwner);
 
-        if (!formattedCallerAddress) {
-          console.error('❌ Invalid caller address format, cannot process payment');
-          return response.status(400).send({ error: 'Invalid caller address format' });
-        }
+      //   if (!formattedCallerAddress) {
+      //     console.error('❌ Invalid caller address format, cannot process payment');
+      //     return response.status(400).send({ error: 'Invalid caller address format' });
+      //   }
 
-        if (!formattedAgentOwnerAddress) {
-          console.error('❌ Invalid agent owner address format, cannot process payment');
-          return response.status(400).send({ error: 'Invalid agent owner address format' });
-        }
+      //   if (!formattedAgentOwnerAddress) {
+      //     console.error('❌ Invalid agent owner address format, cannot process payment');
+      //     return response.status(400).send({ error: 'Invalid agent owner address format' });
+      //   }
 
-        try {
-          // Convert the string to a properly formatted hex string for viem
-          let validCallerAddress = formattedCallerAddress;
-          let validOwnerAddress = formattedAgentOwnerAddress;
+      //   try {
+      //     // Convert the string to a properly formatted hex string for viem
+      //     let validCallerAddress = formattedCallerAddress;
+      //     let validOwnerAddress = formattedAgentOwnerAddress;
 
-          // Check if addresses are in proper format for viem
-          if (!/^0x[0-9a-f]{40}$/i.test(validCallerAddress)) {
-            console.error(`❌ Caller address format not compatible with viem: ${validCallerAddress}`);
-            return response.status(400).send({ error: 'Invalid caller address format' });
-          }
+      //     // Check if addresses are in proper format for viem
+      //     if (!/^0x[0-9a-f]{40}$/i.test(validCallerAddress)) {
+      //       console.error(`❌ Caller address format not compatible with viem: ${validCallerAddress}`);
+      //       return response.status(400).send({ error: 'Invalid caller address format' });
+      //     }
 
-          if (!/^0x[0-9a-f]{40}$/i.test(validOwnerAddress)) {
-            console.error(`❌ Owner address format not compatible with viem: ${validOwnerAddress}`);
-            return response.status(400).send({ error: 'Invalid owner address format' });
-          }
+      //     if (!/^0x[0-9a-f]{40}$/i.test(validOwnerAddress)) {
+      //       console.error(`❌ Owner address format not compatible with viem: ${validOwnerAddress}`);
+      //       return response.status(400).send({ error: 'Invalid owner address format' });
+      //     }
 
-          // Get caller balance
-          const callerBalance = await filecoinClient.getBalance({
-            address: validCallerAddress
-          });
+      //     // Get caller balance
+      //     const callerBalance = await filecoinClient.getBalance({
+      //       address: validCallerAddress
+      //     });
 
-          // Convert perApiCallAmount to BigInt for comparison (assuming it's in TFIL)
-          const paymentAmount = BigInt(Math.floor(perApiCallAmount * 1e18)); // Convert to attoFIL (10^18)
+      //     // Convert perApiCallAmount to BigInt for comparison (assuming it's in TFIL)
+      //     const paymentAmount = BigInt(Math.floor(perApiCallAmount * 1e18)); // Convert to attoFIL (10^18)
 
-          console.log(`💰 Caller balance: ${callerBalance} attoFIL`);
-          console.log(`💰 Required payment: ${paymentAmount} attoFIL`);
+      //     console.log(`💰 Caller balance: ${callerBalance} attoFIL`);
+      //     console.log(`💰 Required payment: ${paymentAmount} attoFIL`);
 
-          // Check if the caller has enough balance
-          if (callerBalance < paymentAmount) {
-            console.error(`❌ Insufficient balance: ${callerBalance} < ${paymentAmount}`);
-            return response.status(402).send({
-              error: 'Insufficient balance',
-              balance: callerBalance.toString(),
-              required: paymentAmount.toString()
-            });
-          }
+      //     // Check if the caller has enough balance
+      //     if (callerBalance < paymentAmount) {
+      //       console.error(`❌ Insufficient balance: ${callerBalance} < ${paymentAmount}`);
+      //       return response.status(402).send({
+      //         error: 'Insufficient balance',
+      //         balance: callerBalance.toString(),
+      //         required: paymentAmount.toString()
+      //       });
+      //     }
 
-          // Construct transaction to send TFIL from caller to agent owner
-          const privateKey = process.env.PRIVATE_KEY;
-          if (!privateKey) {
-            console.error('❌ No device private key available for transaction signing');
-            return response.status(500).send({ error: 'Payment processing error' });
-          }
+      //     // Construct transaction to send TFIL from caller to agent owner
+      //     const privateKey = process.env.PRIVATE_KEY;
+      //     if (!privateKey) {
+      //       console.error('❌ No device private key available for transaction signing');
+      //       return response.status(500).send({ error: 'Payment processing error' });
+      //     }
 
-          try {
-            // Create wallet from private key
-            console.log(`🔐 Creating wallet for transaction`);
-            const wallet = new ethers.Wallet(privateKey,
-              new ethers.providers.JsonRpcProvider(filecoinCalibration.rpcUrls.default.http[0]));
+      //     try {
+      //       // Create wallet from private key
+      //       console.log(`🔐 Creating wallet for transaction`);
+      //       const wallet = new ethers.Wallet(privateKey,
+      //         new ethers.providers.JsonRpcProvider(filecoinCalibration.rpcUrls.default.http[0]));
 
-            // Get current gas price
-            const gasPrice = await wallet.provider.getGasPrice();
-            console.log(`⛽ Current gas price: ${gasPrice.toString()}`);
+      //       // Get current gas price
+      //       const gasPrice = await wallet.provider.getGasPrice();
+      //       console.log(`⛽ Current gas price: ${gasPrice.toString()}`);
 
-            // Estimate gas for the transaction
-            const gasLimit = ethers.BigNumber.from(21000); // Standard gas limit for transfer
+      //       // Estimate gas for the transaction
+      //       const gasLimit = ethers.BigNumber.from(21000); // Standard gas limit for transfer
 
-            // Create and sign transaction
-            console.log(`📝 Creating transaction from ${validCallerAddress} to ${validOwnerAddress}`);
-            const tx = {
-              from: validCallerAddress,
-              to: validOwnerAddress,
-              value: ethers.BigNumber.from(paymentAmount.toString()),
-              gasPrice: gasPrice,
-              gasLimit: gasLimit,
-              nonce: await wallet.provider.getTransactionCount(validCallerAddress, "latest")
-            };
+      //       // Create and sign transaction
+      //       console.log(`📝 Creating transaction from ${validCallerAddress} to ${validOwnerAddress}`);
+      //       const tx = {
+      //         from: validCallerAddress,
+      //         to: validOwnerAddress,
+      //         value: ethers.BigNumber.from(paymentAmount.toString()),
+      //         gasPrice: gasPrice,
+      //         gasLimit: gasLimit,
+      //         nonce: await wallet.provider.getTransactionCount(validCallerAddress, "latest")
+      //       };
 
-            // Send transaction
-            console.log(`🚀 Sending transaction`);
-            const signedTx = await wallet.signTransaction(tx);
-            const txResponse = await wallet.provider.sendTransaction(signedTx);
+      //       // Send transaction
+      //       console.log(`🚀 Sending transaction`);
+      //       const signedTx = await wallet.signTransaction(tx);
+      //       const txResponse = await wallet.provider.sendTransaction(signedTx);
 
-            // Wait for transaction to be mined
-            console.log(`⏳ Waiting for transaction to be mined: ${txResponse.hash}`);
-            const receipt = await txResponse.wait();
+      //       // Wait for transaction to be mined
+      //       console.log(`⏳ Waiting for transaction to be mined: ${txResponse.hash}`);
+      //       const receipt = await txResponse.wait();
 
-            if (receipt.status === 1) {
-              console.log(`✅ Payment successful! Transaction hash: ${txResponse.hash}`);
+      //       if (receipt.status === 1) {
+      //         console.log(`✅ Payment successful! Transaction hash: ${txResponse.hash}`);
 
-              // Store transaction in a payment log or database if needed
-              // This would be expanded in a production environment
+      //         // Store transaction in a payment log or database if needed
+      //         // This would be expanded in a production environment
 
-            } else {
-              console.error(`❌ Transaction failed with status: ${receipt.status}`);
-              return response.status(500).send({
-                error: 'Payment transaction failed',
-                txHash: txResponse.hash
-              });
-            }
-          } catch (txError) {
-            console.error(`❌ Transaction error: ${txError.message}`);
-            return response.status(500).send({
-              error: 'Payment transaction error',
-              message: txError.message
-            });
-          }
-        } catch (balanceError) {
-          console.error(`❌ Error getting balance: ${balanceError.message}`);
-          return response.status(500).send({ error: 'Failed to verify balance' });
-        }
-      }
+      //       } else {
+      //         console.error(`❌ Transaction failed with status: ${receipt.status}`);
+      //         return response.status(500).send({
+      //           error: 'Payment transaction failed',
+      //           txHash: txResponse.hash
+      //         });
+      //       }
+      //     } catch (txError) {
+      //       console.error(`❌ Transaction error: ${txError.message}`);
+      //       return response.status(500).send({
+      //         error: 'Payment transaction error',
+      //         message: txError.message
+      //       });
+      //     }
+      //   } catch (balanceError) {
+      //     console.error(`❌ Error getting balance: ${balanceError.message}`);
+      //     return response.status(500).send({ error: 'Failed to verify balance' });
+      //   }
+      // }
 
       console.log(`🎭 Using character "${character_data.name}" from agent data`);
     } catch (paymentError) {

@@ -549,11 +549,10 @@ create_wallet() {
                         # Clean up temporary files
                         rm -f "$TEMP_FILE" "$METADATA_FILE"
                         return 0
-                    } else {
+                    else
                         echo "ℹ️ Device address doesn't match local wallet"
                         echo "Found: $REGISTERED_ADDRESS"
                         echo "Local: $WALLET_ADDRESS"
-                    }
                     fi
                 else
                     echo "ℹ️ No devices found in the API response"
