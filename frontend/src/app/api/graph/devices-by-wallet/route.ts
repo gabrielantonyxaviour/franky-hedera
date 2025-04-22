@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
         const walletAddress = searchParams.get('address');
 
         if (!walletAddress) {
-            return new Response('{"status":"error"', {
+            return new Response('{"status":"wallt address error"', {
                 headers: { 'Content-Type': 'application/json' }
             });
         }
@@ -45,8 +45,9 @@ export async function GET(request: NextRequest) {
                 id: walletAddress.toLowerCase()
             }
         });
+
         if (data.devices.length === 0) {
-            return new Response('{"status":"error"', {
+            return new Response('{"status":"no data error"', {
                 headers: { 'Content-Type': 'application/json' }
             });
         }
