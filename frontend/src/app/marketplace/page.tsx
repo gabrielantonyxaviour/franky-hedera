@@ -197,7 +197,7 @@ const DeviceCard = ({ keyVal, device, onClick }: { keyVal: string, device: Devic
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
     >
-      <div className="flex items-center mb-4">
+      <div className="flex items-center mb-4 cursor-pointer">
         <div className="flex justify-center items-center h-12 w-12 rounded-full bg-[#00FF88] bg-opacity-20 text-[#00FF88] mr-4">
           <FiSmartphone className="text-xl" />
         </div>
@@ -260,7 +260,7 @@ const DeviceCard = ({ keyVal, device, onClick }: { keyVal: string, device: Devic
         <div className="flex items-center justify-between mt-1">
           <span className="text-xs text-gray-400">Registration Tx</span>
           <a
-            href={`https://basescan.org/tx/${device.txHash}`}
+            href={`https://filecoin-testnet.blockscout.com/address/${device.walletAddress}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-[#00FF88] hover:underline"

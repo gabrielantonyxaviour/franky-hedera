@@ -104,15 +104,6 @@ interface Agent {
   }
 }
 
-// Helper function to get the block explorer URL based on the chain
-const getExplorerUrl = (chainId: number, hash: string) => {
-  // Base Mainnet
-  if (chainId === 8453) {
-    return `https://basescan.org/tx/${hash}`
-  }
-  // Ethereum Mainnet (default)
-  return `https://etherscan.io/tx/${hash}`
-}
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -280,7 +271,7 @@ const AgentCard = ({ agent, onClick }: { agent: Agent, onClick: () => void }) =>
         <div className="flex items-center justify-between mt-1">
           <span className="text-xs text-gray-400">Registration Tx</span>
           <a
-            href={getExplorerUrl(8453, agent.txHash)}
+            href={`https://filecoin-testnet.blockscout.com/tx/` + agent.txHash}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-[#00FF88] hover:underline"
@@ -603,7 +594,7 @@ const PreviewModal = ({
 
               <div className="mt-8 text-center">
                 <a
-                  href={getExplorerUrl(8453, agent.txHash)}
+                  href={`https://filecoin-testnet.blockscout.com/tx/` + agent.txHash}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[#00FF88] hover:underline"
@@ -636,9 +627,17 @@ export default function AgentMarketplacePage() {
   useEffect(() => {
     if (!isClient) return
     (async function () {
-      const fetchedAgents = await getPublicAgents()
-      console.log("Public Agents from Graph:", agents)
-      setAgents(fetchedAgents)
+      // const fetchedAgents = await getPublicAgents()
+      const agentsRequest = await fetch("/api/graph/agents")
+      if (!agentsRequest.ok) {
+        setLoading(false)
+        setError("Failed to fetch agents")
+        return
+      }
+      const agentsResponse = await agentsRequest.json()
+      console.log(agentsResponse)
+      // console.log("Public Agents from Graph:", agents)
+      // setAgents(fetchedAgents)
       setLoading(false)
       setError(null)
     })()

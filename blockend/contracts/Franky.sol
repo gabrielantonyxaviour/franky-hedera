@@ -302,20 +302,20 @@ contract Franky {
     }
 
     function _deployAgentAccount(
-        string memory subname,
-        address owner,
+        string memory,
+        address,
         bytes32 salt
     ) internal returns (address instance) {
         instance = Clones.cloneDeterministic(
             frankyAgentAccountImplemetation,
             salt
         );
-        IFrankyAgentAccountImplementation(instance).initialize(
-            subname,
-            owner,
-            address(this),
-            address(IL2Registrar(frankyENSRegistrar).registry())
-        );
+        // IFrankyAgentAccountImplementation(instance).initialize(
+        //     subname,
+        //     owner,
+        //     address(this),
+        //     address(IL2Registrar(frankyENSRegistrar).registry())
+        // );
 
         return instance;
     }

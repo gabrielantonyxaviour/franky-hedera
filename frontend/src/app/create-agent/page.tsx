@@ -1165,6 +1165,10 @@ function CreateAgentContent() {
         }
 
         console.log("Simulating contract call...");
+        console.log("ARGS")
+
+
+
         const args = [avatarUrl, subname, characterConfigUrl, deviceInfo.deviceAddress, parseEther(perApiCallFee), isPublic];
         const { request } = await publicClient.simulateContract({
           address: FRANKY_ADDRESS,
@@ -1190,7 +1194,7 @@ function CreateAgentContent() {
         const { hash } = await sendTransaction({
           to: FRANKY_ADDRESS,
           data: callData,
-          gasLimit: request.gas ?? 50000000, // Higher default for complex operations
+          gasLimit: request.gas ?? 100000000, // Higher default for complex operations
           gasPrice: request.gasPrice ?? 2500, // Base fee in attoFIL
           maxFeePerGas: request.maxFeePerGas ?? 15000, // Max fee in attoFIL
           maxPriorityFeePerGas: request.maxPriorityFeePerGas ?? 10000,
@@ -1507,160 +1511,6 @@ function CreateAgentContent() {
         </motion.div>
 
         {/* Add Akave Test Button */}
-        <motion.div
-          className="mb-8"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-        >
-          <div className="bg-black/30 backdrop-blur-sm p-5 rounded-xl border border-[#00FF88]/20">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-[#00FF88]">Test Akave Upload</h2>
-              <button
-                onClick={async () => {
-                  try {
-                    setIsTestingUpload(true);
-                    setTestResult(null);
-
-                    const testData = {
-                      name: "Test Character",
-                      description: "A test character for Akave upload",
-                      personality: "Testing personality",
-                      scenario: "Test scenario",
-                      first_mes: "Hello from test!",
-                      mes_example: "This is a test message",
-                      creatorcomment: "Test comment",
-                      tags: ["test", "akave", "upload"],
-                      talkativeness: 0.5,
-                      fav: false
-                    };
-
-                    // Add test secrets
-                    const testSecrets = "API_KEY=test123\nOPENAI_KEY=sk-test456\nTEST_SECRET=value789";
-
-                    console.log('Testing Akave upload with data:', testData);
-                    console.log('Including test secrets for encryption');
-
-                    // Set encrypting state to true
-                    setIsEncrypting(true);
-
-                    // First test if encryption works properly
-                    try {
-                      const { ciphertext, dataToEncryptHash } = await encrypt(testSecrets, false);
-                      if (!ciphertext || !dataToEncryptHash) {
-                        throw new Error("Encryption failed to produce valid output");
-                      }
-
-                      // Check if hash has 0x prefix
-                      if (!dataToEncryptHash.startsWith('0x')) {
-                        console.log("Note: Encryption produced hash without 0x prefix:", dataToEncryptHash);
-                      } else {
-                        console.log("Encryption produced correctly prefixed hash:", dataToEncryptHash);
-                      }
-
-                      console.log("✅ Encryption test successful");
-                      setIsEncrypting(false);
-                    } catch (encryptError) {
-                      console.error("❌ Encryption test failed:", encryptError);
-                      setTestResult({
-                        success: false,
-                        message: `Encryption failed: ${encryptError instanceof Error ? encryptError.message : String(encryptError)}`
-                      });
-                      setIsEncrypting(false);
-                      setIsTestingUpload(false);
-                      return;
-                    }
-
-                    const downloadUrl = await uploadCharacterToAkave(testData, 'test-agent', testSecrets);
-
-                    if (downloadUrl) {
-                      console.log('✅ Test successful! Character data with encrypted secrets available at:', downloadUrl);
-
-                      // Fetch the uploaded data to verify
-                      try {
-                        const response = await fetch(downloadUrl);
-                        const uploadedData = await response.json();
-                        console.log('Uploaded data contains:', Object.keys(uploadedData));
-
-                        // Check for encrypted secrets and properly formatted secretsHash
-                        if (!uploadedData.encryptedSecrets) {
-                          throw new Error("Encrypted secrets are missing from uploaded data");
-                        }
-
-                        if (!uploadedData.secretsHash) {
-                          throw new Error("secretsHash is missing from uploaded data");
-                        }
-
-                        // Verify 0x prefix
-                        if (!uploadedData.secretsHash.startsWith('0x')) {
-                          throw new Error("secretsHash does not have 0x prefix");
-                        }
-
-                        console.log('✅ Successfully verified encrypted secrets with proper 0x-prefixed hash:', uploadedData.secretsHash);
-                        setTestResult({
-                          success: true,
-                          message: `Upload successful! Data contains encrypted secrets with proper 0x-prefixed hash (${uploadedData.secretsHash.substring(0, 10)}...) and is available at: ${downloadUrl}`
-                        });
-                      } catch (e) {
-                        console.error('Error validating uploaded data:', e);
-                        setTestResult({
-                          success: false,
-                          message: `Upload succeeded but error validating data: ${e instanceof Error ? e.message : String(e)}`
-                        });
-                      }
-                    } else {
-                      console.error('❌ Test failed - could not upload to Akave');
-                      setTestResult({
-                        success: false,
-                        message: "Upload failed. See console for details."
-                      });
-                    }
-                  } catch (error) {
-                    console.error('Test upload error:', error);
-                    setTestResult({
-                      success: false,
-                      message: `Unexpected error: ${error instanceof Error ? error.message : String(error)}`
-                    });
-                  } finally {
-                    setIsTestingUpload(false);
-                  }
-                }}
-                disabled={isTestingUpload}
-                className="px-4 py-2 rounded-lg bg-[#00FF88]/20 border border-[#00FF88]/30 text-[#00FF88] hover:bg-[#00FF88]/30 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isTestingUpload ? (
-                  <>
-                    <div className="animate-spin h-4 w-4 mr-2 border-2 border-[#00FF88] border-t-transparent rounded-full"></div>
-                    <span>{isEncrypting ? "Encrypting Secrets..." : "Testing Upload..."}</span>
-                  </>
-                ) : (
-                  <>
-                    <FiUploadCloud />
-                    <span>Test Upload with Secrets</span>
-                  </>
-                )}
-              </button>
-            </div>
-            <p className="text-sm text-gray-400">Click the button to test uploading a sample character with encrypted secrets to Akave bucket.</p>
-
-            {/* Show test results */}
-            {testResult && (
-              <div className={`mt-4 p-3 rounded-lg border ${testResult.success ? 'bg-[#00FF88]/10 border-[#00FF88]/30' : 'bg-red-500/10 border-red-500/30'}`}>
-                <div className="flex items-center">
-                  {testResult.success ? (
-                    <FiCheck className="text-[#00FF88] mr-2" size={18} />
-                  ) : (
-                    <FiAlertTriangle className="text-red-500 mr-2" size={18} />
-                  )}
-                  <p className={`text-sm font-semibold ${testResult.success ? 'text-[#00FF88]' : 'text-red-500'}`}>
-                    {testResult.success ? 'Test Successful' : 'Test Failed'}
-                  </p>
-                </div>
-                <p className="text-xs text-gray-300 mt-1">{testResult.message}</p>
-              </div>
-            )}
-          </div>
-        </motion.div>
 
         <motion.div
           className="mt-12 text-center"

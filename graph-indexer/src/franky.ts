@@ -7,43 +7,26 @@ import {
 } from "../generated/Franky/Franky"
 
 import { agent as Agent, device as Device, user as User } from "../generated/schema"
-import { Bytes, BigInt } from "@graphprotocol/graph-ts"
 
 export function handleAgentCreated(event: AgentCreatedEvent): void {
-  // Create User if it doesn't exist
   let userId = event.params.owner.toHexString()
   let user = User.load(userId)
-  if (!user) {
-    user = new User(userId)
-    user.createdAt = event.block.timestamp
-    user.updatedAt = event.block.timestamp
-    user.save()
-  }
-
-  // Create or update Device
   let deviceId = event.params.deviceAddress.toHexString()
   let device = Device.load(deviceId)
-  if (!device) {
-    device = new Device(deviceId)
-    device.owner = userId
-    device.createdAt = event.block.timestamp
+  if (device && user) {
+    let agentId = event.params.agentAddress.toHexString()
+    let agent = new Agent(agentId)
+    agent.deviceAddress = event.params.deviceAddress.toHexString()
+    agent.owner = userId
+    agent.avatar = event.params.avatar
+    agent.subname = event.params.subname
+    agent.perApiCallFee = event.params.perApiCallFee
+    agent.characterConfig = event.params.characterConfig
+    agent.isPublic = event.params.isPublic
+    agent.createdAt = event.block.timestamp
+    agent.updatedAt = event.block.timestamp
+    agent.save()
   }
-  device.updatedAt = event.block.timestamp
-  device.save()
-
-  // Create Agent
-  let agentId = event.params.agentAddress.toHexString()
-  let agent = new Agent(agentId)
-  agent.deviceAddress = event.params.deviceAddress.toHexString()
-  agent.owner = userId
-  agent.avatar = event.params.avatar
-  agent.subname = event.params.subname
-  agent.perApiCallFee = event.params.perApiCallFee
-  agent.characterConfig = event.params.characterConfig
-  agent.isPublic = event.params.isPublic
-  agent.createdAt = event.block.timestamp
-  agent.updatedAt = event.block.timestamp
-  agent.save()
 }
 
 export function handleApiKeyRegenerated(event: ApiKeyRegeneratedEvent): void {
