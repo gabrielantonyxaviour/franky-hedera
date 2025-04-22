@@ -560,62 +560,60 @@ export default function DeployDevice() {
   return (
     <>
       <Background />
-      <main className="min-h-screen pb-16 relative z-10">
-        <Header />
 
-        {/* Hero Section */}
-        <section className="pt-32 px-6 relative">
-          <div className="container mx-auto text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-            >
-              <h1 className="text-4xl md:text-6xl font-bold mb-8 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
-                Deploy Your Device
-              </h1>
-              <p className="text-xl mb-12 text-[#AAAAAA] max-w-4xl mx-auto">
-                Transform your old mobile device into an AI agent in 10 minutes.
-                Follow the instructions below to get started.
-              </p>
-            </motion.div>
-          </div>
-        </section>
 
-        {/* Instructions Section */}
-        <section className="py-10 px-6">
-          <div className="container mx-auto max-w-5xl">
-            <InstructionStep number={1} title="Setup your Phone" icon={<FiSmartphone />}>
-              <p className="mb-6">
-                Watch this video tutorial to set up your phone with Termux, an Android terminal emulator that allows you to run Linux commands:
-              </p>
+      {/* Hero Section */}
+      <section className="pt-32 px-6 relative">
+        <div className="container mx-auto text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <h1 className="text-4xl md:text-6xl font-bold mb-8 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
+              Deploy Your Device
+            </h1>
+            <p className="text-xl mb-12 text-[#AAAAAA] max-w-4xl mx-auto">
+              Transform your old mobile device into an AI agent in 10 minutes.
+              Follow the instructions below to get started.
+            </p>
+          </motion.div>
+        </div>
+      </section>
 
-              <div className="relative pb-[56.25%] h-0 rounded-lg overflow-hidden mb-4">
-                <iframe
-                  className="absolute top-0 left-0 w-full h-full border-0"
-                  src="https://www.youtube.com/embed/s3TXc-jiQ40"
-                  title="Franky AI: Setting up your device"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen>
-                </iframe>
-              </div>
+      {/* Instructions Section */}
+      <section className="py-10 px-6">
+        <div className="container mx-auto max-w-5xl">
+          <InstructionStep number={1} title="Setup your Phone" icon={<FiSmartphone />}>
+            <p className="mb-6">
+              Watch this video tutorial to set up your phone with Termux, an Android terminal emulator that allows you to run Linux commands:
+            </p>
 
-            </InstructionStep>
+            <div className="relative pb-[56.25%] h-0 rounded-lg overflow-hidden mb-4">
+              <iframe
+                className="absolute top-0 left-0 w-full h-full border-0"
+                src="https://www.youtube.com/embed/s3TXc-jiQ40"
+                title="Franky AI: Setting up your device"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen>
+              </iframe>
+            </div>
 
-            <InstructionStep number={2} title="Run Franky" icon={<Zap />}>
-              <p className="mb-4">
-                Use the following curl command to download, install and run Franky:
-              </p>
-              <CodeBlock code="pkg update && pkg install nodejs libqrencode termux-api jq curl && git clone https://github.com/Marshal-AM/franky.git && cd franky && cd agent-framework && chmod +x franky && ./franky start" />
-              <p className="mt-4">
-                This script will download all necessary files to run Franky on your device.
-              </p>
-            </InstructionStep>
-          </div>
-        </section>
+          </InstructionStep>
 
-        <DeviceVerification />
-      </main>
+          <InstructionStep number={2} title="Run Franky" icon={<Zap />}>
+            <p className="mb-4">
+              Use the following curl command to download, install and run Franky:
+            </p>
+            <CodeBlock code="pkg update && pkg install nodejs libqrencode termux-api jq curl && git clone https://github.com/Marshal-AM/franky.git && cd franky && cd agent-framework && chmod +x franky && ./franky start" />
+            <p className="mt-4">
+              This script will download all necessary files to run Franky on your device.
+            </p>
+          </InstructionStep>
+        </div>
+      </section>
+
+      <DeviceVerification />
     </>
   )
 }

@@ -351,102 +351,98 @@ export default function MarketplacePage() {
   return (
     <>
       <Background />
-      <main className="min-h-screen pb-16 relative z-10">
-        <Header />
+      {/* Hero Section */}
+      <section className="pt-32 px-6 relative">
+        <div className="container mx-auto text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <h1 className="text-4xl md:text-6xl font-bold mb-8 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
+              Device Marketplace
+            </h1>
+            <p className="text-xl mb-6 text-[#AAAAAA] max-w-4xl mx-auto">
+              Browse and select from available deployed devices to host your AI agents.
+              These devices have been registered on-chain and are ready to run your agents.
+            </p>
+            <p className="text-lg mb-12 text-emerald-400 max-w-4xl mx-auto">
+              Each device shows its hosting fee in $FIL tokens - this is what you'll pay to deploy your agent to the device.
+            </p>
+          </motion.div>
+        </div>
+      </section>
 
-        {/* Hero Section */}
-        <section className="pt-32 px-6 relative">
-          <div className="container mx-auto text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-            >
-              <h1 className="text-4xl md:text-6xl font-bold mb-8 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
-                Device Marketplace
-              </h1>
-              <p className="text-xl mb-6 text-[#AAAAAA] max-w-4xl mx-auto">
-                Browse and select from available deployed devices to host your AI agents.
-                These devices have been registered on-chain and are ready to run your agents.
-              </p>
-              <p className="text-lg mb-12 text-emerald-400 max-w-4xl mx-auto">
-                Each device shows its hosting fee in $FIL tokens - this is what you'll pay to deploy your agent to the device.
-              </p>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* Marketplace Section */}
-        <section className="py-10 px-6">
-          <div className="container mx-auto">
-            {loading ? (
-              <div className="flex flex-col justify-center items-center py-20">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#00FF88] mb-4"></div>
-                <p className="text-[#AAAAAA]">Loading devices from blockchain...</p>
+      {/* Marketplace Section */}
+      <section className="py-10 px-6">
+        <div className="container mx-auto">
+          {loading ? (
+            <div className="flex flex-col justify-center items-center py-20">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#00FF88] mb-4"></div>
+              <p className="text-[#AAAAAA]">Loading devices from blockchain...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-20 px-4">
+              <div className="p-6 rounded-xl border border-red-500 border-opacity-30 bg-black/50 backdrop-blur-sm max-w-2xl mx-auto">
+                <p className="text-xl text-red-400 mb-4">Error loading devices</p>
+                <p className="text-[#AAAAAA]">{error}</p>
               </div>
-            ) : error ? (
-              <div className="text-center py-20 px-4">
-                <div className="p-6 rounded-xl border border-red-500 border-opacity-30 bg-black/50 backdrop-blur-sm max-w-2xl mx-auto">
-                  <p className="text-xl text-red-400 mb-4">Error loading devices</p>
-                  <p className="text-[#AAAAAA]">{error}</p>
-                </div>
-              </div>
-            ) : devices.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {devices.map((device, idx) => (
-                  <DeviceCard
-                    key={idx.toString()}
-                    keyVal={idx.toString()}
-                    device={device}
-                    onClick={() => handleDeviceSelect(device)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-20">
-                <p className="text-xl text-[#AAAAAA] mb-3">No devices available.</p>
-                <Link href="/deploy-device">
-                  <motion.button
-                    className="px-6 py-2 rounded-lg bg-[#00FF88]/20 border border-[#00FF88]/50 text-[#00FF88] hover:bg-[#00FF88]/30 transition-colors"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    Be the first to deploy a device!
-                  </motion.button>
-                </Link>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Add Device CTA */}
-        <section className="py-10 px-6">
-          <div className="container mx-auto max-w-4xl">
-            <motion.div
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              className="p-8 rounded-xl border border-[#00FF88] border-opacity-30 bg-black/50 backdrop-blur-sm text-center"
-            >
-              <h2 className="text-2xl md:text-3xl font-bold mb-4 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
-                Start Earning Money Now!
-              </h2>
-              <p className="text-[#AAAAAA] mb-6">
-                Deploy your idle mobile devices and earn TFIL by providing computing resources for AI agents.
-              </p>
+            </div>
+          ) : devices.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {devices.map((device, idx) => (
+                <DeviceCard
+                  key={idx.toString()}
+                  keyVal={idx.toString()}
+                  device={device}
+                  onClick={() => handleDeviceSelect(device)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-20">
+              <p className="text-xl text-[#AAAAAA] mb-3">No devices available.</p>
               <Link href="/deploy-device">
                 <motion.button
-                  className="px-8 py-3 rounded-xl bg-[#00FF88]/20 border border-[#00FF88]/50 text-[#00FF88] text-lg font-bold hover:bg-[#00FF88]/30 transition-colors"
+                  className="px-6 py-2 rounded-lg bg-[#00FF88]/20 border border-[#00FF88]/50 text-[#00FF88] hover:bg-[#00FF88]/30 transition-colors"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  Deploy Your Device →
+                  Be the first to deploy a device!
                 </motion.button>
               </Link>
-            </motion.div>
-          </div>
-        </section>
-      </main>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Add Device CTA */}
+      <section className="py-10 px-6">
+        <div className="container mx-auto max-w-4xl">
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="p-8 rounded-xl border border-[#00FF88] border-opacity-30 bg-black/50 backdrop-blur-sm text-center"
+          >
+            <h2 className="text-2xl md:text-3xl font-bold mb-4 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
+              Start Earning Money Now!
+            </h2>
+            <p className="text-[#AAAAAA] mb-6">
+              Deploy your idle mobile devices and earn TFIL by providing computing resources for AI agents.
+            </p>
+            <Link href="/deploy-device">
+              <motion.button
+                className="px-8 py-3 rounded-xl bg-[#00FF88]/20 border border-[#00FF88]/50 text-[#00FF88] text-lg font-bold hover:bg-[#00FF88]/30 transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                Deploy Your Device →
+              </motion.button>
+            </Link>
+          </motion.div>
+        </div>
+      </section>
     </>
   )
 }

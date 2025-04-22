@@ -42,25 +42,22 @@ export default function RegisterChecker() {
   };
 
   return (
-    <main className="min-h-screen pb-16">
-      <Header />
-
-      <section className="pt-32 px-6">
-        <div className="container mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <h1 className="text-4xl md:text-6xl font-bold mb-8 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
-              Become a Checker Node
-            </h1>
-            <p className="text-xl mb-12 text-[#AAAAAA] max-w-4xl mx-auto">
-              Join the Checker Network and help verify device reliability.
-            </p>
-          </motion.div>
-        </div>
-      </section>
+    <> <section className="pt-32 px-6">
+      <div className="container mx-auto text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
+          <h1 className="text-4xl md:text-6xl font-bold mb-8 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
+            Become a Checker Node
+          </h1>
+          <p className="text-xl mb-12 text-[#AAAAAA] max-w-4xl mx-auto">
+            Join the Checker Network and help verify device reliability.
+          </p>
+        </motion.div>
+      </div>
+    </section>
 
       <section className="py-10 px-6">
         <div className="container mx-auto max-w-4xl">
@@ -159,7 +156,6 @@ export default function RegisterChecker() {
             </div>
           </div>
         </div>
-      </section>
-    </main>
+      </section></>
   )
 } 

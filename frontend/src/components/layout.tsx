@@ -53,15 +53,17 @@ export default function Layout({
     const { user, ready } = usePrivy()
 
     return <body className="min-h-screen flex flex-col sen">
-        {!ready ? <div className="w-full h-screen flex flex-col justify-center items-center">
-            <Image src="/loading.gif" alt="loading" width={300} height={300} className="pb-8" />
-        </div> :
-            user != null ? children :
-                <main className="min-h-screen flex flex-col">
-                    <Header />
-                    <HeroAnimation />
+        <div className="min-h-screen flex flex-col">
+            <Header />
+            <HeroAnimation />
+            {!ready ? <div className="w-full h-screen flex flex-col justify-center items-center">
+                <Image src="/loading.gif" alt="loading" width={300} height={300} className="pb-8" />
+            </div> :
+                user != null ? children :
+
                     <SignIn />
-                </main>
-        }
+            }
+        </div>
+
     </body>
 }

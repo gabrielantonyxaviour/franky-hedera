@@ -1254,8 +1254,6 @@ function CreateAgentContent() {
 
   return (
     <>
-      <Header />
-
       <div className="container mx-auto px-4 pt-32">
         <motion.h1
           className="text-4xl md:text-5xl font-bold mb-8 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent text-center"

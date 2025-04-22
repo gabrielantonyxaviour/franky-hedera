@@ -144,182 +144,178 @@ export default function AppDashboard() {
 
   return (
     <>
-      <div className="min-h-screen pb-16 relative">
-        <Header />
+      <main className="container mx-auto px-4 pt-32">
+        <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
+          Franky Dashboard
+        </h1>
 
-        <main className="container mx-auto px-4 pt-32">
-          <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
-            Franky Dashboard
-          </h1>
-
-          {/* KPI Section */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <motion.div
-              className="p-6 rounded-xl bg-black/50 backdrop-blur-sm border border-[#00FF88]/30"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className="flex items-center">
-                <div className="p-3 rounded-lg bg-[#00FF88]/20 mr-4">
-                  <FiSmartphone className="text-[#00FF88] text-xl" />
-                </div>
-                <div>
-                  <h3 className="text-gray-400 text-sm">Total Devices</h3>
-                  <p className="text-3xl font-bold text-white">{kpiData.totalDevices}</p>
-                </div>
+        {/* KPI Section */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          <motion.div
+            className="p-6 rounded-xl bg-black/50 backdrop-blur-sm border border-[#00FF88]/30"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="flex items-center">
+              <div className="p-3 rounded-lg bg-[#00FF88]/20 mr-4">
+                <FiSmartphone className="text-[#00FF88] text-xl" />
               </div>
-            </motion.div>
-
-            <motion.div
-              className="p-6 rounded-xl bg-black/50 backdrop-blur-sm border border-[#00FF88]/30"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
-              <div className="flex items-center">
-                <div className="p-3 rounded-lg bg-[#00FF88]/20 mr-4">
-                  <FiCpu className="text-[#00FF88] text-xl" />
-                </div>
-                <div>
-                  <h3 className="text-gray-400 text-sm">Total Agents</h3>
-                  <p className="text-3xl font-bold text-white">{kpiData.totalAgents}</p>
-                </div>
+              <div>
+                <h3 className="text-gray-400 text-sm">Total Devices</h3>
+                <p className="text-3xl font-bold text-white">{kpiData.totalDevices}</p>
               </div>
-            </motion.div>
+            </div>
+          </motion.div>
 
-            <motion.div
-              className="p-6 rounded-xl bg-black/50 backdrop-blur-sm border border-[#00FF88]/30"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <div className="flex items-center">
-                <div className="p-3 rounded-lg bg-[#00FF88]/20 mr-4">
-                  <FiDollarSign className="text-[#00FF88] text-xl" />
-                </div>
-                <div>
-                  <h3 className="text-gray-400 text-sm">Total Revenue</h3>
-                  <p className="text-3xl font-bold text-white">${kpiData.totalRevenue}</p>
-                </div>
+          <motion.div
+            className="p-6 rounded-xl bg-black/50 backdrop-blur-sm border border-[#00FF88]/30"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <div className="flex items-center">
+              <div className="p-3 rounded-lg bg-[#00FF88]/20 mr-4">
+                <FiCpu className="text-[#00FF88] text-xl" />
               </div>
-            </motion.div>
-          </section>
+              <div>
+                <h3 className="text-gray-400 text-sm">Total Agents</h3>
+                <p className="text-3xl font-bold text-white">{kpiData.totalAgents}</p>
+              </div>
+            </div>
+          </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Transactions Section - Now Vertical */}
-            <div className="lg:col-span-2">
-              <h2 className="text-2xl font-bold text-white mb-4">Recent Transactions</h2>
+          <motion.div
+            className="p-6 rounded-xl bg-black/50 backdrop-blur-sm border border-[#00FF88]/30"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <div className="flex items-center">
+              <div className="p-3 rounded-lg bg-[#00FF88]/20 mr-4">
+                <FiDollarSign className="text-[#00FF88] text-xl" />
+              </div>
+              <div>
+                <h3 className="text-gray-400 text-sm">Total Revenue</h3>
+                <p className="text-3xl font-bold text-white">${kpiData.totalRevenue}</p>
+              </div>
+            </div>
+          </motion.div>
+        </section>
 
-              <div className="space-y-4">
-                <AnimatePresence>
-                  {transactions.map((tx) => (
-                    <motion.div
-                      key={tx.id}
-                      className="p-4 rounded-lg bg-black/50 backdrop-blur-sm border border-[#00FF88]/20 w-full"
-                      initial={{ opacity: 0, y: -20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
-                      transition={{ duration: 0.5 }}
-                    >
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center">
-                          <div className="p-2 rounded-md bg-[#00FF88]/10 mr-3">
-                            {getTransactionIcon(tx.type)}
-                          </div>
-                          <div>
-                            <h3 className="font-medium text-white capitalize">
-                              {tx.type.replace('-', ' ')}
-                            </h3>
-                            <p className="text-xs text-gray-400">{tx.timestamp}</p>
-                          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Transactions Section - Now Vertical */}
+          <div className="lg:col-span-2">
+            <h2 className="text-2xl font-bold text-white mb-4">Recent Transactions</h2>
+
+            <div className="space-y-4">
+              <AnimatePresence>
+                {transactions.map((tx) => (
+                  <motion.div
+                    key={tx.id}
+                    className="p-4 rounded-lg bg-black/50 backdrop-blur-sm border border-[#00FF88]/20 w-full"
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center">
+                        <div className="p-2 rounded-md bg-[#00FF88]/10 mr-3">
+                          {getTransactionIcon(tx.type)}
                         </div>
-                        <div className={`px-2 py-1 rounded-full text-xs flex items-center ${tx.status === 'completed' ? 'bg-[#00FF88]/10' :
-                            tx.status === 'pending' ? 'bg-yellow-500/10' : 'bg-red-500/10'
-                          }`}>
-                          {tx.status === 'completed' ? (
-                            <FiCheckCircle className="mr-1 text-[#00FF88]" />
-                          ) : (
-                            <FiClock className="mr-1 text-yellow-400" />
-                          )}
-                          <span className={getStatusColor(tx.status)}>
-                            {tx.status}
+                        <div>
+                          <h3 className="font-medium text-white capitalize">
+                            {tx.type.replace('-', ' ')}
+                          </h3>
+                          <p className="text-xs text-gray-400">{tx.timestamp}</p>
+                        </div>
+                      </div>
+                      <div className={`px-2 py-1 rounded-full text-xs flex items-center ${tx.status === 'completed' ? 'bg-[#00FF88]/10' :
+                        tx.status === 'pending' ? 'bg-yellow-500/10' : 'bg-red-500/10'
+                        }`}>
+                        {tx.status === 'completed' ? (
+                          <FiCheckCircle className="mr-1 text-[#00FF88]" />
+                        ) : (
+                          <FiClock className="mr-1 text-yellow-400" />
+                        )}
+                        <span className={getStatusColor(tx.status)}>
+                          {tx.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                          <span className="text-xs text-gray-400">Amount</span>
+                          <span className="text-sm font-medium text-white">
+                            {tx.amount} $FRANKY
                           </span>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                            <span className="text-xs text-gray-400">Amount</span>
-                            <span className="text-sm font-medium text-white">
-                              {tx.amount} $FRANKY
-                            </span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                            <span className="text-xs text-gray-400">Address</span>
-                            <span className="text-sm font-medium text-white">
-                              {tx.address}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                            <span className="text-xs text-gray-400">Tx Hash</span>
-                            <a
-                              href={`https://basescan.org/tx/${tx.hash}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-[#00FF88] hover:underline"
-                            >
-                              {tx.hash}
-                            </a>
-                          </div>
+                      <div>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                          <span className="text-xs text-gray-400">Address</span>
+                          <span className="text-sm font-medium text-white">
+                            {tx.address}
+                          </span>
                         </div>
                       </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
-            </div>
 
-            {/* Top Token Holders - Updated without percentages */}
-            <div>
-              <h2 className="text-2xl font-bold text-white mb-4">Top $FRANKY Holders</h2>
-
-              <div className="bg-black/50 backdrop-blur-sm border border-[#00FF88]/20 rounded-xl p-4">
-                {tokenHolders.map((holder, idx) => (
-                  <motion.div
-                    key={holder.address}
-                    className={`py-3 ${idx !== tokenHolders.length - 1 ? 'border-b border-[#00FF88]/10' : ''}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: idx * 0.05 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="flex justify-center items-center h-8 w-8 rounded-full bg-[#00FF88]/20 text-[#00FF88] mr-3">
-                          {idx + 1}
+                      <div>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                          <span className="text-xs text-gray-400">Tx Hash</span>
+                          <a
+                            href={`https://basescan.org/tx/${tx.hash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-[#00FF88] hover:underline"
+                          >
+                            {tx.hash}
+                          </a>
                         </div>
-                        <div>
-                          <p className="text-sm text-white">{holder.address}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-sm font-medium text-[#00FF88]">{holder.amount} $FRANKY</span>
                       </div>
                     </div>
                   </motion.div>
                 ))}
-              </div>
+              </AnimatePresence>
             </div>
           </div>
-        </main>
-      </div>
+
+          {/* Top Token Holders - Updated without percentages */}
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-4">Top $FRANKY Holders</h2>
+
+            <div className="bg-black/50 backdrop-blur-sm border border-[#00FF88]/20 rounded-xl p-4">
+              {tokenHolders.map((holder, idx) => (
+                <motion.div
+                  key={holder.address}
+                  className={`py-3 ${idx !== tokenHolders.length - 1 ? 'border-b border-[#00FF88]/10' : ''}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: idx * 0.05 }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="flex justify-center items-center h-8 w-8 rounded-full bg-[#00FF88]/20 text-[#00FF88] mr-3">
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <p className="text-sm text-white">{holder.address}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-medium text-[#00FF88]">{holder.amount} $FRANKY</span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
     </>
   )
 }

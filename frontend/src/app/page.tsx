@@ -131,149 +131,143 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col">
-      <Header />
-      <HeroAnimation />
+    <section className="flex-1 flex items-center justify-center px-4 relative">
+      <div className="container mx-auto text-center">
+        {!getStarted ? (
+          <div>
+            <p className="text-lg md:text-xl mb-3 text-[#AAAAAA] max-w-3xl mx-auto">
+              Introducing
+            </p>
+            <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
+              Green AI Agents
+            </h1>
+            <p className="text-xl md:text-2xl mb-10 text-[#AAAAAA] max-w-3xl mx-auto">
+              Recycle your old mobile devices into AI agents and earn $FIL.
+            </p>
 
-      {/* Hero Section */}
-      <section className="flex-1 flex items-center justify-center px-4 relative">
-        <div className="container mx-auto text-center">
-          {!getStarted ? (
-            <div>
-              <p className="text-lg md:text-xl mb-3 text-[#AAAAAA] max-w-3xl mx-auto">
-                Introducing
-              </p>
-              <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
-                Green AI Agents
-              </h1>
-              <p className="text-xl md:text-2xl mb-10 text-[#AAAAAA] max-w-3xl mx-auto">
-                Recycle your old mobile devices into AI agents and earn $FIL.
-              </p>
-
-              <div className="flex flex-col md:flex-row justify-center gap-6 md:gap-8">
-                <GlowButton onClick={() => setGetStarted(true)}>
-                  Get Started
-                </GlowButton>
-              </div>
+            <div className="flex flex-col md:flex-row justify-center gap-6 md:gap-8">
+              <GlowButton onClick={() => setGetStarted(true)}>
+                Get Started
+              </GlowButton>
             </div>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5 }}
-              className="w-full"
-            >
-              {/* Logo and Site Name */}
-              <div className="flex items-center justify-center mb-16 space-x-4">
-                <Image src={"/logo.png"} alt="Logo" width={50} height={50} className="rounded-full select-none" />
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
-                  frankyagent.xyz
-                </h2>
-              </div>
+          </div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="w-full"
+          >
+            {/* Logo and Site Name */}
+            <div className="flex items-center justify-center mb-16 space-x-4">
+              <Image src={"/logo.png"} alt="Logo" width={50} height={50} className="rounded-full select-none" />
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
+                frankyagent.xyz
+              </h2>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                <OptionCard
-                  title="Convert Your Device"
-                  description="Turn your old mobile device into an AI agent hosting service and earn $FIL tokens."
-                  icon={
-                    <svg
-                      width="64"
-                      height="64"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <rect
-                        x="2"
-                        y="4"
-                        width="20"
-                        height="16"
-                        rx="2"
-                        stroke="#00FF88"
-                        strokeWidth="1.5"
-                      />
-                      <path d="M2 10H22" stroke="#00FF88" strokeWidth="1.5" />
-                      <circle
-                        cx="12"
-                        cy="16"
-                        r="2"
-                        stroke="#00FF88"
-                        strokeWidth="1.5"
-                      />
-                    </svg>
-                  }
-                  onClick={() => {
-                    router.push("/deploy-device")
-                  }}
-                />
-                <OptionCard
-                  title="Host Your AI Agent"
-                  description="Host your AI agent in any available old devices listed in the marketplace."
-                  icon={
-                    <svg
-                      width="64"
-                      height="64"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M12 2L20 7V17L12 22L4 17V7L12 2Z"
-                        stroke="#00FF88"
-                        strokeWidth="1.5"
-                      />
-                      <circle
-                        cx="12"
-                        cy="12"
-                        r="3"
-                        stroke="#00FF88"
-                        strokeWidth="1.5"
-                      />
-                    </svg>
-                  }
-                  onClick={() => router.push("/marketplace")}
-                />
-                <OptionCard
-                  title="Use Public AI Agents"
-                  description="Access and use any of the publicly available AI agents in the Franky Ecosystem."
-                  icon={
-                    <svg
-                      width="64"
-                      height="64"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"
-                        stroke="#00FF88"
-                        strokeWidth="1.5"
-                      />
-                      <path
-                        d="M20 21C20 16.5817 16.4183 13 12 13C7.58172 13 4 16.5817 4 21"
-                        stroke="#00FF88"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  }
-                  onClick={() => {
-                    router.push("/agent-marketplace")
-                  }}
-                />
-              </div>
-              <motion.button
-                className="mt-12 py-2 px-4 text-[#00FF88] hover:text-white border border-[#00FF88]/30 rounded-lg transition-colors duration-300"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setGetStarted(false)}
-              >
-                ←  Go Back
-              </motion.button>
-            </motion.div>
-          )}
-        </div>
-      </section>
-    </main>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+              <OptionCard
+                title="Convert Your Device"
+                description="Turn your old mobile device into an AI agent hosting service and earn $FIL tokens."
+                icon={
+                  <svg
+                    width="64"
+                    height="64"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <rect
+                      x="2"
+                      y="4"
+                      width="20"
+                      height="16"
+                      rx="2"
+                      stroke="#00FF88"
+                      strokeWidth="1.5"
+                    />
+                    <path d="M2 10H22" stroke="#00FF88" strokeWidth="1.5" />
+                    <circle
+                      cx="12"
+                      cy="16"
+                      r="2"
+                      stroke="#00FF88"
+                      strokeWidth="1.5"
+                    />
+                  </svg>
+                }
+                onClick={() => {
+                  router.push("/deploy-device")
+                }}
+              />
+              <OptionCard
+                title="Host Your AI Agent"
+                description="Host your AI agent in any available old devices listed in the marketplace."
+                icon={
+                  <svg
+                    width="64"
+                    height="64"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 2L20 7V17L12 22L4 17V7L12 2Z"
+                      stroke="#00FF88"
+                      strokeWidth="1.5"
+                    />
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="3"
+                      stroke="#00FF88"
+                      strokeWidth="1.5"
+                    />
+                  </svg>
+                }
+                onClick={() => router.push("/marketplace")}
+              />
+              <OptionCard
+                title="Use Public AI Agents"
+                description="Access and use any of the publicly available AI agents in the Franky Ecosystem."
+                icon={
+                  <svg
+                    width="64"
+                    height="64"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"
+                      stroke="#00FF88"
+                      strokeWidth="1.5"
+                    />
+                    <path
+                      d="M20 21C20 16.5817 16.4183 13 12 13C7.58172 13 4 16.5817 4 21"
+                      stroke="#00FF88"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                }
+                onClick={() => {
+                  router.push("/agent-marketplace")
+                }}
+              />
+            </div>
+            <motion.button
+              className="mt-12 py-2 px-4 text-[#00FF88] hover:text-white border border-[#00FF88]/30 rounded-lg transition-colors duration-300"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setGetStarted(false)}
+            >
+              ←  Go Back
+            </motion.button>
+          </motion.div>
+        )}
+      </div>
+    </section>
   );
 }
