@@ -38,9 +38,33 @@ async function fetchAgentDetails(agentAddress) {
     try {
         const response = await fetch(`https://www.frankyagent.xyz/api/graph/agent?address=${agentAddress}`);
         if (!response.ok) {
-            throw new Error(`Failed to fetch agent details: ${response.status}`);
+            const errorText = await response.text();
+            console.error(`❌ Failed to fetch agent details. Status: ${response.status}`);
+            console.error(`Response: ${errorText}`);
+            throw new Error(`Failed to fetch agent details: ${response.status} - ${errorText}`);
         }
+        
         const agentData = await response.json();
+        console.log('📋 Agent Details:');
+        console.log(JSON.stringify({
+            id: agentData.id,
+            subname: agentData.subname,
+            keyHash: agentData.keyHash,
+            owner: agentData.owner ? {
+                id: agentData.owner.id,
+                serverWalletAddress: agentData.owner.serverWalletAddress
+            } : null,
+            isPublic: agentData.isPublic,
+            status: agentData.status
+        }, null, 2));
+        
+        if (!agentData.keyHash) {
+            console.error('⚠️ Warning: Agent data is missing keyHash');
+        }
+        if (!agentData.owner) {
+            console.error('⚠️ Warning: Agent data is missing owner information');
+        }
+        
         console.log(`✅ Successfully fetched agent details`);
         return agentData;
     } catch (error) {
@@ -73,16 +97,39 @@ async function recoverApiKey(apiKey, agentAddress) {
     });
     console.log(`Recovered address: ${address}`);
 
+    // Add null checks for owner details
+    if (!agentDetails.owner) {
+        console.error("❌ Agent owner details not found");
+        return {
+            address,
+            isOwner: false,
+            isServerWallet: false,
+            ownerAddress: null,
+            serverWalletAddress: null
+        };
+    }
+
     // Check if the recovered address matches either the owner or their server wallet
-    const isOwner = address.toLowerCase() === agentDetails.owner.id.toLowerCase();
-    const isServerWallet = address.toLowerCase() === agentDetails.owner.serverWalletAddress.toLowerCase();
+    const ownerAddress = agentDetails.owner.id;
+    const serverWalletAddress = agentDetails.owner.serverWalletAddress;
+
+    // Add null checks for specific addresses
+    if (!ownerAddress) {
+        console.error("❌ Owner address not found in agent details");
+    }
+    if (!serverWalletAddress) {
+        console.error("❌ Server wallet address not found in agent details");
+    }
+
+    const isOwner = ownerAddress ? address.toLowerCase() === ownerAddress.toLowerCase() : false;
+    const isServerWallet = serverWalletAddress ? address.toLowerCase() === serverWalletAddress.toLowerCase() : false;
 
     return {
         address,
         isOwner,
         isServerWallet,
-        ownerAddress: agentDetails.owner.id,
-        serverWalletAddress: agentDetails.owner.serverWalletAddress
+        ownerAddress,
+        serverWalletAddress
     };
 }
 
