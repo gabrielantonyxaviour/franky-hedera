@@ -1,14 +1,30 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createPublicClient, http } from 'viem'
-import { normalize } from 'viem/ens'
-import { mainnet } from 'viem/chains'
 
-// Create a public client for ENS resolution
-const publicClient = createPublicClient({
-  chain: mainnet,
-  transport: http()
-})
+interface Device {
+  __typename: string;
+  id: string;
+  ngrokLink: string;
+}
+
+interface User {
+  __typename: string;
+  id: string;
+}
+
+interface Agent {
+  __typename: string;
+  id: string;
+  deviceAddress: Device;
+  owner: User;
+  avatar: string;
+  subname: string;
+  perApiCallFee: string;
+  characterConfig: string;
+  createdAt: string;
+  updatedAt: string;
+  isPublic: boolean;
+}
 
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl
@@ -27,28 +43,33 @@ export async function middleware(request: NextRequest) {
     try {
       console.log(`Processing request for subdomain: ${subdomain}`)
       
-      // Construct the full ENS name
-      const ensName = normalize(`${subdomain}.frankyagent.xyz`)
-      
       try {
-        // Fetch the ngrok URL from ENS text record
-        const ngrokUrl = await publicClient.getEnsText({
-          name: ensName,
-          key: 'url'
-        })
+        // Fetch agents from the API endpoint
+        const response = await fetch('https://www.frankyagent.xyz/api/graph/agents')
         
-        if (!ngrokUrl) {
-          console.error(`Ngrok URL not found in ENS text record for: ${ensName}`)
-          return new NextResponse('Ngrok URL not found', { status: 404 })
+        if (!response.ok) {
+          console.error(`Failed to fetch agents: ${response.status} ${response.statusText}`)
+          return new NextResponse('Failed to fetch agents', { status: 500 })
+        }
+        
+        const agents: Agent[] = await response.json()
+        
+        // Find agent with matching subname
+        const agent = agents.find(agent => agent.subname === subdomain)
+        
+        if (!agent || !agent.deviceAddress?.ngrokLink) {
+          console.error(`No agent found with subname: ${subdomain} or ngrok link not available`)
+          return new NextResponse('Agent not found or ngrok link not available', { status: 404 })
         }
 
-        console.log(`Found ngrok URL for ${ensName}: ${ngrokUrl}`)
+        const ngrokUrl = agent.deviceAddress.ngrokLink
+        console.log(`Found ngrok URL for ${subdomain}: ${ngrokUrl}`)
         
         // Forward the request to the ngrok URL
         return NextResponse.rewrite(new URL(ngrokUrl + url.pathname + url.search))
       } catch (error) {
-        console.error(`Error fetching ENS text record: ${error}`)
-        return new NextResponse('Failed to get ngrok URL from ENS', { status: 500 })
+        console.error(`Error fetching agent data: ${error}`)
+        return new NextResponse('Failed to get agent data', { status: 500 })
       }
     } catch (error) {
       console.error('Error processing agent request:', error)
