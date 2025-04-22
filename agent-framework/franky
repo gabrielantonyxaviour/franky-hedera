@@ -8,8 +8,8 @@ DEVICE_WEBHOOK_URL="https://693f-111-235-226-130.ngrok-free.app"
 AGENT_WEBHOOK_URL="https://2b55-111-235-226-130.ngrok-free.app"
 
 # API Endpoints for fetching devices and agents
-DEVICES_ENDPOINT="https://www.frankyagent.xyz/api/graph/devices"
-AGENT_ENDPOINT="https://www.frankyagent.xyz/api/graph/agent"
+DEVICES_ENDPOINT="https://www.frankyagent.xyz/api/graph/devices-by-wallet?address="
+AGENT_ENDPOINT="https://www.frankyagent.xyz/api/graph/agent-by-wallet"
 
 # Function to setup dependencies and configuration    
 setup_dependencies() {
@@ -432,7 +432,7 @@ create_wallet() {
             
             # Fetch the list of devices from new API endpoint
             TEMP_FILE=$(mktemp)
-            curl -s "$DEVICES_ENDPOINT" > "$TEMP_FILE" 2>/dev/null
+            curl -s "${DEVICES_ENDPOINT}${WALLET_ADDRESS}" > "$TEMP_FILE" 2>/dev/null
             
             # Check if we got a valid response
             if [ -s "$TEMP_FILE" ] && jq empty "$TEMP_FILE" 2>/dev/null; then
@@ -641,8 +641,8 @@ list_latest_agent() {
             
             if [ "$FOUND_AGENT" = true ]; then
                 # Fetch detailed agent information
-                echo "🔍 Fetching agent details from: $AGENT_ENDPOINT?address=$AGENT_ID"
-                curl -s "$AGENT_ENDPOINT?address=$AGENT_ID" > "$TEMP_FILE" 2>/dev/null
+                echo "🔍 Fetching agent details from: $AGENT_ENDPOINT?address=$WALLET_ADDRESS"
+                curl -s "$AGENT_ENDPOINT?address=$WALLET_ADDRESS" > "$TEMP_FILE" 2>/dev/null
                 
                 if [ -s "$TEMP_FILE" ] && jq empty "$TEMP_FILE" 2>/dev/null; then
                     echo "✅ Successfully fetched agent details"

@@ -10,12 +10,11 @@ import { faucetWalletClient, publicClient } from "@/lib/utils";
 import { toast } from "sonner"
 import { encodeFunctionData, formatEther, parseEther, zeroAddress } from "viem";
 import { FRANKY_ABI, FRANKY_ADDRESS } from "@/lib/constants";
-import { getJsonFromAkave, uploadJsonToAkave, uploadJsonToAkaveWithFileName } from "@/lib/akave";
+import { getJsonFromAkave, uploadJsonToAkaveWithFileName } from "@/lib/akave";
 import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
 export default function Header() {
   const { user, logout } = usePrivy();
   const [showLogout, setShowLogout] = useState(false);
-  const { fundWallet } = useFundWallet();
   const logoutTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const userProfileRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);

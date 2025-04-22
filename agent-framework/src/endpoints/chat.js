@@ -120,7 +120,7 @@ class StreamLogger {
   constructor(sessionId) {
     this.sessionId = sessionId;
     this.buffer = [];
-    
+
     // Initialize session if it doesn't exist
     if (!activeLilypadSessions[sessionId]) {
       activeLilypadSessions[sessionId] = {
@@ -130,7 +130,7 @@ class StreamLogger {
       };
     }
   }
-  
+
   /**
    * Log a message with timestamp
    * @param {string} step - The step description
@@ -140,20 +140,20 @@ class StreamLogger {
   log(step, data, level = "INFO") {
     const timestamp = new Date().toISOString();
     let message;
-    
+
     if (typeof data === 'string') {
       message = `\n[${timestamp} ${level}] ${step}:\n${data}`;
     } else {
       message = `\n[${timestamp} ${level}] ${step}:\n${JSON.stringify(data, null, 2)}`;
     }
-    
+
     this.buffer.push(message);
-    
+
     // Update active session
     if (activeLilypadSessions[this.sessionId]) {
       activeLilypadSessions[this.sessionId].logs.push(message);
     }
-    
+
     // Also log to console for server-side visibility
     if (level === "ERROR") {
       console.error(message);
@@ -163,7 +163,7 @@ class StreamLogger {
       console.log(message);
     }
   }
-  
+
   /**
    * Get all logged updates as a single string
    * @returns {string} - The combined log messages
@@ -179,13 +179,13 @@ function formatAsHexString(address) {
     console.error('❌ Invalid address:', address);
     return null;
   }
-  
+
   // Remove any non-hex characters and ensure it starts with 0x
   let cleanAddress = address.toLowerCase().trim();
   if (!cleanAddress.startsWith('0x')) {
     cleanAddress = '0x' + cleanAddress;
   }
-  
+
   // Validate that it's a 42-character Ethereum address (0x + 40 hex characters)
   if (/^0x[0-9a-f]{40}$/i.test(cleanAddress)) {
     return cleanAddress;
@@ -332,7 +332,7 @@ router.post('/', async (request, response) => {
   try {
     console.log('⚡ Received chat request');
     const ollamaUrl = 'http://127.0.0.1:11434';
-    
+
     // Check if Lilypad should be used
     const isLilypad = request.headers['islilypad'] === 'true';
     console.log(`🔄 Request mode: ${isLilypad ? 'Lilypad' : 'Ollama'}`);
@@ -424,7 +424,7 @@ router.post('/', async (request, response) => {
     if (history) {
       console.log(`🔄 Fetching previous chat history with ID: ${history}`);
       const historyResult = await getJsonFromAkave(history);
-      
+
       if (historyResult.success && historyResult.data) {
         chat_history = historyResult.data.chat_history || [];
         console.log(`✅ Retrieved chat history with ${chat_history.length} messages`);
@@ -432,7 +432,7 @@ router.post('/', async (request, response) => {
         console.error(`❌ Failed to retrieve chat history with ID: ${history}`);
         // Continue with empty chat history
       }
-      } else {
+    } else {
       console.log(`ℹ️ No history ID provided, starting new conversation`);
     }
 
@@ -450,12 +450,12 @@ router.post('/', async (request, response) => {
         // Get the caller's balance
         const formattedCallerAddress = formatAddressForViem(caller);
         const formattedAgentOwnerAddress = formatAddressForViem(agentOwner);
-        
+
         if (!formattedCallerAddress) {
           console.error('❌ Invalid caller address format, cannot process payment');
           return response.status(400).send({ error: 'Invalid caller address format' });
         }
-        
+
         if (!formattedAgentOwnerAddress) {
           console.error('❌ Invalid agent owner address format, cannot process payment');
           return response.status(400).send({ error: 'Invalid agent owner address format' });
@@ -465,23 +465,23 @@ router.post('/', async (request, response) => {
           // Convert the string to a properly formatted hex string for viem
           let validCallerAddress = formattedCallerAddress;
           let validOwnerAddress = formattedAgentOwnerAddress;
-          
+
           // Check if addresses are in proper format for viem
           if (!/^0x[0-9a-f]{40}$/i.test(validCallerAddress)) {
             console.error(`❌ Caller address format not compatible with viem: ${validCallerAddress}`);
             return response.status(400).send({ error: 'Invalid caller address format' });
           }
-          
+
           if (!/^0x[0-9a-f]{40}$/i.test(validOwnerAddress)) {
             console.error(`❌ Owner address format not compatible with viem: ${validOwnerAddress}`);
             return response.status(400).send({ error: 'Invalid owner address format' });
           }
-          
+
           // Get caller balance
           const callerBalance = await filecoinClient.getBalance({
             address: validCallerAddress
           });
-          
+
           // Convert perApiCallAmount to BigInt for comparison (assuming it's in TFIL)
           const paymentAmount = BigInt(Math.floor(perApiCallAmount * 1e18)); // Convert to attoFIL (10^18)
 
@@ -491,33 +491,33 @@ router.post('/', async (request, response) => {
           // Check if the caller has enough balance
           if (callerBalance < paymentAmount) {
             console.error(`❌ Insufficient balance: ${callerBalance} < ${paymentAmount}`);
-            return response.status(402).send({ 
-              error: 'Insufficient balance', 
+            return response.status(402).send({
+              error: 'Insufficient balance',
               balance: callerBalance.toString(),
-              required: paymentAmount.toString() 
+              required: paymentAmount.toString()
             });
           }
-          
+
           // Construct transaction to send TFIL from caller to agent owner
           const privateKey = process.env.PRIVATE_KEY;
           if (!privateKey) {
             console.error('❌ No device private key available for transaction signing');
             return response.status(500).send({ error: 'Payment processing error' });
           }
-          
+
           try {
             // Create wallet from private key
             console.log(`🔐 Creating wallet for transaction`);
-            const wallet = new ethers.Wallet(privateKey, 
+            const wallet = new ethers.Wallet(privateKey,
               new ethers.providers.JsonRpcProvider(filecoinCalibration.rpcUrls.default.http[0]));
-            
+
             // Get current gas price
             const gasPrice = await wallet.provider.getGasPrice();
             console.log(`⛽ Current gas price: ${gasPrice.toString()}`);
-            
+
             // Estimate gas for the transaction
             const gasLimit = ethers.BigNumber.from(21000); // Standard gas limit for transfer
-            
+
             // Create and sign transaction
             console.log(`📝 Creating transaction from ${validCallerAddress} to ${validOwnerAddress}`);
             const tx = {
@@ -528,32 +528,32 @@ router.post('/', async (request, response) => {
               gasLimit: gasLimit,
               nonce: await wallet.provider.getTransactionCount(validCallerAddress, "latest")
             };
-            
+
             // Send transaction
             console.log(`🚀 Sending transaction`);
             const signedTx = await wallet.signTransaction(tx);
             const txResponse = await wallet.provider.sendTransaction(signedTx);
-            
+
             // Wait for transaction to be mined
             console.log(`⏳ Waiting for transaction to be mined: ${txResponse.hash}`);
             const receipt = await txResponse.wait();
-            
+
             if (receipt.status === 1) {
               console.log(`✅ Payment successful! Transaction hash: ${txResponse.hash}`);
-              
+
               // Store transaction in a payment log or database if needed
               // This would be expanded in a production environment
-              
-      } else {
+
+            } else {
               console.error(`❌ Transaction failed with status: ${receipt.status}`);
-              return response.status(500).send({ 
+              return response.status(500).send({
                 error: 'Payment transaction failed',
                 txHash: txResponse.hash
               });
             }
           } catch (txError) {
             console.error(`❌ Transaction error: ${txError.message}`);
-            return response.status(500).send({ 
+            return response.status(500).send({
               error: 'Payment transaction error',
               message: txError.message
             });
@@ -574,30 +574,30 @@ router.post('/', async (request, response) => {
     if (isLilypad) {
       console.log(`🌸 Using Lilypad for processing request`);
       const userName = request.body.user_name || 'User';
-      
+
       try {
         // Process the request using Lilypad
         const lilypadResponse = await processLilypadRequest(prompt, character_data, userName);
-        
+
         console.log(`🌸 Lilypad processing complete`);
-        
+
         // Add the user's message to chat history
         chat_history.push({ role: 'user', content: prompt });
-        
+
         // Add the assistant's response to chat history
         chat_history.push({ role: 'assistant', content: lilypadResponse.response });
-        
+
         // Save the updated chat history to Akave
         const { fileName, success } = await uploadJsonToAkave({ chat_history });
         if (success) {
           console.log(`✅ Chat history saved with ID: ${fileName}`);
-          
+
           // Add the history ID to the response
           return response.send({
             ...lilypadResponse,
             history: fileName
           });
-            } else {
+        } else {
           console.error(`❌ Failed to save chat history`);
           return response.send(lilypadResponse);
         }
@@ -608,67 +608,67 @@ router.post('/', async (request, response) => {
         // Continue with Ollama processing
       }
     }
-    
+
     // If not using Lilypad, continue with Ollama processing
     console.log(`🔄 Processing with Ollama`);
-    
+
     // Build a roleplay prompt with the chat history
     const roleplayPrompt = buildRoleplayPrompt(
-                character_data,
+      character_data,
       request.body.user_name || 'User',
-                prompt,
+      prompt,
       chat_history
     );
-    
+
     // Process the request using Ollama
     const model = request.body.model || DEFAULT_MODEL;
     const ollamaResponse = await processOllamaRequest(
-                ollamaUrl,
+      ollamaUrl,
       model,
       roleplayPrompt,
       false,
       { temperature: 0.7 },
       character_data.name
     );
-    
+
     // Check if the response contains a JSON tool call in the text
     const jsonInTextResult = await handleJsonInTextResponse(
       ollamaResponse.response,
-              ollamaUrl,
+      ollamaUrl,
       model,
-              character_data,
+      character_data,
       request.body.user_name || 'User',
-              prompt,
+      prompt,
       chat_history
     );
-    
+
     let finalResponse;
     if (jsonInTextResult.processed) {
       finalResponse = jsonInTextResult.response;
-            } else {
+    } else {
       finalResponse = ollamaResponse;
     }
-    
+
     // Add the user's message to chat history
     chat_history.push({ role: 'user', content: prompt });
-    
+
     // Add the assistant's response to chat history
-    chat_history.push({ 
-      role: 'assistant', 
+    chat_history.push({
+      role: 'assistant',
       content: finalResponse.response
     });
-    
+
     // Save the updated chat history to Akave
     const { fileName, success } = await uploadJsonToAkave({ chat_history });
     if (success) {
       console.log(`✅ Chat history saved with ID: ${fileName}`);
-      
+
       // Add the history ID to the response
       return response.send({
         ...finalResponse,
         history: fileName
       });
-          } else {
+    } else {
       console.error(`❌ Failed to save chat history`);
       return response.send(finalResponse);
     }
@@ -958,35 +958,35 @@ async function handleJsonInTextResponse(response, ollamaUrl, model, character_da
 async function callLilypadModel(model, messages, tools = [], temperature = 0.2, logger = null) {
   // Note: There are TypeScript errors in the codebase related to string vs `0x${string}` types
   // These are inherited from the existing codebase and would require more significant refactoring to fix
-  
+
   // Validate parameters
   if (!model || !messages || !Array.isArray(messages)) {
     console.error("❌ Invalid parameters for callLilypadModel");
     return null;
   }
-  
+
   const headers = {
     "Authorization": `Bearer ${LILYPAD_TOKEN}`,
     "Content-Type": "application/json"
   };
-  
+
   const payload = {
     model: model,
     messages: messages,
     stream: false,
     temperature: temperature
   };
-  
+
   if (tools && tools.length > 0) {
     payload.tools = tools;
   }
-  
+
   if (logger && typeof logger.log === 'function') {
     logger.log(`Calling ${model}`, { input: messages });
   } else {
     console.log(`🌸 Calling Lilypad model ${model}`);
   }
-  
+
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
       if (attempt > 0) {
@@ -995,19 +995,19 @@ async function callLilypadModel(model, messages, tools = [], temperature = 0.2, 
           logger.log(`Retry attempt ${attempt + 1}`, "", "INFO");
         }
       }
-      
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
-      
+
       const response = await fetch(LILYPAD_ENDPOINT, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(payload),
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (response.ok) {
         const result = await response.json();
         if (logger) {
@@ -1025,10 +1025,10 @@ async function callLilypadModel(model, messages, tools = [], temperature = 0.2, 
         }
       }
     } catch (error) {
-      const errorMessage = error.name === 'AbortError' 
-        ? `Timeout after ${REQUEST_TIMEOUT/1000} seconds` 
+      const errorMessage = error.name === 'AbortError'
+        ? `Timeout after ${REQUEST_TIMEOUT / 1000} seconds`
         : error.message;
-      
+
       if (logger) {
         logger.log(`Error with ${model}`, errorMessage, "ERROR");
       } else {
@@ -1036,7 +1036,7 @@ async function callLilypadModel(model, messages, tools = [], temperature = 0.2, 
       }
     }
   }
-  
+
   if (logger) {
     logger.log(`Failed all ${MAX_RETRIES} attempts with ${model}`, "", "ERROR");
   } else {
@@ -1052,7 +1052,7 @@ async function callLilypadModel(model, messages, tools = [], temperature = 0.2, 
  */
 function extractJsonFromResponse(content) {
   if (!content) return null;
-  
+
   try {
     return JSON.parse(content);
   } catch (error) {
@@ -1065,7 +1065,7 @@ function extractJsonFromResponse(content) {
         // Ignore and try next method
       }
     }
-    
+
     // Try to find a JSON object in the text (same as Python)
     const objectMatch = content.match(/{(?:[^{}]|{[^{}]*})*}/s);
     if (objectMatch) {
@@ -1076,7 +1076,7 @@ function extractJsonFromResponse(content) {
       }
     }
   }
-  
+
   return null;
 }
 
@@ -1087,23 +1087,23 @@ function extractJsonFromResponse(content) {
  */
 function detectTaskType(query) {
   const queryLower = query.toLowerCase();
-  
-  if (queryLower.includes("story") || queryLower.includes("narrative") || 
-      queryLower.includes("poem") || queryLower.includes("creative")) {
+
+  if (queryLower.includes("story") || queryLower.includes("narrative") ||
+    queryLower.includes("poem") || queryLower.includes("creative")) {
     return "creative";
   }
   if (queryLower.includes("code") || queryLower.includes("implement")) {
     return "coding";
   }
-  if (queryLower.includes("math") || queryLower.includes("equation") || 
-      queryLower.includes("formula")) {
+  if (queryLower.includes("math") || queryLower.includes("equation") ||
+    queryLower.includes("formula")) {
     return "math";
   }
   if (queryLower.includes("explain") || queryLower.includes("how to")) {
     return "explanation";
   }
-  if (queryLower.includes("critique") || queryLower.includes("analyze") || 
-      queryLower.includes("issues")) {
+  if (queryLower.includes("critique") || queryLower.includes("analyze") ||
+    queryLower.includes("issues")) {
     return "critique";
   }
   if (queryLower.includes("optimize") || queryLower.includes("improve")) {
@@ -1115,7 +1115,7 @@ function detectTaskType(query) {
   if (queryLower.includes("wrong") || queryLower.includes("problem")) {
     return "critique";
   }
-  
+
   return "default";
 }
 
@@ -1128,11 +1128,11 @@ function detectTaskType(query) {
 async function orchestrateQuery(query, sessionId) {
   const logger = new StreamLogger(sessionId);
   logger.log("Starting orchestration", { query });
-  
+
   if (query.split(" ").length < 3) {
     return { direct_response: true };
   }
-  
+
   const systemPrompt = `You are an AI task router. Analyze the user query and return JSON specifying which specialized models to use. The JSON should have this structure:
 {
   "subtasks": [
@@ -1158,22 +1158,22 @@ MOST IMPORTANT: You need to SIMPLY grab the ENTIRE response returned from Multip
     { role: "system", content: systemPrompt },
     { role: "user", content: query }
   ];
-  
+
   const response = await callLilypadModel(LILYPAD_MODELS.orchestrator, messages, [], 0.2, logger);
-  
+
   if (!response) {
     return { error: "Orchestration failed" };
   }
-  
+
   const jsonData = extractJsonFromResponse(response.content);
   if (jsonData) {
     logger.log("Parsed subtasks", jsonData);
     return jsonData;
   }
-  
+
   logger.log("JSON extraction failed, using task detection", "", "WARNING");
   const detectedType = detectTaskType(query);
-  
+
   return {
     subtasks: [{
       task_type: detectedType,
@@ -1193,10 +1193,10 @@ MOST IMPORTANT: You need to SIMPLY grab the ENTIRE response returned from Multip
 async function executeModelTask(taskType, query, sessionId) {
   const logger = new StreamLogger(sessionId);
   logger.log(`Executing ${taskType.toUpperCase()} task`, { query });
-  
+
   const model = LILYPAD_MODELS[taskType] || LILYPAD_MODELS.default;
   const messages = [{ role: "user", content: query }];
-  
+
   const response = await callLilypadModel(model, messages, [], 0.2, logger);
   return response ? response.content : null;
 }
@@ -1210,9 +1210,9 @@ async function executeModelTask(taskType, query, sessionId) {
 async function executeWithTimeout(fn, timeoutMs = 120000) {
   return new Promise(async (resolve, reject) => {
     const timeoutId = setTimeout(() => {
-      reject(new Error(`Operation timed out after ${timeoutMs/1000} seconds`));
+      reject(new Error(`Operation timed out after ${timeoutMs / 1000} seconds`));
     }, timeoutMs);
-    
+
     try {
       const result = await fn();
       clearTimeout(timeoutId);
@@ -1234,14 +1234,14 @@ async function executeWithTimeout(fn, timeoutMs = 120000) {
 async function processLilypadRequest(userQuery, characterData, userName) {
   const sessionId = uuidv4();
   console.log(`🌸 Processing Lilypad request: ${userQuery} (Session ID: ${sessionId})`);
-  
+
   const logger = new StreamLogger(sessionId);
   const usedModels = new Set();
   const results = [];
-  
+
   // Record start time separately to avoid session data issues
   const startTime = Date.now();
-  
+
   try {
     // Initialize session data
     activeLilypadSessions[sessionId] = {
@@ -1249,21 +1249,21 @@ async function processLilypadRequest(userQuery, characterData, userName) {
       status: "processing",
       startTime: startTime
     };
-    
+
     // Step 1: Orchestration
     logger.log("==== PROCESSING STARTED ====", `Query: ${userQuery}`);
     const orchestration = await executeWithTimeout(() => orchestrateQuery(userQuery, sessionId));
     usedModels.add(LILYPAD_MODELS.orchestrator);
-    
+
     if ("direct_response" in orchestration) {
       // Simple queries get a direct response - no changes needed here
       logger.log("Using direct response for simple query", "");
-      
+
       // Create a character-tailored system prompt for simple queries
       const systemPrompt = `You are ${characterData.name}, a character with the following personality: ${characterData.personality}. 
       You're in a scenario where: ${characterData.scenario || "You're having a conversation."}
       Respond to the user (${userName}) in your character's voice.`;
-      
+
       const response = await callLilypadModel(
         LILYPAD_MODELS.default,
         [
@@ -1274,16 +1274,16 @@ async function processLilypadRequest(userQuery, characterData, userName) {
         0.7,
         logger
       );
-      
+
       usedModels.add(LILYPAD_MODELS.default);
-      
+
       if (!response) {
         throw new Error("Failed to generate direct response");
       }
-      
+
       // Clean and return the response
       const cleanedResponse = cleanRoleplayResponse(response.content, characterData.name);
-      
+
       return {
         response: cleanedResponse,
         character_name: characterData.name,
@@ -1291,52 +1291,52 @@ async function processLilypadRequest(userQuery, characterData, userName) {
         processing_time: `${(Date.now() - startTime) / 1000} seconds`
       };
     }
-    
+
     if ("error" in orchestration) {
       logger.log("Orchestration error", orchestration.error, "ERROR");
       throw new Error(orchestration.error);
     }
-    
+
     if (!orchestration.subtasks || !orchestration.subtasks.length) {
       logger.log("No subtasks generated", "", "ERROR");
       throw new Error("Failed to generate subtasks");
     }
-    
+
     // Step 2: Execute subtasks with better timeout handling
     // Process subtasks in parallel to improve performance
     const subtaskPromises = orchestration.subtasks.map(async (subtask) => {
       const taskType = subtask.task_type || "default";
       const taskQuery = subtask.query;
-      
+
       logger.log(`SCHEDULING ${taskType.toUpperCase()}`, { query: taskQuery });
-      
+
       try {
         const messages = [
           { role: "system", content: `Route this ${taskType} task` },
           { role: "user", content: taskQuery }
         ];
-        
+
         // Use a shorter timeout for routing to keep things moving
-        const routingResponse = await executeWithTimeout(() => 
+        const routingResponse = await executeWithTimeout(() =>
           callLilypadModel(
             LILYPAD_MODELS.orchestrator,
             messages,
             LILYPAD_TOOLS,
             0.2,
             logger
-          ), 
+          ),
           45000 // 45 seconds timeout for routing
         );
-        
+
         usedModels.add(LILYPAD_MODELS.orchestrator);
-        
+
         if (routingResponse && routingResponse.tool_calls) {
           for (const toolCall of routingResponse.tool_calls) {
             if (toolCall.function?.name === "route_to_model") {
               try {
                 const args = JSON.parse(toolCall.function.arguments);
                 logger.log(`EXECUTING ${args.task_type.toUpperCase()}`, { query: args.query });
-                
+
                 // Execute the actual task with a model-specific timeout
                 const result = await executeWithTimeout(() =>
                   executeModelTask(
@@ -1346,7 +1346,7 @@ async function processLilypadRequest(userQuery, characterData, userName) {
                   ),
                   90000 // 90 seconds timeout for model execution
                 );
-                
+
                 if (result) {
                   logger.log(`COMPLETED ${args.task_type.toUpperCase()}`, { result: result.substring(0, 100) + "..." });
                   usedModels.add(LILYPAD_MODELS[args.task_type] || LILYPAD_MODELS.default);
@@ -1367,7 +1367,7 @@ async function processLilypadRequest(userQuery, characterData, userName) {
       }
       return null;
     });
-    
+
     // Wait for all subtasks to complete or timeout
     const subtaskResults = await Promise.allSettled(subtaskPromises);
     subtaskResults.forEach(result => {
@@ -1375,27 +1375,27 @@ async function processLilypadRequest(userQuery, characterData, userName) {
         results.push(result.value);
       }
     });
-    
+
     // Step 3: Combine results - even if only some subtasks succeeded
     if (results.length === 0) {
       logger.log("No results from subtasks", "", "ERROR");
       throw new Error("No results from subtasks");
     }
-    
+
     // Create a character-aware combine prompt
-    const combinePrompt = "Combine these results into one coherent response, in the voice of " + 
-      `${characterData.name}, a character with the personality: ${characterData.personality}:\n\n` + 
+    const combinePrompt = "Combine these results into one coherent response, in the voice of " +
+      `${characterData.name}, a character with the personality: ${characterData.personality}:\n\n` +
       results.map(res => `### ${res.task_type}\n${res.result}`).join("\n\n");
-    
+
     // Use a timeout for the final combination
     const finalResponse = await executeWithTimeout(() =>
       callLilypadModel(
         LILYPAD_MODELS.orchestrator,
         [
-          { 
-            role: "system", 
+          {
+            role: "system",
             content: `You are ${characterData.name}, a character with the following personality: ${characterData.personality}. 
-            Synthesize these inputs into one polished response that sounds like you.` 
+            Synthesize these inputs into one polished response that sounds like you.`
           },
           { role: "user", content: combinePrompt }
         ],
@@ -1405,14 +1405,14 @@ async function processLilypadRequest(userQuery, characterData, userName) {
       ),
       90000 // 90 seconds timeout for final response
     );
-    
+
     usedModels.add(LILYPAD_MODELS.orchestrator);
-    
+
     if (!finalResponse || !finalResponse.content) {
       logger.log("Failed to generate final response", "", "ERROR");
       // Fallback to concatenating results
       const fallbackResponse = results.map(res => `## ${res.task_type}\n${res.result}`).join("\n\n");
-      
+
       return {
         response: cleanRoleplayResponse(fallbackResponse, characterData.name),
         character_name: characterData.name,
@@ -1421,28 +1421,28 @@ async function processLilypadRequest(userQuery, characterData, userName) {
         fallback: true
       };
     }
-    
+
     // Clean up session data
     delete activeLilypadSessions[sessionId];
-    
+
     // Clean and return the response
     const cleanedResponse = cleanRoleplayResponse(finalResponse.content, characterData.name);
-    
+
     return {
       response: cleanedResponse,
       character_name: characterData.name,
       models_used: Array.from(usedModels),
       processing_time: `${(Date.now() - startTime) / 1000} seconds`
     };
-    
+
   } catch (error) {
     console.error(`❌ Lilypad processing error: ${error.message}`);
-    
+
     // Clean up session data (if it exists)
     if (activeLilypadSessions[sessionId]) {
       delete activeLilypadSessions[sessionId];
     }
-    
+
     return {
       response: `I'm sorry, I encountered an error while processing your request: ${error.message}`,
       character_name: characterData.name,
@@ -1457,7 +1457,7 @@ async function processLilypadRequest(userQuery, characterData, userName) {
 router.post('/health', async (request, response) => {
   try {
     const { agentAddress } = request.body;
-    
+
     if (!agentAddress) {
       return response.status(400).json({
         success: false,
@@ -1467,7 +1467,7 @@ router.post('/health', async (request, response) => {
 
     // Get agent character data using existing utility
     const agentData = await getAgentCharacter(agentAddress);
-    
+
     if (!agentData || !agentData.characterConfig) {
       return response.status(404).json({
         success: false,
@@ -1483,7 +1483,7 @@ router.post('/health', async (request, response) => {
       }
 
       const characterData = await characterResponse.json();
-      
+
       // Return the character data for verification
       return response.status(200).json({
         success: true,
@@ -1491,14 +1491,14 @@ router.post('/health', async (request, response) => {
         characterData,
         timestamp: new Date().toISOString()
       });
-      
+
     } catch (fetchError) {
       return response.status(502).json({
         success: false,
         error: `Failed to fetch character data: ${fetchError.message}`
       });
     }
-    
+
   } catch (error) {
     console.error('Health check error:', error);
     return response.status(500).json({
