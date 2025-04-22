@@ -69,84 +69,6 @@ async function ensureBucketExists(bucketName: string) {
 }
 
 // Function to upload character data to Akave bucket
-async function uploadCharacterToAkave(characterData: any, agentName: string, secretsText: string = "") {
-  try {
-    const bucketName = "franky-agents";
-
-    // Ensure the bucket exists
-    const bucketExists = await ensureBucketExists(bucketName);
-    if (!bucketExists) {
-      console.error("Failed to ensure bucket exists");
-      return null;
-    }
-
-    // Create a copy of character data to modify
-    const dataToUpload = { ...characterData };
-
-    // If secrets are provided, encrypt them
-    if (secretsText.trim()) {
-      try {
-        console.log("Encrypting secrets with Lit Protocol...");
-        const { ciphertext, dataToEncryptHash } = await encrypt(secretsText, false);
-
-        // Add encrypted secrets to the character data
-        dataToUpload.encryptedSecrets = ciphertext;
-
-        // Ensure secretsHash has 0x prefix
-        const formattedHash = dataToEncryptHash.startsWith('0x')
-          ? dataToEncryptHash
-          : `0x${dataToEncryptHash}`;
-
-        dataToUpload.secretsHash = formattedHash;
-        console.log("Secrets encrypted successfully with hash:", formattedHash);
-      } catch (error) {
-        console.error("Failed to encrypt secrets:", error);
-        return null;
-      }
-    }
-
-    // Convert character data to JSON string
-    const jsonData = JSON.stringify(dataToUpload, null, 2);
-
-    // Create a Blob from the JSON data
-    const blob = new Blob([jsonData], { type: 'application/json' });
-
-    // Generate a random string to make filename unique
-    const randomString = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    const timestamp = Date.now();
-    const secureFilename = `${agentName}-${timestamp}-${randomString}.json`;
-
-    // Create a File object from the Blob with the secure random filename
-    const file = new File([blob], secureFilename, { type: 'application/json' });
-
-    // Create FormData
-    const formData = new FormData();
-    formData.append('file', file);
-
-    // Upload to Akave bucket
-    const uploadResponse = await fetch(`${AKAVE_API_URL}/buckets/${bucketName}/files`, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!uploadResponse.ok) {
-      console.error('Failed to upload character data:', await uploadResponse.text());
-      return null;
-    }
-
-    const uploadResult = await uploadResponse.json();
-    console.log('Character data uploaded successfully:', uploadResult);
-
-    // Return the download URL
-    const downloadUrl = `${AKAVE_API_URL}/buckets/${bucketName}/files/${secureFilename}/download`;
-    console.log('Akave download URL:', downloadUrl);
-
-    return downloadUrl;
-  } catch (error) {
-    console.error('Error uploading character data to Akave:', error);
-    return null;
-  }
-}
 
 // Define tool types
 export interface Tool {
@@ -1091,9 +1013,12 @@ function CreateAgentContent() {
         const formData = new FormData();
         const customFileName = `avatar-${Date.now()}.${avatarFile.name.split('.').pop()}`;
         formData.append("file", avatarFile, customFileName);
-
-        const { data } = await uploadFormData(formData, 'franky-agents-avatar');
-        const avatarUrl = `${AKAVE_API_URL}/buckets/franky-agents-avatar/files/${data.Name}/download`;
+        const uploadRequest = await fetch(`/api/akave/upload-form-data?bucket-name=franky-agents-avatar`, {
+          method: "POST",
+          body: formData,
+        });
+        const uploadResponse = await uploadRequest.json();
+        const avatarUrl = `${AKAVE_API_URL}/buckets/franky-agents-avatar/files/${uploadResponse.Name}/download`;
         console.log(avatarUrl)
         console.log('Uploading character data to Akave with encrypted secrets...');
         let characterConfigUrl = null;
@@ -1102,7 +1027,20 @@ function CreateAgentContent() {
         });
         // Handle secrets encryption and upload process
         try {
-          characterConfigUrl = await uploadCharacterToAkave(constructedCharacter, subname, secrets);
+
+          const uploadRequest = await fetch(`/api/akave/upload-character`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              characterData: constructedCharacter,
+              subname,
+              secrets,
+            }),
+          });
+          const returnData = await uploadRequest.json();
+          characterConfigUrl = returnData.characterConfigUrl;
 
           if (!characterConfigUrl) {
             console.error('⚠️ Failed to upload character data to Akave');

@@ -10,7 +10,6 @@ import { faucetWalletClient, publicClient } from "@/lib/utils";
 import { toast } from "sonner"
 import { encodeFunctionData, formatEther, parseEther, zeroAddress } from "viem";
 import { FRANKY_ABI, FRANKY_ADDRESS } from "@/lib/constants";
-import { getJsonFromAkave, uploadJsonToAkaveWithFileName } from "@/lib/akave";
 import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
 export default function Header() {
   const { user, logout } = usePrivy();
@@ -99,7 +98,11 @@ export default function Header() {
           address: ""
         }
         try {
-          const { data } = await getJsonFromAkave(`${user.wallet.address}`, 'franky-server-wallets')
+          const dataRequest = await fetch(`/api/akave/get-json?file-name=${user.wallet.address}&bucket-name=franky-server-wallets`);
+          if (!dataRequest.ok) {
+            throw new Error('Failed to fetch data');
+          }
+          const data = await dataRequest.json();
           keypair = data
         } catch (e) {
           const privateKey = generatePrivateKey()
@@ -108,10 +111,25 @@ export default function Header() {
             privateKey,
             address: serverWalletAddress
           }
-          const { fileName } = await uploadJsonToAkaveWithFileName({
-            privateKey: generatePrivateKey(),
-            address: serverWalletAddress
-          }, user.wallet.address as `0x${string}`, 'franky-agents-server-wallets')
+
+          const uploadRequest = await fetch('/api/akave/upload-json-with-filename', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              jsonData: {
+                privateKey: generatePrivateKey(),
+                address: serverWalletAddress
+              },
+              bucketName: 'franky-agents-server-wallets',
+              userAddress: user.wallet.address
+            })
+          });
+          if (!uploadRequest.ok) {
+            throw new Error('Failed to upload data');
+          }
+          const { fileName } = await uploadRequest.json();
           console.log("fileName", fileName)
         }
 

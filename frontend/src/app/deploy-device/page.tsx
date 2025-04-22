@@ -10,7 +10,7 @@ import { useSearchParams } from 'next/navigation'
 import GlowButton from '@/components/ui/GlowButton'
 import { publicClient } from '@/lib/utils'
 import { FRANKY_ABI, FRANKY_ADDRESS } from '@/lib/constants'
-import { AKAVE_API_URL, getJsonFromAkave, uploadJsonToAkave, uploadJsonToAkaveWithFileName } from '@/lib/akave'
+import { AKAVE_API_URL } from '@/lib/akave'
 import { encodeFunctionData, parseEther } from 'viem'
 import { toast } from 'sonner'
 
@@ -459,13 +459,31 @@ const DeviceVerification = () => {
                         let fileName = '';
                         try {
                           console.log("Checking if metadata already exists...");
-                          const { data } = await getJsonFromAkave(`${deviceDetails.walletAddress.toLowerCase()}`, 'franky-agents-devices');
+                          const dataRequest = await fetch(`/api/akave/get-json?file-name=${deviceDetails.walletAddress.toLowerCase()}&bucket-name=franky-server-wallets`);
+                          if (!dataRequest.ok) {
+                            throw new Error('Failed to fetch data');
+                          }
+                          const data = await dataRequest.json();
                           if (!data) throw new Error("Metadata not found");
                           fileName = deviceDetails.walletAddress.toLowerCase();
                           console.log("Metadata already exists with fileName:", fileName);
                         } catch (e) {
                           console.log("Metadata not found, uploading new metadata...");
-                          const akaveResponse = await uploadJsonToAkaveWithFileName(deviceMetadata, deviceDetails.walletAddress.toLowerCase(), `franky-agents-devices`);
+                          const uploadRequest = await fetch('/api/akave/upload-json-with-filename', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                              jsonData: deviceMetadata,
+                              bucketName: 'franky-agents-devices',
+                              userAddress: deviceDetails.walletAddress.toLowerCase()
+                            })
+                          });
+                          if (!uploadRequest.ok) {
+                            throw new Error('Failed to upload data');
+                          }
+                          const akaveResponse = await uploadRequest.json();
                           fileName = akaveResponse.fileName || "";
                           console.log("Metadata uploaded with fileName:", fileName);
                         }
