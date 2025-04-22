@@ -9,22 +9,7 @@ const nextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true,
-  },
-  // Add explicit rewrites for subdomain handling
-  async rewrites() {
-    return [
-      {
-        source: '/:path*',
-        has: [
-          {
-            type: 'host',
-            value: '(?<subdomain>.+)\.frankyagent\.xyz',
-          },
-        ],
-        destination: '/subdomain',
-      },
-    ]
-  },
+},
   experimental: {
     esmExternals: 'loose', // This can help with ESM compatibility issues
   },
