@@ -458,7 +458,7 @@ create_wallet() {
                     echo "📱 Found latest registered device: $REGISTERED_ADDRESS"
                     
                     # Check if the device address matches our wallet address
-                    if [ "$REGISTERED_ADDRESS" = "$WALLET_ADDRESS" ]; then
+                    if [ "$(echo "$REGISTERED_ADDRESS" | tr '[:upper:]' '[:lower:]')" = "$(echo "$WALLET_ADDRESS" | tr '[:upper:]' '[:lower:]')" ]; then
                         echo "✅ Device registration confirmed!"
                         echo "✅ Device address verified: $REGISTERED_ADDRESS"
                         
