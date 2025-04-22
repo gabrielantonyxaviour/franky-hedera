@@ -9,7 +9,7 @@ import { Zap } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import GlowButton from '@/components/ui/GlowButton'
 import { publicClient } from '@/lib/utils'
-import { FRANKY_ABI, FRANKY_ADDRESS } from '@/lib/constants'
+import { FRANKY_ABI, FRANKY_ADDRESS, FRANKY_DEVICES_BUCKET } from '@/lib/constants'
 import { AKAVE_API_URL } from '@/lib/akave'
 import { encodeFunctionData, parseEther } from 'viem'
 import { toast } from 'sonner'
@@ -459,7 +459,7 @@ const DeviceVerification = () => {
                         let fileName = '';
                         try {
                           console.log("Checking if metadata already exists...");
-                          const dataRequest = await fetch(`/api/akave/get-json?file-name=${deviceDetails.walletAddress.toLowerCase()}&bucket-name=franky-server-wallets`);
+                          const dataRequest = await fetch(`/api/akave/get-json?file-name=${deviceDetails.walletAddress.toLowerCase()}&bucket-name=${FRANKY_DEVICES_BUCKET}`);
                           if (!dataRequest.ok) {
                             throw new Error('Failed to fetch data');
                           }
@@ -476,7 +476,7 @@ const DeviceVerification = () => {
                             },
                             body: JSON.stringify({
                               jsonData: deviceMetadata,
-                              bucketName: 'franky-agents-devices',
+                              bucketName: FRANKY_DEVICES_BUCKET,
                               userAddress: deviceDetails.walletAddress.toLowerCase()
                             })
                           });
@@ -488,7 +488,7 @@ const DeviceVerification = () => {
                           console.log("Metadata uploaded with fileName:", fileName);
                         }
 
-                        const akaveUrl = `${AKAVE_API_URL}/buckets/franky-agents-devices/files/${fileName}.json/download`;
+                        const akaveUrl = `${AKAVE_API_URL}/buckets/${FRANKY_DEVICES_BUCKET}/files/${fileName}.json/download`;
                         console.log("Akave URL generated:", akaveUrl);
 
                         toast.info("Registering device on-chain", {

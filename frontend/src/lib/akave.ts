@@ -1,5 +1,6 @@
 import { encrypt } from '@/utils/lit';
 import { v4 as uuidv4 } from 'uuid';
+import { FRANKY_AGENTS_BUCKET } from './constants';
 
 // Akave API endpoint
 export const AKAVE_API_URL = 'http://3.88.107.110:8000';
@@ -219,7 +220,7 @@ export async function getJsonFromAkave(
 
 export async function uploadCharacterToAkave(characterData: any, agentName: string, secretsText: string = "") {
     try {
-        const bucketName = "franky-agents";
+        const bucketName = FRANKY_AGENTS_BUCKET;
 
         // Ensure the bucket exists
         const bucketExists = await ensureBucketExists(bucketName);

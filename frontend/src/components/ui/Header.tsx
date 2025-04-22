@@ -9,7 +9,7 @@ import { LogOut, User, UserCircle } from "lucide-react";
 import { faucetWalletClient, publicClient } from "@/lib/utils";
 import { toast } from "sonner"
 import { encodeFunctionData, formatEther, parseEther, zeroAddress } from "viem";
-import { FRANKY_ABI, FRANKY_ADDRESS } from "@/lib/constants";
+import { FRANKY_ABI, FRANKY_ADDRESS, FRANKY_SERVER_WALLET_BUCKET } from "@/lib/constants";
 import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
 export default function Header() {
   const { user, logout } = usePrivy();
@@ -98,7 +98,7 @@ export default function Header() {
           address: ""
         }
         try {
-          const dataRequest = await fetch(`/api/akave/get-json?file-name=${user.wallet.address}&bucket-name=franky-server-wallets`);
+          const dataRequest = await fetch(`/api/akave/get-json?file-name=${user.wallet.address}&bucket-name=${FRANKY_SERVER_WALLET_BUCKET}`);
           if (!dataRequest.ok) {
             throw new Error('Failed to fetch data');
           }
@@ -122,7 +122,7 @@ export default function Header() {
                 privateKey: generatePrivateKey(),
                 address: serverWalletAddress
               },
-              bucketName: 'franky-agents-server-wallets',
+              bucketName: FRANKY_SERVER_WALLET_BUCKET,
               userAddress: user.wallet.address
             })
           });
