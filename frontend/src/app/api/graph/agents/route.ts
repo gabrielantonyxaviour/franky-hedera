@@ -22,6 +22,7 @@ export async function GET() {
           characterConfig
           createdAt
           updatedAt
+          isPublic
         }
       }
     `;

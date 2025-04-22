@@ -1,6 +1,8 @@
 import { createPublicClient, Hex, hexToBytes, http } from 'viem';
 import { base58 } from '@scure/base';
-import { base, baseSepolia } from 'viem/chains';
+import { base, baseSepolia, filecoinCalibration } from 'viem/chains';
+import { SignMessageModalUIOptions } from '@privy-io/react-auth';
+import { FRANKY_ABI } from '@/lib/constants';
 
 // Updated contract address for Base Mainnet
 const FRANKY_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29';
@@ -34,37 +36,42 @@ const abi = [{
  * @returns Promise<string> - The generated API key
  */
 export async function getApiKey(
-    agentAddress: string, 
-    account: any, 
-    isMainnet = true, 
-    signer?: (message: string) => Promise<`0x${string}`>
+    agentAddress: string,
+    caller: Hex,
+    signMessage: (input: {
+        message: string;
+    }, options?: {
+        uiOptions?: SignMessageModalUIOptions;
+        address?: string;
+    }) => Promise<{
+        signature: string;
+    }>,
 ): Promise<string> {
     console.log('getApiKey called with:', {
         agentAddress,
-        account,
-        isMainnet,
-        hasSigner: !!signer
+        caller,
     });
 
     // Use the appropriate contract address based on network
     const contractAddress = FRANKY_ADDRESS;
-    console.log(`Using contract address: ${contractAddress} on ${isMainnet ? 'mainnet' : 'testnet'}`);
+    console.log(`Using contract address: ${contractAddress} on Filecoin Calibration Testnet`);
 
     const client = createPublicClient({
-        chain: isMainnet ? base : baseSepolia,
+        chain: filecoinCalibration,
         transport: http()
     });
-    
+
     console.log('Fetching key hash from contract...');
     try {
+        console.log([agentAddress as `0x${string}`, caller as `0x${string}`])
         const keyHash = await client.readContract({
-            address: contractAddress as `0x${string}`,
-            abi: abi,
+            address: FRANKY_ADDRESS as `0x${string}`,
+            abi: FRANKY_ABI,
             functionName: 'getKeyHash',
-            args: [agentAddress as `0x${string}`]
+            args: [agentAddress as `0x${string}`, caller as `0x${string}`],
         });
         console.log('Key hash received:', keyHash);
-        
+
         const messageHash = keyHash as Hex;
         if (!messageHash.startsWith("0x")) {
             throw new Error("Message hash must be a hex string starting with 0x");
@@ -75,43 +82,26 @@ export async function getApiKey(
         }
 
         console.log('Preparing to sign message hash:', messageHash);
-        let signature: `0x${string}`;
-        
+
         try {
-            // Use provided signer function if available
-            if (signer) {
-                console.log('Using provided signer function');
-                signature = await signer(messageHash);
-            } 
-            // Try various signing methods depending on what's available on the account object
-            else if (typeof account.signMessage === 'function') {
-                console.log('Using viem Account signMessage');
-                // For viem Account objects
-                signature = await account.signMessage({
-                    message: messageHash,
-                });
-            } 
-            else if (account.signMessage && typeof account.signMessage === 'object') {
-                console.log('Using wagmi useSignMessage hook');
-                // For wagmi useSignMessage hook result
-                const signMessageFn = account.signMessage.signMessage || account.signMessage;
-                signature = await signMessageFn({
-                    message: messageHash,
-                });
-            } 
-            else {
-                throw new Error("No valid signing method found on the provided account");
-            }
-            
+            const { signature } = await signMessage({
+                message: messageHash,
+            }, {
+                uiOptions: {
+                    title: "Generating API Key"
+                }
+            });
+
             console.log('Message successfully signed:', signature);
+            const apiKey = base58.encode(hexToBytes(signature as Hex));
+            console.log('API key generated:', apiKey);
+            return apiKey;
         } catch (error) {
             console.error('Error during message signing:', error);
             throw error;
         }
 
-        const apiKey = base58.encode(hexToBytes(signature));
-        console.log('API key generated:', apiKey);
-        return apiKey;
+
     } catch (error: any) {
         console.error('Error getting key hash from contract:', error);
         throw new Error(`Failed to generate API key: ${error.message}`);

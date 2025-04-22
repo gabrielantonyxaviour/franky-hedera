@@ -76,6 +76,7 @@ export default function Header() {
     (async function () {
       if (!user) return;
       if (!user.wallet) return;
+      if (!user.wallet.address) return;
       console.log("USEr wallet address: ", user.wallet)
       const isServerWalletConfigured = await publicClient.readContract({
         address: FRANKY_ADDRESS,
@@ -170,7 +171,7 @@ export default function Header() {
         })
       }
     })()
-  }, [balance])
+  }, [balance, user])
 
   const handleMouseLeave = () => {
     logoutTimeoutRef.current = setTimeout(() => {

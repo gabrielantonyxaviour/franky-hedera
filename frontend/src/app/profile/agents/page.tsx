@@ -7,6 +7,7 @@ import { ethers } from 'ethers'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { usePrivy } from '@privy-io/react-auth'
+import { formatEther } from 'viem'
 
 // Define interface types for our data
 interface Agent {
@@ -31,7 +32,7 @@ interface Agent {
     first_mes: string
     mes_example: string
     creatorcomment: string
-    tags: string
+    tags: string[]
     talkativeness: string
   }
 }
@@ -138,19 +139,35 @@ export default function AgentsPage() {
     setError(null)
 
     try {
-      // Fetch all agents from our API
-      const response = await fetch('/api/graph/agents-by-owner?address=' + user.wallet.address)
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+      const agentsRequest = await fetch("/api/graph/agents-by-owner?address=" + user.wallet.address)
+      if (!agentsRequest.ok) {
+        setLoading(false)
+        setError("Failed to fetch agents")
+        return
       }
-
-      const data = await response.json()
-      if (data.error) {
-        throw new Error(data.error)
-      }
-
-      console.log(data)
-      setAgents(data)
+      const agentsResponse = await agentsRequest.json()
+      console.log(agentsResponse)
+      const formattedAgents = await Promise.all(agentsResponse.map(async (agent: any) => {
+        if (!agent) return;
+        const characterRequest = await fetch(agent.characterConfig)
+        const character = await characterRequest.json()
+        return {
+          id: agent.id,
+          prefix: agent.subname,
+          agentAddress: agent.id,
+          deviceAddress: agent.deviceAddress.id,
+          owner: agent.owner.id,
+          perApiCallFee: formatEther(agent.perApiCallFee),
+          character: agent.avatar,
+          characterConfig: character,
+          isPublic: agent.isPublic,
+          timestamp: new Date(agent.createdAt * 1000).toLocaleDateString(),
+          name: agent.subname || '',
+          avatar: agent.avatar
+        }
+      }))
+      console.log(formattedAgents.filter((agent: any) => agent !== null))
+      setAgents(formattedAgents.filter((agent: any) => agent !== null))
     } catch (error: any) {
       console.error("Error fetching agents:", error)
       setError(error?.message || "Failed to load agents data")
@@ -254,9 +271,9 @@ export default function AgentsPage() {
                   <p className="text-white/50 text-sm mt-2 mb-6">Create a new agent to get started.</p>
                 </div>
               ) : (
-                agents.map((agent) => (
+                agents.map((agent, idx) => (
                   <motion.div
-                    key={agent.txHash}
+                    key={idx.toString()}
                     className={cardStyle}
                     whileHover={{ scale: 1.02 }}
                     transition={{ type: "spring", stiffness: 400, damping: 10 }}
@@ -460,7 +477,7 @@ export default function AgentsPage() {
                     <div>
                       <h3 className="text-[#00FF88] text-sm mb-1">Tags</h3>
                       <div className="flex flex-wrap gap-2">
-                        {selectedAgent.characterConfig.tags.split(',').map((tag, index) => (
+                        {selectedAgent.characterConfig.tags.map((tag, index) => (
                           <span
                             key={index}
                             className="px-2 py-1 bg-[#00FF88]/10 text-[#00FF88] rounded-md text-sm"

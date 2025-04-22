@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
         }
 
         const AGENTS_BY_OWNER_QUERY = `
-      query($ownerId: ID!) {
-        agents(where: {owner: $ownerId}) {
+      query {
+        agents {
           id
           deviceAddress {
             id

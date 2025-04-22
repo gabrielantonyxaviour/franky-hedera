@@ -4,76 +4,10 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Header from '@/components/ui/Header'
-import { useRouter } from 'next/navigation'
-import { FiCpu, FiServer, FiLink, FiHash, FiDollarSign, FiUser, FiUserCheck, FiX, FiCopy, FiCheck } from 'react-icons/fi'
-import axios from 'axios'
-import { ethers } from 'ethers'
+import { FiCpu, FiHash, FiDollarSign, FiUser, FiUserCheck, FiX, FiCopy, FiCheck } from 'react-icons/fi'
 import { getApiKey } from '@/utils/apiKey'
-import { usePrivy } from '@privy-io/react-auth'
-import { getPublicAgents } from '@/lib/graph'
-
-// Updated contract information for Base Mainnet
-const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
-
-const CONTRACT_ABI = [
-  {
-    "inputs": [
-      { "internalType": "string", "name": "subname", "type": "string" },
-      { "internalType": "string", "name": "avatar", "type": "string" },
-      {
-        "components": [
-          { "internalType": "string", "name": "name", "type": "string" },
-          { "internalType": "string", "name": "description", "type": "string" },
-          { "internalType": "string", "name": "personality", "type": "string" },
-          { "internalType": "string", "name": "scenario", "type": "string" },
-          { "internalType": "string", "name": "first_mes", "type": "string" },
-          { "internalType": "string", "name": "mes_example", "type": "string" },
-          { "internalType": "string", "name": "creatorcomment", "type": "string" },
-          { "internalType": "string", "name": "tags", "type": "string" },
-          { "internalType": "string", "name": "talkativeness", "type": "string" }
-        ], "internalType": "struct Character", "name": "characterConfig", "type": "tuple"
-      },
-      { "internalType": "string", "name": "secrets", "type": "string" },
-      { "internalType": "bytes32", "name": "secretsHash", "type": "bytes32" },
-      { "internalType": "address", "name": "deviceAddress", "type": "address" },
-      { "internalType": "uint256", "name": "perApiCallFee", "type": "uint256" },
-      { "internalType": "bool", "name": "isPublic", "type": "bool" }
-    ],
-    "name": "createAgent",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      { "indexed": true, "internalType": "address", "name": "agentAddress", "type": "address" },
-      { "indexed": true, "internalType": "address", "name": "deviceAddress", "type": "address" },
-      { "indexed": false, "internalType": "string", "name": "avatar", "type": "string" },
-      { "indexed": false, "internalType": "string", "name": "subname", "type": "string" },
-      { "indexed": false, "internalType": "address", "name": "owner", "type": "address" },
-      { "indexed": false, "internalType": "uint256", "name": "perApiCallFee", "type": "uint256" },
-      { "indexed": false, "internalType": "bytes32", "name": "secretsHash", "type": "bytes32" },
-      {
-        "components": [
-          { "internalType": "string", "name": "name", "type": "string" },
-          { "internalType": "string", "name": "description", "type": "string" },
-          { "internalType": "string", "name": "personality", "type": "string" },
-          { "internalType": "string", "name": "scenario", "type": "string" },
-          { "internalType": "string", "name": "first_mes", "type": "string" },
-          { "internalType": "string", "name": "mes_example", "type": "string" },
-          { "internalType": "string", "name": "creatorcomment", "type": "string" },
-          { "internalType": "string", "name": "tags", "type": "string" },
-          { "internalType": "string", "name": "talkativeness", "type": "string" }
-        ], "indexed": false, "internalType": "struct Character", "name": "characterConfig", "type": "tuple"
-      },
-      { "indexed": false, "internalType": "string", "name": "secrets", "type": "string" },
-      { "indexed": false, "internalType": "bool", "name": "isPublic", "type": "bool" }
-    ],
-    "name": "AgentCreated",
-    "type": "event"
-  }
-] as const
+import { usePrivy, useSignMessage } from '@privy-io/react-auth'
+import { formatEther, Hex } from 'viem'
 
 // Define agent interface
 interface Agent {
@@ -99,41 +33,12 @@ interface Agent {
     first_mes: string
     mes_example: string
     creatorcomment: string
-    tags: string
+    tags: string[]
     talkativeness: string
   }
 }
 
-
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-const retryWithBackoff = async (
-  fn: () => Promise<any>,
-  retries = 3,
-  initialDelay = 1000,
-  maxDelay = 10000
-) => {
-  let currentDelay = initialDelay;
-
-  for (let i = 0; i <= retries; i++) {
-    try {
-      return await fn();
-    } catch (error: any) {
-      if (i === retries || (error.response?.status !== 429 && error.status !== 429)) {
-        throw error;
-      }
-
-      // Get retry delay from response header or use exponential backoff
-      const retryAfter = error.response?.headers?.['retry-after'];
-      const delayTime = retryAfter ? parseInt(retryAfter) * 1000 : Math.min(currentDelay, maxDelay);
-
-      await delay(delayTime);
-
-      // Increase delay for next attempt (exponential backoff)
-      currentDelay *= 2;
-    }
-  }
-};
 
 // Background animation component
 const Background = () => {
@@ -195,9 +100,10 @@ const Background = () => {
 }
 
 // Agent card component
-const AgentCard = ({ agent, onClick }: { agent: Agent, onClick: () => void }) => {
+const AgentCard = ({ keyVal, agent, onClick }: { keyVal: string, agent: Agent, onClick: () => void }) => {
   return (
     <motion.div
+      key={keyVal}
       className="p-6 rounded-xl border border-[#00FF88] border-opacity-30 bg-black/50 backdrop-blur-sm h-full flex flex-col"
       whileHover={{
         y: -5,
@@ -305,14 +211,14 @@ const PreviewModal = ({
   onClose: () => void
 }) => {
   const [apiKey, setApiKey] = useState<string | null>(null);
-  const [isGeneratingKey, setIsGeneratingKey] = useState(false);
   const [keyError, setKeyError] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const { user } = usePrivy();
+  const { signMessage } = useSignMessage()
 
   const handlePurchase = async () => {
-    if (!agent || !user || !user.smartWallet) return;
+    if (!agent || !user || !user.wallet) return;
 
     try {
       setIsPurchasing(true);
@@ -323,12 +229,8 @@ const PreviewModal = ({
         // Generate API key using the agent address and wallet address
         const key = await getApiKey(
           agent.agentAddress,
-          { address: user.smartWallet.address }, false
-          // isMainnet,
-          // Pass the signMessage function as a separate parameter
-          // async (message: string): Promise<`0x${string}`> => {
-          //   return await signMessageAsync({ message });
-          // }
+          user.wallet.address as Hex,
+          signMessage
         );
 
         setApiKey(key);
@@ -475,7 +377,7 @@ const PreviewModal = ({
                   <div>
                     <h4 className="text-[#00FF88] text-sm mb-1">Tags</h4>
                     <div className="flex flex-wrap gap-2">
-                      {agent.characterConfig.tags.split(',').map((tag, index) => (
+                      {agent.characterConfig.tags.map((tag, index) => (
                         <span
                           key={index}
                           className="px-2 py-1 bg-[#00FF88]/10 text-[#00FF88] rounded-md text-sm"
@@ -561,9 +463,9 @@ const PreviewModal = ({
                   </p>
                   <button
                     onClick={handlePurchase}
-                    disabled={!user?.smartWallet || isPurchasing}
+                    disabled={!user?.wallet || isPurchasing}
                     className={`py-2 px-6 rounded-lg text-center 
-                      ${(!user?.smartWallet)
+                      ${(!user?.wallet)
                         ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                         : 'bg-[#00FF88]/20 text-[#00FF88] hover:bg-[#00FF88]/30'
                       } transition-colors flex items-center justify-center`}
@@ -578,21 +480,15 @@ const PreviewModal = ({
                     )}
                   </button>
 
-                  {!user?.smartWallet && (
+                  {!user?.wallet && (
                     <p className="text-sm text-yellow-400 mt-2">
                       Your wallet must be connected to generate an API key.
-                    </p>
-                  )}
-
-                  {user?.smartWallet && (
-                    <p className="text-sm text-yellow-400 mt-2">
-                      Please switch to Base Mainnet to generate an API key.
                     </p>
                   )}
                 </div>
               )}
 
-              <div className="mt-8 text-center">
+              {/* <div className="mt-8 text-center">
                 <a
                   href={`https://filecoin-testnet.blockscout.com/tx/` + agent.txHash}
                   target="_blank"
@@ -601,7 +497,7 @@ const PreviewModal = ({
                 >
                   View on Block Explorer
                 </a>
-              </div>
+              </div> */}
             </div>
           </motion.div>
         </motion.div>
@@ -611,21 +507,12 @@ const PreviewModal = ({
 }
 
 export default function AgentMarketplacePage() {
-  const [isClient, setIsClient] = useState(false)
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
-  const router = useRouter()
 
-  // Set isClient to true after component mounts
   useEffect(() => {
-    setIsClient(true)
-  }, [])
-
-  // Fetch agents using API
-  useEffect(() => {
-    if (!isClient) return
     (async function () {
       // const fetchedAgents = await getPublicAgents()
       const agentsRequest = await fetch("/api/graph/agents")
@@ -636,12 +523,31 @@ export default function AgentMarketplacePage() {
       }
       const agentsResponse = await agentsRequest.json()
       console.log(agentsResponse)
-      // console.log("Public Agents from Graph:", agents)
-      // setAgents(fetchedAgents)
+      const formattedAgents = await Promise.all(agentsResponse.map(async (agent: any) => {
+        const characterRequest = await fetch(agent.characterConfig)
+        const character = await characterRequest.json()
+
+        return {
+          id: agent.id,
+          prefix: agent.subname,
+          agentAddress: agent.id,
+          deviceAddress: agent.deviceAddress.id,
+          owner: agent.owner.id,
+          perApiCallFee: formatEther(agent.perApiCallFee),
+          character: agent.avatar,
+          characterConfig: character,
+          isPublic: agent.isPublic,
+          timestamp: new Date(agent.createdAt * 1000).toLocaleDateString(),
+          name: agent.subname || '',
+          avatar: agent.avatar
+        }
+      }))
+      console.log(formattedAgents)
+      setAgents(formattedAgents)
       setLoading(false)
       setError(null)
     })()
-  }, [isClient])
+  }, [])
 
   const handleAgentSelect = async (agent: Agent) => {
     setSelectedAgent(agent)
@@ -649,10 +555,6 @@ export default function AgentMarketplacePage() {
 
   const closeModal = () => {
     setSelectedAgent(null)
-  }
-
-  if (!isClient) {
-    return null
   }
 
   return (
@@ -700,9 +602,10 @@ export default function AgentMarketplacePage() {
               </div>
             ) : agents.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {agents.map(agent => (
+                {agents.map((agent, idx) => (
                   <AgentCard
-                    key={agent.txHash}
+                    keyVal={idx.toString()}
+                    key={idx.toString()}
                     agent={agent}
                     onClick={() => handleAgentSelect(agent)}
                   />
