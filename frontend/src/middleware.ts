@@ -15,15 +15,26 @@ export async function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || ''
   const isSubdomain = hostname.includes('.frankyagent.xyz') && !hostname.match(/^www\.frankyagent\.xyz$/)
 
+  // Skip middleware for the subdomain page itself
+  if (url.pathname === '/subdomain') {
+    return NextResponse.next()
+  }
+
   if (isSubdomain) {
     // Extract subdomain (agent prefix)
     const subdomain = hostname.split('.')[0]
     
     // If it's a browser request (GET), serve the Hello page
     if (request.method === 'GET') {
-      // Fix: Create a proper URL with the origin and path
-      const rewriteUrl = new URL('/subdomain', request.nextUrl.origin)
-      return NextResponse.rewrite(rewriteUrl)
+      console.log(`Handling subdomain request for: ${subdomain}, rewriting to /subdomain`)
+      
+      // Important: Clone the URL and modify it
+      const rewriteUrl = new URL(request.url)
+      // Change only the pathname
+      rewriteUrl.pathname = '/subdomain'
+      
+      // Use redirect instead of rewrite for clearer debugging
+      return NextResponse.redirect(rewriteUrl)
     }
     
     try {
