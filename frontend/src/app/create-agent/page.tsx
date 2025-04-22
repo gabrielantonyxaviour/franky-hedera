@@ -28,7 +28,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { uploadFormData } from "@/lib/akave";
 import { publicClient } from "@/lib/utils";
-import { FRANKY_ABI, FRANKY_ADDRESS } from "@/lib/constants";
+import { FRANKY_ABI, FRANKY_ADDRESS, FRANKY_AGENTS_BUCKET } from "@/lib/constants";
 
 // Akave bucket upload utility
 const AKAVE_API_URL = "http://3.88.107.110:8000";
@@ -1013,12 +1013,11 @@ function CreateAgentContent() {
         const formData = new FormData();
         const customFileName = `avatar-${Date.now()}.${avatarFile.name.split('.').pop()}`;
         formData.append("file", avatarFile, customFileName);
-        const uploadRequest = await fetch(`/api/akave/upload-form-data?bucket-name=franky-agents-avatar`, {
+        fetch(`/api/akave/upload-form-data?bucket-name=franky-agents-avatar`, {
           method: "POST",
           body: formData,
         });
-        const uploadResponse = await uploadRequest.json();
-        const avatarUrl = `${AKAVE_API_URL}/buckets/franky-agents-avatar/files/${uploadResponse.Name}/download`;
+        const avatarUrl = `${AKAVE_API_URL}/buckets/franky-agents-avatar/files/${customFileName}/download`;
         console.log(avatarUrl)
         console.log('Uploading character data to Akave with encrypted secrets...');
         let characterConfigUrl = null;
@@ -1028,7 +1027,7 @@ function CreateAgentContent() {
         // Handle secrets encryption and upload process
         try {
 
-          const uploadRequest = await fetch(`/api/akave/upload-character`, {
+          fetch(`/api/akave/upload-character`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -1039,8 +1038,7 @@ function CreateAgentContent() {
               secrets,
             }),
           });
-          const returnData = await uploadRequest.json();
-          characterConfigUrl = returnData.characterConfigUrl;
+          characterConfigUrl = `${AKAVE_API_URL}/buckets/${FRANKY_AGENTS_BUCKET}/files/${subname}-frankyagent-xyz.json/download`;
 
           if (!characterConfigUrl) {
             console.error('⚠️ Failed to upload character data to Akave');

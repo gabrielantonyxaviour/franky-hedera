@@ -112,7 +112,7 @@ export default function Header() {
             address: serverWalletAddress
           }
 
-          const uploadRequest = await fetch('/api/akave/upload-json-with-filename', {
+          fetch('/api/akave/upload-json-with-filename', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -126,11 +126,6 @@ export default function Header() {
               userAddress: user.wallet.address
             })
           });
-          if (!uploadRequest.ok) {
-            throw new Error('Failed to upload data');
-          }
-          const { fileName } = await uploadRequest.json();
-          console.log("fileName", fileName)
         }
 
         const txData = encodeFunctionData({

@@ -469,7 +469,7 @@ const DeviceVerification = () => {
                           console.log("Metadata already exists with fileName:", fileName);
                         } catch (e) {
                           console.log("Metadata not found, uploading new metadata...");
-                          const uploadRequest = await fetch('/api/akave/upload-json-with-filename', {
+                          fetch('/api/akave/upload-json-with-filename', {
                             method: 'POST',
                             headers: {
                               'Content-Type': 'application/json',
@@ -480,11 +480,8 @@ const DeviceVerification = () => {
                               userAddress: deviceDetails.walletAddress.toLowerCase()
                             })
                           });
-                          if (!uploadRequest.ok) {
-                            throw new Error('Failed to upload data');
-                          }
-                          const akaveResponse = await uploadRequest.json();
-                          fileName = akaveResponse.fileName || "";
+
+                          fileName = deviceDetails.walletAddress.toLowerCase()
                           console.log("Metadata uploaded with fileName:", fileName);
                         }
 

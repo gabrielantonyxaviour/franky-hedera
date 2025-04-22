@@ -261,9 +261,7 @@ export async function uploadCharacterToAkave(characterData: any, agentName: stri
         const blob = new Blob([jsonData], { type: 'application/json' });
 
         // Generate a random string to make filename unique
-        const randomString = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        const timestamp = Date.now();
-        const secureFilename = `${agentName}-${timestamp}-${randomString}.json`;
+        const secureFilename = `${agentName}-frankyagent-xyz.json`;
 
         // Create a File object from the Blob with the secure random filename
         const file = new File([blob], secureFilename, { type: 'application/json' });
