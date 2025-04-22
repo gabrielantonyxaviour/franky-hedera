@@ -21,7 +21,9 @@ export async function middleware(request: NextRequest) {
     
     // If it's a browser request (GET), serve the Hello page
     if (request.method === 'GET') {
-      return NextResponse.rewrite(new URL('/subdomain', url))
+      // Fix: Create a proper URL with the origin and path
+      const rewriteUrl = new URL('/subdomain', request.nextUrl.origin)
+      return NextResponse.rewrite(rewriteUrl)
     }
     
     try {
@@ -64,4 +66,4 @@ export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
-} 
+}
