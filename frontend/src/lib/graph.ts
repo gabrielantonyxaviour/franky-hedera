@@ -29,7 +29,7 @@ export const getAvailableDevices = async () => {
   `;
 
   try {
-    const { data } = await client.query({
+    const { data } = await graphClient.query({
       query: gql(AVAILABLE_DEVICES_QUERY),
     });
     return data.devices;
@@ -63,7 +63,7 @@ export const getPublicAgents = async () => {
   `;
 
   try {
-    const { data } = await client.query({
+    const { data } = await graphClient.query({
       query: gql(PUBLIC_AGENTS_QUERY),
     });
     return data.agents;
@@ -93,7 +93,7 @@ export const getDevicesByOwner = async (ownerAddress: Hex) => {
   `;
 
   try {
-    const { data } = await client.query({
+    const { data } = await graphClient.query({
       query: gql(DEVICES_BY_OWNER_QUERY),
       variables: {
         ownerId: ownerAddress
@@ -128,7 +128,7 @@ export const getAgentsByOwner = async (ownerAddress: Hex) => {
   `;
 
   try {
-    const { data } = await client.query({
+    const { data } = await graphClient.query({
       query: gql(AGENTS_BY_OWNER_QUERY),
       variables: {
         ownerId: ownerAddress
@@ -172,7 +172,7 @@ export const getAgentDetails = async (agentAddress: Hex) => {
   `;
 
   try {
-    const { data } = await client.query({
+    const { data } = await graphClient.query({
       query: gql(AGENT_DETAILS_QUERY),
       variables: {
         agentId: agentAddress
@@ -197,7 +197,7 @@ export const getAgentKeyHash = async (agentAddress: Hex) => {
   `;
 
   try {
-    const { data } = await client.query({
+    const { data } = await graphClient.query({
       query: gql(AGENT_KEY_HASH_QUERY),
       variables: {
         agentId: agentAddress
@@ -237,7 +237,7 @@ export const getDeviceDetails = async (deviceAddress: Hex) => {
   `;
 
   try {
-    const { data } = await client.query({
+    const { data } = await graphClient.query({
       query: gql(DEVICE_DETAILS_QUERY),
       variables: {
         deviceId: deviceAddress
@@ -262,7 +262,7 @@ export const getAgentCharacter = async (agentAddress: Hex) => {
   `;
 
   try {
-    const { data } = await client.query({
+    const { data } = await graphClient.query({
       query: gql(AGENT_CHARACTER_QUERY),
       variables: {
         agentId: agentAddress

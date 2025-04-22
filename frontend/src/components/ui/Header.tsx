@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import { useFundWallet, usePrivy, useSendTransaction } from "@privy-io/react-auth";
 import { useEffect, useRef, useState } from "react";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, UserCircle } from "lucide-react";
 import { faucetWalletClient, publicClient } from "@/lib/utils";
 import { toast } from "sonner"
 import { encodeFunctionData, formatEther, parseEther, zeroAddress } from "viem";
@@ -242,11 +242,9 @@ export default function Header() {
                   onMouseLeave={handleMouseLeave}
                 >
                   <User size={22} />
-                  <p className="cursor-pointer" onClick={() => {
-                    fundWallet("0x6193D75B82A33246dDF773a74b3aE3A4855bD19B", {});
-                  }}>{user.email?.address}</p>
+                  <p className="cursor-pointer">{user.email?.address}</p>
 
-                  {/* Logout Dropdown - Moved inside the user div for better hover control */}
+                  {/* Dropdown with Profile and Logout options */}
                   <AnimatePresence>
                     {showLogout && (
                       <motion.div
@@ -258,15 +256,29 @@ export default function Header() {
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
                       >
-                        <div
-                          onClick={() => {
-                            logout();
-                            setShowLogout(false);
-                          }}
-                          className="cursor-pointer flex space-x-2 items-center bg-black hover:bg-black/80 text-[#AAAAAA] border border-[#00FF88] border-opacity-20 px-4 py-2 rounded"
-                        >
-                          <LogOut size={20} className="text-[#AAAAAA]" />
-                          <p className="text-sm">Log out</p>
+                        <div className="bg-black border border-[#00FF88] border-opacity-20 rounded overflow-hidden flex flex-col">
+                          {/* Profile option */}
+                          <Link href="/profile">
+                            <div className="cursor-pointer flex space-x-2 items-center hover:bg-black/80 text-[#AAAAAA] px-4 py-2 transition-colors">
+                              <UserCircle size={20} className="text-[#AAAAAA]" />
+                              <p className="text-sm">Profile</p>
+                            </div>
+                          </Link>
+
+                          {/* Divider */}
+                          <div className="h-px bg-[#00FF88] bg-opacity-10"></div>
+
+                          {/* Logout option */}
+                          <div
+                            onClick={() => {
+                              logout();
+                              setShowLogout(false);
+                            }}
+                            className="cursor-pointer flex space-x-2 items-center hover:bg-black/80 text-[#AAAAAA] px-4 py-2 transition-colors"
+                          >
+                            <LogOut size={20} className="text-[#AAAAAA]" />
+                            <p className="text-sm">Log out</p>
+                          </div>
                         </div>
                       </motion.div>
                     )}
