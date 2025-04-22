@@ -29,17 +29,61 @@ setup_dependencies() {
         # Create backup of original config
         cp config.yaml config.yaml.backup
         
-        # Update specific settings in config.yaml
-        sed -i 's/listen: false/listen: true/' config.yaml
-        sed -i 's/port: [0-9]*/port: 8000/' config.yaml
-        sed -i 's/whitelistMode: true/whitelistMode: false/' config.yaml
-        sed -i 's/securityOverride: false/securityOverride: true/' config.yaml
-        sed -i 's/disableCsrfProtection: false/disableCsrfProtection: true/' config.yaml
+        # Detect OS for sed compatibility
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS
+            SED_CMD="sed -i ''"
+        elif [[ "$OSTYPE" == "linux"* ]] || [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]]; then
+            # Linux or Windows (Git Bash/Cygwin)
+            SED_CMD="sed -i"
+        else
+            # Fallback - try Linux style
+            SED_CMD="sed -i"
+        fi
+        
+        # Create a temporary file for the new configuration
+        TMP_CONFIG=$(mktemp)
+        
+        # Read the original config and apply changes
+        while IFS= read -r line; do
+            case "$line" in
+                *"listen:"*)
+                    echo "listen: true" >> "$TMP_CONFIG"
+                    ;;
+                *"port:"*)
+                    echo "port: 8000" >> "$TMP_CONFIG"
+                    ;;
+                *"whitelistMode:"*)
+                    echo "whitelistMode: false" >> "$TMP_CONFIG"
+                    ;;
+                *"securityOverride:"*)
+                    echo "securityOverride: true" >> "$TMP_CONFIG"
+                    ;;
+                *"disableCsrfProtection:"*)
+                    echo "disableCsrfProtection: true" >> "$TMP_CONFIG"
+                    ;;
+                *)
+                    echo "$line" >> "$TMP_CONFIG"
+                    ;;
+            esac
+        done < config.yaml
+        
+        # Replace the original file with the new one
+        mv "$TMP_CONFIG" config.yaml
+        
+        # Ensure proper line endings for the OS
+        if [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]]; then
+            # Convert to DOS line endings for Windows
+            unix2dos config.yaml 2>/dev/null || true
+        fi
         
         echo "✅ Configuration updated successfully"
     else
         echo "⚠️ config.yaml not found. Creating with custom settings..."
-        cat > config.yaml << 'EOL'
+        # Create the config file with the appropriate line endings
+        if [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]]; then
+            # Windows - use DOS line endings
+            cat > config.yaml << 'EOL'
 # SillyTavern configuration
 listen: true
 port: 8000
@@ -47,6 +91,18 @@ whitelistMode: false
 securityOverride: true
 disableCsrfProtection: true
 EOL
+            unix2dos config.yaml 2>/dev/null || true
+        else
+            # Unix-like systems - use Unix line endings
+            cat > config.yaml << 'EOL'
+# SillyTavern configuration
+listen: true
+port: 8000
+whitelistMode: false
+securityOverride: true
+disableCsrfProtection: true
+EOL
+        fi
         echo "✅ Custom config.yaml created"
     fi
 }
@@ -55,24 +111,6 @@ EOL
 start_sillytavern() {
     echo "🚀 Starting SillyTavern with Ollama and ngrok support..."
 
-    # Kill any existing processes using port 8000
-    echo "🧹 Cleaning up port 8000..."
-    if command -v lsof >/dev/null 2>&1; then
-        # If lsof is available (macOS/Linux)
-        EXISTING_PID=$(lsof -ti:8000)
-        if [ ! -z "$EXISTING_PID" ]; then
-            echo "Found process using port 8000, terminating..."
-            kill -9 $EXISTING_PID
-            sleep 2
-        fi
-    else
-        # Fallback for systems without lsof
-        echo "⚠️ lsof not found, trying alternative cleanup..."
-        # Try to find and kill node processes that might be using the port
-        pkill -f "node.*port.*8000" || true
-        sleep 2
-    fi
-
     # Create data directory if it doesn't exist
     mkdir -p data
     mkdir -p data/user
@@ -80,11 +118,6 @@ start_sillytavern() {
     mkdir -p data/chats
     mkdir -p data/groups
     mkdir -p data/themes
-
-    # Kill any existing ngrok processes
-    echo "🧹 Cleaning up ngrok processes..."
-    pkill -f ngrok || true
-    sleep 2
 
     # Check if Ollama is already running
     if curl -s http://127.0.0.1:11434/api/tags > /dev/null; then
@@ -115,14 +148,14 @@ start_sillytavern() {
     MODELS=$(curl -s http://127.0.0.1:11434/api/tags | grep -o '"name":"[^"]*' | cut -d'"' -f4 | tr '\n' ', ')
     echo "📋 Available models: $MODELS"
 
-    # Check if the chat.js file exists
+    # Check if the ollama-proxy.js file exists
     if [ ! -f "src/endpoints/chat.js" ]; then
         echo "⚠️ chat.js file not found. Creating it..."
         
         # Create the directory if it doesn't exist
         mkdir -p src/endpoints
         
-        # Create the chat.js file
+        # Create the ollama-proxy.js file
         cat > src/endpoints/chat.js << 'EOL'
 import express from 'express';
 import { trimV1 } from '../util.js';
@@ -186,22 +219,21 @@ EOL
         echo "✅ Created chat.js"
     fi
 
-    # Update server-startup.js to include our chat endpoint
+    # Update server-startup.js to include our ollama-proxy endpoint
     if ! grep -q "ollamaProxyRouter" src/server-startup.js; then
         echo "⚠️ ollamaProxyRouter not found in server-startup.js. Adding it..."
         
         # Add the import
-        sed -i '' "1s|^|import { router as ollamaProxyRouter } from './endpoints/chat.js';\n|" src/server-startup.js
+        sed -i "1s|^|import { router as ollamaProxyRouter } from './endpoints/chat.js';\n|" src/server-startup.js
         
         # Add the endpoint registration
-        sed -i '' "/app\.use('\/api\/azure', azureRouter);/a\\
-    app.use('/api/chat', ollamaProxyRouter);" src/server-startup.js
+        sed -i "/app\.use('\/api\/azure', azureRouter);/a \ \ \ \ app.use('/api/chat', ollamaProxyRouter);" src/server-startup.js
         
         echo "✅ Updated server-startup.js"
     fi
 
     # Get device IP for external access
-    IP=$(ip addr show 2>/dev/null | grep -E "inet .* scope global" | grep -oE "([0-9]{1,3}\.){3}[0-9]{1,3}" | head -1)
+    IP=$(ip addr show | grep -E "inet .* scope global" | grep -oE "([0-9]{1,3}\.){3}[0-9]{1,3}" | head -1)
     echo "🌐 Local device IP: $IP"
 
     # Check if ngrok is installed
@@ -209,28 +241,32 @@ EOL
         echo "⚠️ ngrok is not installed or not in PATH"
         echo "Please install ngrok or make sure it's in your PATH"
     else
-        # Start ngrok in a new terminal
-        echo "🔄 Starting ngrok tunnel for port 8000..."
-        ngrok http 8000 > ngrok.log 2>&1 &
-        
-        # Wait for ngrok to start
-        echo "⏳ Waiting for ngrok to start..."
-        for i in {1..10}; do
-            if curl -s http://127.0.0.1:4040/api/tunnels | grep -q "public_url"; then
-                NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels | grep -o '"public_url":"[^"]*' | cut -d'"' -f4 | head -1)
-                if [ -n "$NGROK_URL" ]; then
-                    echo "🌍 ngrok tunnel URL: $NGROK_URL"
-                    echo "📝 API endpoint for Postman: $NGROK_URL/api/chat"
-                    break
-                fi
-            fi
-            echo "⏳ Waiting for ngrok... ($i/10)"
-            sleep 2
+        # Start ngrok in a new terminal if it's not already running
+        if ! curl -s http://127.0.0.1:4040/api/tunnels > /dev/null; then
+            echo "🔄 Starting ngrok tunnel for port 8000..."
+            ngrok http 8000 > ngrok.log 2>&1 &
             
-            if [ $i -eq 10 ]; then
-                echo "⚠️ Could not get ngrok URL after multiple attempts"
+            # Wait for ngrok to start
+            sleep 5
+            
+            # Get the ngrok URL
+            NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels | grep -o '"public_url":"[^"]*' | cut -d'"' -f4 | head -1)
+            if [ -n "$NGROK_URL" ]; then
+                echo "🌍 ngrok tunnel URL: $NGROK_URL"
+                echo "📝 API endpoint for Postman: $NGROK_URL/api/chat"
+            else
+                echo "⚠️ Could not get ngrok URL. Is ngrok running properly?"
             fi
-        done
+        else
+            # Get the ngrok URL if it's already running
+            NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels | grep -o '"public_url":"[^"]*' | cut -d'"' -f4 | head -1)
+            if [ -n "$NGROK_URL" ]; then
+                echo "🌍 ngrok tunnel already running at: $NGROK_URL"
+                echo "📝 API endpoint for Postman: $NGROK_URL/api/chat"
+            else
+                echo "⚠️ ngrok is running but could not get URL"
+            fi
+        fi
     fi
 
     echo "----------------------------"
@@ -242,52 +278,14 @@ EOL
     }'
     echo "----------------------------"
 
-    # Install missing dependencies if needed
-    echo "📦 Checking for required dependencies..."
-    # Install siwe dependency which is commonly missing
-    if ! npm list siwe > /dev/null 2>&1; then
-        echo "📦 Installing missing siwe dependency..."
-        npm install siwe --save
-        echo "✅ Installed siwe dependency"
-    fi
-    
-    # Install other potential missing dependencies
-    for dep in "cors" "ethers@5.5.1" "@lit-protocol/lit-node-client"; do
-        if ! npm list $dep > /dev/null 2>&1; then
-            echo "📦 Installing missing dependency: $dep..."
-            npm install $dep --save
-            echo "✅ Installed $dep dependency"
-        fi
-    done
-
     # Start SillyTavern with explicit data path and CORS disabled
     echo "🧩 Starting SillyTavern..."
     node server.js --dataRoot="$PWD/data" --listen --port=8000 --enableCorsProxy --disableCsrf &
     SERVER_PID=$!
     
-    # Wait for server to start and verify it's running
+    # Wait for server to start
     echo "⏳ Waiting for SillyTavern to start..."
-    for i in {1..10}; do
-        if curl -s http://localhost:8000 > /dev/null; then
-            echo "✅ SillyTavern server is running"
-            break
-        fi
-        echo "⏳ Waiting for server... ($i/10)"
-        sleep 2
-        
-        if [ $i -eq 10 ]; then
-            echo "⚠️ Could not verify server is running after multiple attempts"
-        fi
-    done
-    
-    # Verify the endpoint is accessible
-    echo "🔍 Verifying API endpoint..."
-    ENDPOINT_TEST=$(curl -s -o /dev/null -w "%{http_code}" "$NGROK_URL/api/chat/models")
-    if [ "$ENDPOINT_TEST" = "200" ]; then
-        echo "✅ API endpoint is accessible"
-    else
-        echo "⚠️ API endpoint returned status: $ENDPOINT_TEST"
-    fi
+    sleep 5
     
     # Now proceed with wallet creation
     create_wallet
@@ -653,76 +651,10 @@ create_wallet() {
     
     echo "✅ Wallet creation process completed!"
     echo "🚀 SillyTavern is running with Ollama integration and wallet has been created."
-    
-    # Check if the SillyTavern server is still running
-    if ! kill -0 $SERVER_PID 2>/dev/null; then
-        echo "⚠️ SillyTavern server has stopped. Attempting to restart..."
-        
-        # Install any missing dependencies
-        echo "📦 Installing missing dependencies..."
-        npm install siwe @lit-protocol/lit-node-client cors ethers@5.5.1 --save
-        
-        # Restart SillyTavern
-        echo "🔄 Restarting SillyTavern..."
-        node server.js --dataRoot="$PWD/data" --listen --port=8000 --enableCorsProxy --disableCsrf &
-        SERVER_PID=$!
-        
-        echo "⏳ Waiting for SillyTavern to restart..."
-        sleep 5
-    fi
-    
     echo "Press Ctrl+C to stop the server when you're done."
-    
-    # Monitor the server and restart it if it crashes
-    echo "👀 Monitoring server process..."
-    
-    monitor_server() {
-        while true; do
-            # Check if the server process is still running
-            if ! kill -0 $SERVER_PID 2>/dev/null; then
-                echo "⚠️ SillyTavern server has stopped. Restarting..."
-                
-                # Restart SillyTavern
-                node server.js --dataRoot="$PWD/data" --listen --port=8000 --enableCorsProxy --disableCsrf &
-                SERVER_PID=$!
-                
-                echo "🔄 Server restarted with PID: $SERVER_PID"
-                echo "⏳ Waiting for server to initialize..."
-                sleep 5
-            fi
-            
-            # Check ngrok tunnel
-            if ! curl -s http://127.0.0.1:4040/api/tunnels | grep -q "public_url"; then
-                echo "⚠️ ngrok tunnel appears to be down. Attempting to restart..."
-                ngrok http 8000 > ngrok.log 2>&1 &
-                
-                # Wait for ngrok to start
-                sleep 5
-                
-                # Get the new ngrok URL
-                NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels | grep -o '"public_url":"[^"]*' | cut -d'"' -f4 | head -1)
-                if [ -n "$NGROK_URL" ]; then
-                    echo "🌍 ngrok tunnel restarted at: $NGROK_URL"
-                    echo "📝 API endpoint for Postman: $NGROK_URL/api/chat"
-                else
-                    echo "⚠️ Could not restart ngrok tunnel"
-                fi
-            fi
-            
-            # Pause before checking again
-            sleep 30
-        done
-    }
-    
-    # Start the monitoring in the background
-    monitor_server &
-    MONITOR_PID=$!
     
     # Wait for the server process to complete
     wait $SERVER_PID
-    
-    # If we get here, the server has exited, so kill the monitor
-    kill $MONITOR_PID 2>/dev/null
 }
 
 # Function to list latest agent
