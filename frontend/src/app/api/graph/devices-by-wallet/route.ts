@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        return NextResponse.json(data.devices[0]);
+        return NextResponse.json([data.devices[0]]);
     } catch (error) {
         console.error('Error fetching devices by owner:', error);
         return NextResponse.json(
