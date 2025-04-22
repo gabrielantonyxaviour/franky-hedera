@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
         const { data } = await graphClient.query({
             query: gql(DEVICES_BY_OWNER_QUERY),
             variables: {
-                id: walletAddress
+                id: walletAddress.toLowerCase()
             }
         });
         if (data.devices.length === 0) {
