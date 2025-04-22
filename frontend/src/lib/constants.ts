@@ -863,4 +863,4 @@ export const FRANKY_ABI = [
   }
 ]
 
-export const FRANY_INDEXER_API = 'https://1ca6-124-123-105-119.ngrok-free.app/subgraphs/name/graph-indexer'
+export const FRANY_INDEXER_API = 'https://a0fc-124-123-105-119.ngrok-free.app/subgraphs/name/graph-indexer'

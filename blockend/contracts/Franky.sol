@@ -138,7 +138,7 @@ contract Franky {
         uint256 perApiCallFee,
         bool isPublic
     ) external {
-        require(frankyENSRegistrar != address(0), "Registrar not initialized");
+        // require(frankyENSRegistrar != address(0), "Registrar not initialized");
         require(devices[deviceAddress].isRegistered, "Device not registered");
         address agentAddress = _deployAgentAccount(
             subname,

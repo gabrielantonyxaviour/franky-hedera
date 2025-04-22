@@ -3,12 +3,15 @@
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
-import { useFundWallet, usePrivy } from "@privy-io/react-auth";
+import { useFundWallet, usePrivy, useSendTransaction } from "@privy-io/react-auth";
 import { useEffect, useRef, useState } from "react";
 import { LogOut, User } from "lucide-react";
 import { faucetWalletClient, publicClient } from "@/lib/utils";
 import { toast } from "sonner"
-import { formatEther, parseEther } from "viem";
+import { encodeFunctionData, formatEther, parseEther, zeroAddress } from "viem";
+import { FRANKY_ABI, FRANKY_ADDRESS } from "@/lib/constants";
+import { getJsonFromAkave, uploadJsonToAkave, uploadJsonToAkaveWithFileName } from "@/lib/akave";
+import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
 export default function Header() {
   const { user, logout } = usePrivy();
   const [showLogout, setShowLogout] = useState(false);
@@ -17,7 +20,7 @@ export default function Header() {
   const userProfileRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [balance, setBalance] = useState<string>('0');
-
+  const { sendTransaction } = useSendTransaction()
   const handleMouseEnter = () => {
     if (logoutTimeoutRef.current) {
       clearTimeout(logoutTimeoutRef.current);
@@ -60,10 +63,114 @@ export default function Header() {
         }
         setBalance(formatEther(fetched));
         setIsLoading(false);
+
       }
     })()
 
   }, [user])
+
+
+  useEffect(() => {
+
+    if (balance == '0') return;
+    (async function () {
+      if (!user) return;
+      if (!user.wallet) return;
+      console.log("USEr wallet address: ", user.wallet)
+      const isServerWalletConfigured = await publicClient.readContract({
+        address: FRANKY_ADDRESS,
+        abi: FRANKY_ABI,
+        functionName: "embeddedToServerWallets",
+        args: [user.wallet?.address as `0x${string}`],
+      })
+      console.log(isServerWalletConfigured)
+
+      if (isServerWalletConfigured == zeroAddress) {
+        toast.warning("Server Wallet is not configured", {
+          description: "Configuring server wallet with your wallet"
+        })
+        toast.info("Setting up your Server Wallet",
+          {
+            description: "This will take a few seconds. Please wait...",
+          }
+        )
+        let keypair: any = {
+          privateKey: "",
+          address: ""
+        }
+        try {
+          const { data } = await getJsonFromAkave(`${user.wallet.address}`, 'franky-server-wallets')
+          keypair = data
+        } catch (e) {
+          const privateKey = generatePrivateKey()
+          const serverWalletAddress = privateKeyToAddress(privateKey)
+          keypair = {
+            privateKey,
+            address: serverWalletAddress
+          }
+          const { fileName } = await uploadJsonToAkaveWithFileName({
+            privateKey: generatePrivateKey(),
+            address: serverWalletAddress
+          }, user.wallet.address as `0x${string}`, 'franky-agents-server-wallets')
+          console.log("fileName", fileName)
+        }
+
+        const txData = encodeFunctionData({
+          abi: FRANKY_ABI,
+          functionName: "configureServerWallet",
+          args: [keypair.address],
+        })
+        toast.info("Server Wallet configured", {
+          description: "Configuring it on chain"
+        })
+
+        const { request } = await publicClient.simulateContract({
+          account: user.wallet.address as `0x${string}`,
+          address: FRANKY_ADDRESS,
+          abi: FRANKY_ABI,
+          functionName: "configureServerWallet",
+          args: [keypair.address],
+        })
+        console.log("Transaction Data: ", {
+          to: FRANKY_ADDRESS,
+          data: txData,
+          gasLimit: request.gas,
+          gasPrice: request.gasPrice,
+          maxFeePerGas: request.maxFeePerGas,
+          maxPriorityFeePerGas: request.maxPriorityFeePerGas,
+        })
+        const nonce = await publicClient.getTransactionCount({
+          address: user.wallet.address as `0x${string}`,
+          blockTag: 'pending'
+        })
+        const { hash } = await sendTransaction({
+          to: FRANKY_ADDRESS,
+          data: txData,
+          gasLimit: request.gas ?? 15000000, // Higher default for complex operations
+          gasPrice: request.gasPrice ?? 2500, // Base fee in attoFIL
+          maxFeePerGas: request.maxFeePerGas ?? 15000, // Max fee in attoFIL
+          maxPriorityFeePerGas: request.maxPriorityFeePerGas ?? 10000,
+          nonce: nonce ?? 1,
+        }, {
+          address: user.wallet.address as `0x${string}`,
+        })
+        toast.promise(publicClient.waitForTransactionReceipt({
+          hash,
+        }), {
+          loading: "Waiting for confirmation...",
+          success: (data) => {
+            return `Transaction confirmed! `;
+          },
+          action: {
+            label: "View Tx",
+            onClick: () => {
+              window.open(`https://filecoin-testnet.blockscout.com/tx/${hash}`, "_blank");
+            }
+          }
+        })
+      }
+    })()
+  }, [balance])
 
   const handleMouseLeave = () => {
     logoutTimeoutRef.current = setTimeout(() => {

@@ -2,8 +2,7 @@ import { ApolloClient, InMemoryCache, gql } from '@apollo/client';
 import { FRANY_INDEXER_API } from './constants';
 import { Hex } from 'viem';
 
-// Set up the Apollo Client with your subgraph endpoint
-const client = new ApolloClient({
+export const graphClient = new ApolloClient({
   uri: FRANY_INDEXER_API,
   cache: new InMemoryCache(),
 });
@@ -12,7 +11,7 @@ const client = new ApolloClient({
 export const getAvailableDevices = async () => {
   const AVAILABLE_DEVICES_QUERY = `
     query {
-      devices(where: {agents_: {id: null}}) {
+      devices {
         id
         owner {
           id
@@ -22,6 +21,9 @@ export const getAvailableDevices = async () => {
         hostingFee
         createdAt
         updatedAt
+        agents {
+          id
+        }
       }
     }
   `;
