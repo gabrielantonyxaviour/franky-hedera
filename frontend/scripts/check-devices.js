@@ -28,7 +28,10 @@ const DEVICE_REPUTATION_BUCKET = 'device-reputation';
 const NUM_RETRIEVALS = 5;
 const LOG_DIR = path.join(process.cwd(), 'logs');
 const MAX_CONCURRENT_CHECKS = 5;
-const GRAPHQL_ENDPOINT = 'https://api.thegraph.com/subgraphs/name/marshal-am/franky-service';
+
+// API Endpoints
+const DEVICES_API_ENDPOINT = 'https://www.frankyagent.xyz/api/graph/devices';
+const CHARACTER_API_ENDPOINT = 'https://www.frankyagent.xyz/api/graph/character';
 
 // In production, this would be loaded from secure environment variables
 const CHECKER_PRIVATE_KEY = ethers.Wallet.createRandom().privateKey;
@@ -105,6 +108,12 @@ function createConsensusManager(checkerId, privateKey) {
         throw new Error('No active consensus round');
       }
       
+      // Ensure deviceId is valid
+      if (!deviceId) {
+        log('Warning: Attempting to submit vote with invalid deviceId');
+        deviceId = 'unknown-device'; // Fallback to prevent errors
+      }
+      
       // Create a signature for the vote
       const wallet = new ethers.Wallet(privateKey);
       const voteData = {
@@ -113,6 +122,8 @@ function createConsensusManager(checkerId, privateKey) {
         timestamp: new Date().toISOString(),
         metricsHash: ethers.utils.id(JSON.stringify(metrics))
       };
+      
+      log(`Creating vote signature for device ${deviceId}`);
       const message = JSON.stringify(voteData);
       const signature = await wallet.signMessage(message);
       
@@ -125,6 +136,7 @@ function createConsensusManager(checkerId, privateKey) {
       };
       
       currentRound.votes.push(vote);
+      log(`Vote added to round ${currentRound.roundId}`);
       return vote;
     },
     
@@ -237,50 +249,83 @@ async function calculatePreviousProofHash() {
   return '0x0000000000000000000000000000000000000000000000000000000000000000';
 }
 
-// Fetch devices using GraphQL
-async function fetchDevices(limit = 100) {
+// Fetch devices using the direct API endpoint
+async function fetchDevices() {
   try {
-    log(`Fetching up to ${limit} registered devices from subgraph...`);
+    log(`Fetching devices from API: ${DEVICES_API_ENDPOINT}`);
     
-    const query = `{
-      devices(first: ${limit}) {
-        id
-        owner {
-          id
-        }
-        ngrokLink
-        deviceMetadata
-        hostingFee
-        createdAt
-        agents {
-          id
-          characterConfig
-          perApiCallFee
-          subname
-        }
-      }
-    }`;
-    
-    const response = await fetch(GRAPHQL_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query })
-    });
+    const response = await fetch(DEVICES_API_ENDPOINT);
     
     if (!response.ok) {
-      throw new Error(`GraphQL request failed: ${response.status}`);
+      throw new Error(`Device API request failed: ${response.status}`);
     }
     
-    const result = await response.json();
-    if (result.errors) {
-      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+    const devices = await response.json();
+    log(`API returned ${devices.length} devices`);
+    
+    // Enhance devices with character config for each agent
+    const enhancedDevices = [];
+    
+    for (const device of devices) {
+      try {
+        log(`Processing device: ${device.id}`);
+        
+        if (device.agents && device.agents.length > 0) {
+          // Get character config for the first agent (primary agent)
+          const agentAddress = device.agents[0].id;
+          log(`Found agent ${agentAddress} for device ${device.id}`);
+          
+          const characterConfig = await fetchAgentCharacter(agentAddress);
+          log(`Retrieved character config for agent ${agentAddress}`);
+          
+          // Enhance the agent with the character config
+          const enhancedDevice = {
+            ...device,
+            agents: [
+              {
+                ...device.agents[0],
+                characterConfig
+              }
+            ]
+          };
+          
+          enhancedDevices.push(enhancedDevice);
+          log(`Added enhanced device ${device.id} to the list`);
+        } else {
+          log(`Device ${device.id} has no agents, skipping character config fetch`);
+          enhancedDevices.push(device);
+        }
+      } catch (error) {
+        log(`Warning: Could not fetch character config for device ${device.id}: ${error.message}`);
+        enhancedDevices.push(device);
+      }
     }
     
-    return result.data.devices || [];
+    return enhancedDevices;
   } catch (error) {
     log(`Error fetching devices: ${error.message}`);
     console.error(error);
     return [];
+  }
+}
+
+// Fetch agent character configuration using the API
+async function fetchAgentCharacter(agentAddress) {
+  try {
+    const url = `${CHARACTER_API_ENDPOINT}?address=${agentAddress}`;
+    log(`Fetching agent character: ${url}`);
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Character API request failed: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.characterConfig;
+  } catch (error) {
+    log(`Error fetching agent character: ${error.message}`);
+    throw error;
   }
 }
 
@@ -299,13 +344,25 @@ async function checkDevice(device, checkerNode, consensusManager) {
       return null;
     }
     
+    log(`Device has ngrokLink: ${device.ngrokLink}`);
+    log(`Device agent info: ${JSON.stringify(device.agents[0])}`);
+    
     // Start consensus round
     consensusManager.startRound(device.id);
     
     // Collect metrics
+    log(`Collecting metrics for device ${device.id}...`);
     const metrics = await collectDeviceMetrics(device);
     
+    // Check if we got valid metrics - if all health checks failed, skip further processing
+    const hasSuccessfulChecks = metrics.availability.uptime > 0;
+    if (!hasSuccessfulChecks) {
+      log(`All health checks failed for device ${device.id}, skipping consensus and storage`);
+      return null;
+    }
+    
     // Submit metrics as vote
+    log(`Submitting vote for device ${device.id}...`);
     await consensusManager.submitVote(metrics, device.id);
     
     // Calculate consensus (in a multi-checker setup, this would combine multiple votes)
@@ -401,6 +458,12 @@ async function checkDeviceHealth(deviceAddress, ngrokUrl, agent) {
     // Ensure ngrokUrl ends with a trailing slash
     const baseUrl = ngrokUrl.endsWith('/') ? ngrokUrl : `${ngrokUrl}/`;
     const healthEndpoint = `${baseUrl}api/chat/health`;
+    
+    // Get agent ID
+    const agentId = agent.id;
+    
+    log(`Checking health for device ${deviceAddress} with agent ${agentId}...`);
+    log(`Making health check request to ${healthEndpoint}`);
 
     // Step 1: Make POST request to health endpoint with agent address
     const healthResponse = await fetch(healthEndpoint, {
@@ -410,7 +473,7 @@ async function checkDeviceHealth(deviceAddress, ngrokUrl, agent) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        agentAddress: agent.id,
+        agentAddress: agentId,
         deviceAddress: deviceAddress
       }),
       timeout: 15000
@@ -481,6 +544,8 @@ async function checkDeviceHealth(deviceAddress, ngrokUrl, agent) {
     stats.error = error.message || 'Unknown error';
     stats.statusCode = mapErrorToStatusCode(error);
     stats.characterVerified = false;
+    
+    log(`Health check failed for device ${deviceAddress}: ${error.message}`);
 
     return {
       deviceAddress,
@@ -636,8 +701,8 @@ async function main() {
     // Initialize consensus manager
     const consensusManager = createConsensusManager(checkerNode.address, checkerNode.privateKey);
     
-    // Fetch registered devices
-    const devices = await fetchDevices(100);
+    // Fetch registered devices using direct API
+    const devices = await fetchDevices();
     log(`Found ${devices.length} registered devices to check`);
     
     // Process devices in batches

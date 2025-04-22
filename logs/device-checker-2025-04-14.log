@@ -40,3 +40,887 @@
 [2025-04-14T14:56:00.553Z] Found 0 registered devices to check
 [2025-04-14T14:56:00.553Z] 🎯 Device check complete
 [2025-04-14T14:56:00.553Z] 📊 Summary: 0 checked, 0 skipped
+[2025-04-14T14:58:00.485Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T14:58:00.487Z] Checker node initialized with address: 0x5343Eb5B431EB28E7811f360E5f0866D8DbC0571
+[2025-04-14T14:58:00.487Z] Fetching up to 100 registered devices from subgraph...
+[2025-04-14T14:58:00.616Z] Error fetching devices: GraphQL errors: [{"message":"This endpoint has been removed. If you have any questions, reach out to support@thegraph.zendesk.com"}]
+[2025-04-14T14:58:00.617Z] Found 0 registered devices to check
+[2025-04-14T14:58:00.618Z] 🎯 Device check complete
+[2025-04-14T14:58:00.618Z] 📊 Summary: 0 checked, 0 skipped
+[2025-04-14T15:00:00.493Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:00:00.495Z] Checker node initialized with address: 0xB6c3b89f20cfBf9e80f68dcF96E3C619d13e32e3
+[2025-04-14T15:00:00.495Z] Fetching up to 100 registered devices from subgraph...
+[2025-04-14T15:00:00.654Z] Error fetching devices: GraphQL errors: [{"message":"This endpoint has been removed. If you have any questions, reach out to support@thegraph.zendesk.com"}]
+[2025-04-14T15:00:00.655Z] Found 0 registered devices to check
+[2025-04-14T15:00:00.655Z] 🎯 Device check complete
+[2025-04-14T15:00:00.655Z] 📊 Summary: 0 checked, 0 skipped
+[2025-04-14T15:01:49.531Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:01:49.533Z] Checker node initialized with address: 0x3f883974aaAe921Ac400e203F0b301a5788234a0
+[2025-04-14T15:01:49.533Z] Fetching registered devices from https://www.frankyagent.xyz/api/graph/devices...
+[2025-04-14T15:01:51.448Z] Successfully fetched 1 registered devices
+[2025-04-14T15:01:51.448Z] Found 1 registered devices to check
+[2025-04-14T15:01:51.449Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:01:51.449Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:01:56.242Z] ❌ Error checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Cannot read properties of undefined (reading 'id')
+[2025-04-14T15:01:56.244Z] 🎯 Device check complete
+[2025-04-14T15:01:56.244Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:02:00.409Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:02:00.411Z] Checker node initialized with address: 0x7287D849bfc844DFc0b9Cd9cCeCDDFD10FA23838
+[2025-04-14T15:02:00.411Z] Fetching registered devices from https://www.frankyagent.xyz/api/graph/devices...
+[2025-04-14T15:02:01.798Z] Successfully fetched 1 registered devices
+[2025-04-14T15:02:01.798Z] Found 1 registered devices to check
+[2025-04-14T15:02:01.798Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:02:01.798Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:02:06.344Z] ❌ Error checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Cannot read properties of undefined (reading 'id')
+[2025-04-14T15:02:06.345Z] 🎯 Device check complete
+[2025-04-14T15:02:06.346Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:02:30.089Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:02:30.091Z] Checker node initialized with address: 0x42D5D2DAB1B16c4fa5210A2F8fa2e765DeD33339
+[2025-04-14T15:02:30.091Z] Fetching registered devices from https://www.frankyagent.xyz/api/graph/devices...
+[2025-04-14T15:02:30.767Z] Successfully fetched 1 registered devices
+[2025-04-14T15:02:30.767Z] Found 1 registered devices to check
+[2025-04-14T15:02:30.767Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:02:30.767Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:02:35.263Z] ❌ Error checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Cannot read properties of undefined (reading 'id')
+[2025-04-14T15:02:35.264Z] 🎯 Device check complete
+[2025-04-14T15:02:35.264Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:03:54.996Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:03:54.997Z] Checker node initialized with address: 0xbDEeC459521A102BE34b53542c5232061a668bD4
+[2025-04-14T15:03:54.997Z] Fetching registered devices from https://www.frankyagent.xyz/api/graph/devices...
+[2025-04-14T15:03:55.582Z] Successfully fetched 1 registered devices
+[2025-04-14T15:03:55.582Z] Found 1 registered devices to check
+[2025-04-14T15:03:55.582Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:03:55.582Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:03:55.583Z] Device structure: {
+  "__typename": "device",
+  "id": "0x0d86b689ea0c9b32060a9d9780f548b69b9f0666",
+  "owner": {
+    "__typename": "user",
+    "id": "0x6193d75b82a33246ddf773a74b3ae3a4855bd19b"
+  },
+  "deviceMetadata": "http://3.88.107.110:8000/buckets/franky-agents-devices/files/0x0d86b689ea0c9b32060a9d9780f548b69b9f0666.json/download",
+  "ngrokLink": "https://example.ngrok.app",
+  "hostingFee": "10000000000000000",
+  "createdAt": "1744636110",
+  "updatedAt": "1744636110",
+  "agents": [
+    {
+      "__typename": "agent",
+      "id": "0xb9ef1419f79520c187f90945b54f3d5c074a6259"
+    }
+  ]
+}
+[2025-04-14T15:03:55.583Z] Using agent: {
+  "__typename": "agent",
+  "id": "0xb9ef1419f79520c187f90945b54f3d5c074a6259"
+}
+[2025-04-14T15:04:00.325Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:04:00.327Z] Checker node initialized with address: 0xDa4FdD50e6D8905E5eea9296cFc0Bf04C8Ff0566
+[2025-04-14T15:04:00.327Z] Fetching registered devices from https://www.frankyagent.xyz/api/graph/devices...
+[2025-04-14T15:04:00.987Z] Successfully fetched 1 registered devices
+[2025-04-14T15:04:00.988Z] Found 1 registered devices to check
+[2025-04-14T15:04:00.988Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:04:00.988Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:04:00.988Z] Device structure: {
+  "__typename": "device",
+  "id": "0x0d86b689ea0c9b32060a9d9780f548b69b9f0666",
+  "owner": {
+    "__typename": "user",
+    "id": "0x6193d75b82a33246ddf773a74b3ae3a4855bd19b"
+  },
+  "deviceMetadata": "http://3.88.107.110:8000/buckets/franky-agents-devices/files/0x0d86b689ea0c9b32060a9d9780f548b69b9f0666.json/download",
+  "ngrokLink": "https://example.ngrok.app",
+  "hostingFee": "10000000000000000",
+  "createdAt": "1744636110",
+  "updatedAt": "1744636110",
+  "agents": [
+    {
+      "__typename": "agent",
+      "id": "0xb9ef1419f79520c187f90945b54f3d5c074a6259"
+    }
+  ]
+}
+[2025-04-14T15:04:00.989Z] Using agent: {
+  "__typename": "agent",
+  "id": "0xb9ef1419f79520c187f90945b54f3d5c074a6259"
+}
+[2025-04-14T15:04:05.573Z] ❌ Error checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Cannot read properties of undefined (reading 'id')
+[2025-04-14T15:04:05.574Z] 🎯 Device check complete
+[2025-04-14T15:04:05.574Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:05:59.582Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:05:59.584Z] Checker node initialized with address: 0x2182fBcE264490Ad1dB8a6e3Bfb95aAd3716473d
+[2025-04-14T15:05:59.584Z] Fetching registered devices from https://www.frankyagent.xyz/api/graph/devices...
+[2025-04-14T15:06:00.327Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:06:00.328Z] Checker node initialized with address: 0xAAa0140b9c24385530c38C2a32369F0535F37893
+[2025-04-14T15:06:00.328Z] Fetching registered devices from https://www.frankyagent.xyz/api/graph/devices...
+[2025-04-14T15:06:00.797Z] Successfully fetched 1 registered devices
+[2025-04-14T15:06:00.797Z] Found 1 registered devices to check
+[2025-04-14T15:06:00.798Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:06:00.798Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:06:00.798Z] Device structure: {
+  "__typename": "device",
+  "id": "0x0d86b689ea0c9b32060a9d9780f548b69b9f0666",
+  "owner": {
+    "__typename": "user",
+    "id": "0x6193d75b82a33246ddf773a74b3ae3a4855bd19b"
+  },
+  "deviceMetadata": "http://3.88.107.110:8000/buckets/franky-agents-devices/files/0x0d86b689ea0c9b32060a9d9780f548b69b9f0666.json/download",
+  "ngrokLink": "https://example.ngrok.app",
+  "hostingFee": "10000000000000000",
+  "createdAt": "1744636110",
+  "updatedAt": "1744636110",
+  "agents": [
+    {
+      "__typename": "agent",
+      "id": "0xb9ef1419f79520c187f90945b54f3d5c074a6259"
+    }
+  ]
+}
+[2025-04-14T15:06:00.798Z] Using agent: {
+  "__typename": "agent",
+  "id": "0xb9ef1419f79520c187f90945b54f3d5c074a6259"
+}
+[2025-04-14T15:06:00.798Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:06:00.798Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:06:01.003Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:06:02.004Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:06:02.004Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:06:02.109Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:06:03.110Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:06:03.111Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:06:03.215Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:06:04.215Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:06:04.216Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:06:04.375Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:06:05.376Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:06:05.377Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:06:05.494Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:06:05.495Z] ❌ Error checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Cannot read properties of undefined (reading 'id')
+[2025-04-14T15:06:05.496Z] 🎯 Device check complete
+[2025-04-14T15:06:05.496Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:08:00.488Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:08:00.490Z] Checker node initialized with address: 0xd21f81Ad159d91f1b0AEa1E09c053D55d305c37f
+[2025-04-14T15:08:00.490Z] Fetching up to 100 registered devices from subgraph...
+[2025-04-14T15:08:00.697Z] Error fetching devices: GraphQL errors: [{"message":"This endpoint has been removed. If you have any questions, reach out to support@thegraph.zendesk.com"}]
+[2025-04-14T15:08:00.698Z] Found 0 registered devices to check
+[2025-04-14T15:08:00.698Z] 🎯 Device check complete
+[2025-04-14T15:08:00.698Z] 📊 Summary: 0 checked, 0 skipped
+[2025-04-14T15:10:00.490Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:10:00.492Z] Checker node initialized with address: 0x7B2Ccb900D997E3736be1D17Ad9A3d5771df287e
+[2025-04-14T15:10:00.492Z] Fetching up to 100 registered devices from subgraph...
+[2025-04-14T15:10:00.664Z] Error fetching devices: GraphQL errors: [{"message":"This endpoint has been removed. If you have any questions, reach out to support@thegraph.zendesk.com"}]
+[2025-04-14T15:10:00.665Z] Found 0 registered devices to check
+[2025-04-14T15:10:00.665Z] 🎯 Device check complete
+[2025-04-14T15:10:00.665Z] 📊 Summary: 0 checked, 0 skipped
+[2025-04-14T15:12:00.607Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:12:00.609Z] Checker node initialized with address: 0x8106B55A616EEe12AFd21510235149B1C5134a0D
+[2025-04-14T15:12:00.609Z] Fetching up to 100 registered devices from subgraph...
+[2025-04-14T15:12:00.735Z] Error fetching devices: GraphQL errors: [{"message":"This endpoint has been removed. If you have any questions, reach out to support@thegraph.zendesk.com"}]
+[2025-04-14T15:12:00.736Z] Found 0 registered devices to check
+[2025-04-14T15:12:00.736Z] 🎯 Device check complete
+[2025-04-14T15:12:00.736Z] 📊 Summary: 0 checked, 0 skipped
+[2025-04-14T15:14:00.490Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:14:00.492Z] Checker node initialized with address: 0xd9Fa25a50cb2FDdFC471e56625ac2D18D0384FAD
+[2025-04-14T15:14:00.492Z] Fetching devices from API: https://www.frankyagent.xyz/api/graph/devices
+[2025-04-14T15:14:00.894Z] Fetching agent character: https://www.frankyagent.xyz/api/graph/character?address=0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:14:01.209Z] Found 1 registered devices to check
+[2025-04-14T15:14:01.209Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:14:01.209Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:14:05.867Z] ❌ Error checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Cannot read properties of undefined (reading 'id')
+[2025-04-14T15:14:05.868Z] 🎯 Device check complete
+[2025-04-14T15:14:05.869Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:14:07.626Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:14:07.627Z] Checker node initialized with address: 0x168a29346932B63a9402221fD35c151776D1AA1c
+[2025-04-14T15:14:07.627Z] Fetching devices from API: https://www.frankyagent.xyz/api/graph/devices
+[2025-04-14T15:14:07.995Z] Fetching agent character: https://www.frankyagent.xyz/api/graph/character?address=0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:14:08.283Z] Found 1 registered devices to check
+[2025-04-14T15:14:08.283Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:14:08.284Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:14:12.864Z] ❌ Error checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Cannot read properties of undefined (reading 'id')
+[2025-04-14T15:14:12.866Z] 🎯 Device check complete
+[2025-04-14T15:14:12.866Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:16:00.518Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:16:00.520Z] Checker node initialized with address: 0x9fD36EF58e840526d24E473B8Cdf14219d8b9685
+[2025-04-14T15:16:00.520Z] Fetching devices from API: https://www.frankyagent.xyz/api/graph/devices
+[2025-04-14T15:16:00.924Z] API returned 1 devices
+[2025-04-14T15:16:00.925Z] Processing device: 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:16:00.925Z] Found agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259 for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:16:00.925Z] Fetching agent character: https://www.frankyagent.xyz/api/graph/character?address=0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:16:01.211Z] Retrieved character config for agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:16:01.211Z] Added enhanced device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 to the list
+[2025-04-14T15:16:01.211Z] Found 1 registered devices to check
+[2025-04-14T15:16:01.211Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:16:01.212Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:16:01.212Z] Device has ngrokLink: https://example.ngrok.app
+[2025-04-14T15:16:01.212Z] Device agent info: {"__typename":"agent","id":"0xb9ef1419f79520c187f90945b54f3d5c074a6259","characterConfig":"http://3.88.107.110:8000/buckets/franky-agents/files/zendaya-1744636369996-ixuddauzms2kjfy102ukb.json/download"}
+[2025-04-14T15:16:01.212Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:16:01.212Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:16:01.383Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:16:02.384Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:16:02.384Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:16:02.499Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:16:03.499Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:16:03.500Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:16:03.604Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:16:04.605Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:16:04.605Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:16:04.693Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:16:05.694Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:16:05.694Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:16:05.803Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:16:05.804Z] ❌ Error checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Cannot read properties of undefined (reading 'id')
+[2025-04-14T15:16:05.805Z] 🎯 Device check complete
+[2025-04-14T15:16:05.805Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:16:07.093Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:16:07.094Z] Checker node initialized with address: 0xabd5Ba9AE513169Af7bF3096D5feA35000dfa85D
+[2025-04-14T15:16:07.094Z] Fetching devices from API: https://www.frankyagent.xyz/api/graph/devices
+[2025-04-14T15:16:07.456Z] API returned 1 devices
+[2025-04-14T15:16:07.456Z] Processing device: 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:16:07.456Z] Found agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259 for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:16:07.456Z] Fetching agent character: https://www.frankyagent.xyz/api/graph/character?address=0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:16:07.759Z] Retrieved character config for agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:16:07.759Z] Added enhanced device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 to the list
+[2025-04-14T15:16:07.760Z] Found 1 registered devices to check
+[2025-04-14T15:16:07.760Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:16:07.760Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:16:07.760Z] Device has ngrokLink: https://example.ngrok.app
+[2025-04-14T15:16:07.760Z] Device agent info: {"__typename":"agent","id":"0xb9ef1419f79520c187f90945b54f3d5c074a6259","characterConfig":"http://3.88.107.110:8000/buckets/franky-agents/files/zendaya-1744636369996-ixuddauzms2kjfy102ukb.json/download"}
+[2025-04-14T15:16:07.760Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:16:07.761Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:16:07.844Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:16:08.846Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:16:08.846Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:16:08.933Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:16:09.933Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:16:09.934Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:16:10.019Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:16:11.021Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:16:11.021Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:16:11.107Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:16:12.108Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:16:12.109Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:16:12.196Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:16:12.222Z] ❌ Error checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Cannot read properties of undefined (reading 'id')
+[2025-04-14T15:16:12.224Z] 🎯 Device check complete
+[2025-04-14T15:16:12.224Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:17:13.033Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:17:13.035Z] Checker node initialized with address: 0x52631BBC1FA9DE2D2aC7f88714337A604A15cdcE
+[2025-04-14T15:17:13.036Z] Fetching devices from API: https://www.frankyagent.xyz/api/graph/devices
+[2025-04-14T15:17:13.429Z] API returned 1 devices
+[2025-04-14T15:17:13.429Z] Processing device: 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:17:13.429Z] Found agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259 for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:17:13.430Z] Fetching agent character: https://www.frankyagent.xyz/api/graph/character?address=0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:17:13.758Z] Retrieved character config for agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:17:13.758Z] Added enhanced device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 to the list
+[2025-04-14T15:17:13.758Z] Found 1 registered devices to check
+[2025-04-14T15:17:13.758Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:17:13.759Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:17:13.759Z] Device has ngrokLink: https://example.ngrok.app
+[2025-04-14T15:17:13.759Z] Device agent info: {"__typename":"agent","id":"0xb9ef1419f79520c187f90945b54f3d5c074a6259","characterConfig":"http://3.88.107.110:8000/buckets/franky-agents/files/zendaya-1744636369996-ixuddauzms2kjfy102ukb.json/download"}
+[2025-04-14T15:17:13.759Z] Collecting metrics for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:17:13.759Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:17:13.759Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:17:13.915Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:17:14.916Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:17:14.917Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:17:15.022Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:17:16.023Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:17:16.023Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:17:16.149Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:17:17.152Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:17:17.152Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:17:17.239Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:17:18.240Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:17:18.240Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:17:18.327Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:17:18.327Z] All health checks failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666, skipping consensus and storage
+[2025-04-14T15:17:18.327Z] 🎯 Device check complete
+[2025-04-14T15:17:18.327Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:18:00.493Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:18:00.494Z] Checker node initialized with address: 0x1c856cb11ea7c9bC2d4c22cae5e8bDc13c6809da
+[2025-04-14T15:18:00.494Z] Fetching devices from API: https://www.frankyagent.xyz/api/graph/devices
+[2025-04-14T15:18:00.845Z] API returned 1 devices
+[2025-04-14T15:18:00.845Z] Processing device: 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:18:00.846Z] Found agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259 for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:18:00.846Z] Fetching agent character: https://www.frankyagent.xyz/api/graph/character?address=0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:18:01.110Z] Retrieved character config for agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:18:01.110Z] Added enhanced device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 to the list
+[2025-04-14T15:18:01.110Z] Found 1 registered devices to check
+[2025-04-14T15:18:01.110Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:18:01.110Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:18:01.111Z] Device has ngrokLink: https://example.ngrok.app
+[2025-04-14T15:18:01.111Z] Device agent info: {"__typename":"agent","id":"0xb9ef1419f79520c187f90945b54f3d5c074a6259","characterConfig":"http://3.88.107.110:8000/buckets/franky-agents/files/zendaya-1744636369996-ixuddauzms2kjfy102ukb.json/download"}
+[2025-04-14T15:18:01.111Z] Collecting metrics for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:18:01.111Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:18:01.111Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:18:01.216Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:18:02.217Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:18:02.217Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:18:02.304Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:18:03.310Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:18:03.312Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:18:03.571Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:18:04.573Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:18:04.573Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:18:04.656Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:18:05.656Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:18:05.657Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:18:05.771Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:18:05.772Z] All health checks failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666, skipping consensus and storage
+[2025-04-14T15:18:05.772Z] 🎯 Device check complete
+[2025-04-14T15:18:05.772Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:20:00.435Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:20:00.437Z] Checker node initialized with address: 0x2A9F1eC9F09AbfF068DE7a9cc14064d644c6F06D
+[2025-04-14T15:20:00.437Z] Fetching devices from API: https://www.frankyagent.xyz/api/graph/devices
+[2025-04-14T15:20:00.799Z] API returned 1 devices
+[2025-04-14T15:20:00.799Z] Processing device: 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:20:00.799Z] Found agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259 for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:20:00.799Z] Fetching agent character: https://www.frankyagent.xyz/api/graph/character?address=0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:20:01.057Z] Retrieved character config for agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:20:01.057Z] Added enhanced device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 to the list
+[2025-04-14T15:20:01.057Z] Found 1 registered devices to check
+[2025-04-14T15:20:01.057Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:20:01.057Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:20:01.057Z] Device has ngrokLink: https://example.ngrok.app
+[2025-04-14T15:20:01.057Z] Device agent info: {"__typename":"agent","id":"0xb9ef1419f79520c187f90945b54f3d5c074a6259","characterConfig":"http://3.88.107.110:8000/buckets/franky-agents/files/zendaya-1744636369996-ixuddauzms2kjfy102ukb.json/download"}
+[2025-04-14T15:20:01.057Z] Collecting metrics for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:20:01.057Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:20:01.057Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:20:01.301Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:20:02.302Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:20:02.303Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:20:02.386Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:20:03.385Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:20:03.385Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:20:03.470Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:20:04.472Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:20:04.472Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:20:04.555Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:20:05.556Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:20:05.556Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:20:05.673Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:20:05.673Z] All health checks failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666, skipping consensus and storage
+[2025-04-14T15:20:05.673Z] 🎯 Device check complete
+[2025-04-14T15:20:05.673Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:22:00.483Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:22:00.485Z] Checker node initialized with address: 0xB47F322E595a7bEE75870FB1cCA8214506e7c383
+[2025-04-14T15:22:00.485Z] Fetching devices from API: https://www.frankyagent.xyz/api/graph/devices
+[2025-04-14T15:22:01.031Z] API returned 1 devices
+[2025-04-14T15:22:01.032Z] Processing device: 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:22:01.032Z] Found agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259 for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:22:01.032Z] Fetching agent character: https://www.frankyagent.xyz/api/graph/character?address=0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:22:01.334Z] Retrieved character config for agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:22:01.334Z] Added enhanced device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 to the list
+[2025-04-14T15:22:01.334Z] Found 1 registered devices to check
+[2025-04-14T15:22:01.334Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:22:01.335Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:22:01.335Z] Device has ngrokLink: https://example.ngrok.app
+[2025-04-14T15:22:01.335Z] Device agent info: {"__typename":"agent","id":"0xb9ef1419f79520c187f90945b54f3d5c074a6259","characterConfig":"http://3.88.107.110:8000/buckets/franky-agents/files/zendaya-1744636369996-ixuddauzms2kjfy102ukb.json/download"}
+[2025-04-14T15:22:01.335Z] Collecting metrics for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:22:01.335Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:22:01.335Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:22:01.475Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:22:02.475Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:22:02.475Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:22:02.592Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:22:03.593Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:22:03.594Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:22:03.750Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:22:04.751Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:22:04.752Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:22:04.854Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:22:05.855Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:22:05.855Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:22:05.936Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:22:05.937Z] All health checks failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666, skipping consensus and storage
+[2025-04-14T15:22:05.937Z] 🎯 Device check complete
+[2025-04-14T15:22:05.937Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:24:00.717Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:24:00.719Z] Checker node initialized with address: 0xA74D960450284FC853a93FA46cD06885Bbf09fcC
+[2025-04-14T15:24:00.719Z] Fetching devices from API: https://www.frankyagent.xyz/api/graph/devices
+[2025-04-14T15:24:01.148Z] API returned 1 devices
+[2025-04-14T15:24:01.149Z] Processing device: 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:24:01.149Z] Found agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259 for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:24:01.149Z] Fetching agent character: https://www.frankyagent.xyz/api/graph/character?address=0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:24:01.425Z] Retrieved character config for agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:24:01.426Z] Added enhanced device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 to the list
+[2025-04-14T15:24:01.427Z] Found 1 registered devices to check
+[2025-04-14T15:24:01.427Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:24:01.429Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:24:01.429Z] Device has ngrokLink: https://example.ngrok.app
+[2025-04-14T15:24:01.429Z] Device agent info: {"__typename":"agent","id":"0xb9ef1419f79520c187f90945b54f3d5c074a6259","characterConfig":"http://3.88.107.110:8000/buckets/franky-agents/files/zendaya-1744636369996-ixuddauzms2kjfy102ukb.json/download"}
+[2025-04-14T15:24:01.430Z] Collecting metrics for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:24:01.431Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:24:01.431Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:24:01.684Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:24:02.685Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:24:02.686Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:24:02.781Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:24:03.781Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:24:03.782Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:24:03.873Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:24:04.873Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:24:04.873Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:24:04.960Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:24:05.960Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:24:05.960Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:24:06.048Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:24:06.049Z] All health checks failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666, skipping consensus and storage
+[2025-04-14T15:24:06.049Z] 🎯 Device check complete
+[2025-04-14T15:24:06.049Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:26:00.532Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:26:00.534Z] Checker node initialized with address: 0xdD79F141678FEAb4D533F24Dc72c5DF59BC10E44
+[2025-04-14T15:26:00.534Z] Fetching devices from API: https://www.frankyagent.xyz/api/graph/devices
+[2025-04-14T15:26:00.959Z] API returned 1 devices
+[2025-04-14T15:26:00.959Z] Processing device: 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:26:00.959Z] Found agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259 for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:26:00.960Z] Fetching agent character: https://www.frankyagent.xyz/api/graph/character?address=0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:26:01.248Z] Retrieved character config for agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:26:01.248Z] Added enhanced device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 to the list
+[2025-04-14T15:26:01.248Z] Found 1 registered devices to check
+[2025-04-14T15:26:01.248Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:26:01.249Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:26:01.249Z] Device has ngrokLink: https://example.ngrok.app
+[2025-04-14T15:26:01.249Z] Device agent info: {"__typename":"agent","id":"0xb9ef1419f79520c187f90945b54f3d5c074a6259","characterConfig":"http://3.88.107.110:8000/buckets/franky-agents/files/zendaya-1744636369996-ixuddauzms2kjfy102ukb.json/download"}
+[2025-04-14T15:26:01.249Z] Collecting metrics for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:26:01.249Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:26:01.249Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:26:01.443Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:26:02.443Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:26:02.443Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:26:02.600Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:26:03.601Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:26:03.601Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:26:03.692Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:26:04.693Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:26:04.693Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:26:04.855Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:26:05.855Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:26:05.856Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:26:05.944Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:26:05.944Z] All health checks failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666, skipping consensus and storage
+[2025-04-14T15:26:05.944Z] 🎯 Device check complete
+[2025-04-14T15:26:05.944Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:28:00.486Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:28:00.488Z] Checker node initialized with address: 0x41B61990aB13A18CF824edf5c02D3c0f47c84cEF
+[2025-04-14T15:28:00.488Z] Fetching devices from API: https://www.frankyagent.xyz/api/graph/devices
+[2025-04-14T15:28:00.858Z] API returned 1 devices
+[2025-04-14T15:28:00.858Z] Processing device: 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:28:00.858Z] Found agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259 for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:28:00.858Z] Fetching agent character: https://www.frankyagent.xyz/api/graph/character?address=0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:28:01.136Z] Retrieved character config for agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:28:01.136Z] Added enhanced device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 to the list
+[2025-04-14T15:28:01.136Z] Found 1 registered devices to check
+[2025-04-14T15:28:01.137Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:28:01.137Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:28:01.137Z] Device has ngrokLink: https://example.ngrok.app
+[2025-04-14T15:28:01.137Z] Device agent info: {"__typename":"agent","id":"0xb9ef1419f79520c187f90945b54f3d5c074a6259","characterConfig":"http://3.88.107.110:8000/buckets/franky-agents/files/zendaya-1744636369996-ixuddauzms2kjfy102ukb.json/download"}
+[2025-04-14T15:28:01.137Z] Collecting metrics for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:28:01.137Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:28:01.137Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:28:01.307Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:28:02.308Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:28:02.308Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:28:02.388Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:28:03.389Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:28:03.390Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:28:03.477Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:28:04.477Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:28:04.478Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:28:04.565Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:28:05.566Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:28:05.567Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:28:05.725Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:28:05.725Z] All health checks failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666, skipping consensus and storage
+[2025-04-14T15:28:05.725Z] 🎯 Device check complete
+[2025-04-14T15:28:05.725Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:30:00.445Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:30:00.447Z] Checker node initialized with address: 0xa91ebE0336C804f58E8917b37EC1AfA62450E5d8
+[2025-04-14T15:30:00.447Z] Fetching devices from API: https://www.frankyagent.xyz/api/graph/devices
+[2025-04-14T15:30:00.816Z] API returned 1 devices
+[2025-04-14T15:30:00.817Z] Processing device: 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:30:00.817Z] Found agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259 for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:30:00.817Z] Fetching agent character: https://www.frankyagent.xyz/api/graph/character?address=0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:30:01.084Z] Retrieved character config for agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:30:01.084Z] Added enhanced device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 to the list
+[2025-04-14T15:30:01.085Z] Found 1 registered devices to check
+[2025-04-14T15:30:01.085Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:30:01.085Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:30:01.085Z] Device has ngrokLink: https://example.ngrok.app
+[2025-04-14T15:30:01.085Z] Device agent info: {"__typename":"agent","id":"0xb9ef1419f79520c187f90945b54f3d5c074a6259","characterConfig":"http://3.88.107.110:8000/buckets/franky-agents/files/zendaya-1744636369996-ixuddauzms2kjfy102ukb.json/download"}
+[2025-04-14T15:30:01.085Z] Collecting metrics for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:30:01.085Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:30:01.085Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:30:01.261Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:30:02.262Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:30:02.262Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:30:02.367Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:30:03.368Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:30:03.368Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:30:03.532Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:30:04.533Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:30:04.533Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:30:04.696Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:30:05.697Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:30:05.697Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:30:05.785Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:30:05.785Z] All health checks failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666, skipping consensus and storage
+[2025-04-14T15:30:05.786Z] 🎯 Device check complete
+[2025-04-14T15:30:05.786Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:32:00.490Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:32:00.491Z] Checker node initialized with address: 0x4f57CaC00DF6601fD540d2AbC1a9CD8a30bCA616
+[2025-04-14T15:32:00.491Z] Fetching devices from API: https://www.frankyagent.xyz/api/graph/devices
+[2025-04-14T15:32:00.859Z] API returned 1 devices
+[2025-04-14T15:32:00.860Z] Processing device: 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:32:00.860Z] Found agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259 for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:32:00.860Z] Fetching agent character: https://www.frankyagent.xyz/api/graph/character?address=0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:32:01.147Z] Retrieved character config for agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:32:01.147Z] Added enhanced device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 to the list
+[2025-04-14T15:32:01.147Z] Found 1 registered devices to check
+[2025-04-14T15:32:01.148Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:32:01.148Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:32:01.148Z] Device has ngrokLink: https://example.ngrok.app
+[2025-04-14T15:32:01.149Z] Device agent info: {"__typename":"agent","id":"0xb9ef1419f79520c187f90945b54f3d5c074a6259","characterConfig":"http://3.88.107.110:8000/buckets/franky-agents/files/zendaya-1744636369996-ixuddauzms2kjfy102ukb.json/download"}
+[2025-04-14T15:32:01.150Z] Collecting metrics for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:32:01.150Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:32:01.151Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:32:01.279Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:32:02.280Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:32:02.281Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:32:02.397Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:32:03.397Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:32:03.398Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:32:03.483Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:32:04.484Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:32:04.484Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:32:04.605Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:32:05.606Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:32:05.606Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:32:05.690Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:32:05.690Z] All health checks failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666, skipping consensus and storage
+[2025-04-14T15:32:05.691Z] 🎯 Device check complete
+[2025-04-14T15:32:05.691Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:34:00.497Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:34:00.499Z] Checker node initialized with address: 0x6bD285Bcd95aF79423eFeb36c4B91336d9FAD106
+[2025-04-14T15:34:00.499Z] Fetching devices from API: https://www.frankyagent.xyz/api/graph/devices
+[2025-04-14T15:34:01.020Z] API returned 1 devices
+[2025-04-14T15:34:01.020Z] Processing device: 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:34:01.020Z] Found agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259 for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:34:01.020Z] Fetching agent character: https://www.frankyagent.xyz/api/graph/character?address=0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:34:01.325Z] Retrieved character config for agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:34:01.325Z] Added enhanced device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 to the list
+[2025-04-14T15:34:01.325Z] Found 1 registered devices to check
+[2025-04-14T15:34:01.325Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:34:01.325Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:34:01.325Z] Device has ngrokLink: https://example.ngrok.app
+[2025-04-14T15:34:01.325Z] Device agent info: {"__typename":"agent","id":"0xb9ef1419f79520c187f90945b54f3d5c074a6259","characterConfig":"http://3.88.107.110:8000/buckets/franky-agents/files/zendaya-1744636369996-ixuddauzms2kjfy102ukb.json/download"}
+[2025-04-14T15:34:01.326Z] Collecting metrics for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:34:01.326Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:34:01.326Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:34:01.469Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:34:02.469Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:34:02.470Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:34:02.640Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:34:03.642Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:34:03.642Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:34:03.738Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:34:04.739Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:34:04.739Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:34:04.828Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:34:05.829Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:34:05.830Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:34:05.917Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:34:05.917Z] All health checks failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666, skipping consensus and storage
+[2025-04-14T15:34:05.918Z] 🎯 Device check complete
+[2025-04-14T15:34:05.918Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:36:00.487Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:36:00.488Z] Checker node initialized with address: 0x434c323f47200148Ef4F8beeb803F73103ba061f
+[2025-04-14T15:36:00.488Z] Fetching devices from API: https://www.frankyagent.xyz/api/graph/devices
+[2025-04-14T15:36:00.885Z] API returned 1 devices
+[2025-04-14T15:36:00.885Z] Processing device: 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:36:00.886Z] Found agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259 for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:36:00.886Z] Fetching agent character: https://www.frankyagent.xyz/api/graph/character?address=0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:36:01.164Z] Retrieved character config for agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:36:01.164Z] Added enhanced device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 to the list
+[2025-04-14T15:36:01.164Z] Found 1 registered devices to check
+[2025-04-14T15:36:01.164Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:36:01.165Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:36:01.165Z] Device has ngrokLink: https://example.ngrok.app
+[2025-04-14T15:36:01.165Z] Device agent info: {"__typename":"agent","id":"0xb9ef1419f79520c187f90945b54f3d5c074a6259","characterConfig":"http://3.88.107.110:8000/buckets/franky-agents/files/zendaya-1744636369996-ixuddauzms2kjfy102ukb.json/download"}
+[2025-04-14T15:36:01.165Z] Collecting metrics for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:36:01.165Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:36:01.165Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:36:01.367Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:36:02.367Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:36:02.367Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:36:02.454Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:36:03.454Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:36:03.455Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:36:03.563Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:36:04.564Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:36:04.565Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:36:04.654Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:36:05.654Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:36:05.654Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:36:05.742Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:36:05.742Z] All health checks failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666, skipping consensus and storage
+[2025-04-14T15:36:05.742Z] 🎯 Device check complete
+[2025-04-14T15:36:05.743Z] 📊 Summary: 0 checked, 1 skipped
+[2025-04-14T15:38:00.509Z] Starting Franky Device Checker Subnet v1.0.0
+[2025-04-14T15:38:00.510Z] Checker node initialized with address: 0x5114a1547CeF901F209Eb3EBd760a45943D9181F
+[2025-04-14T15:38:00.510Z] Fetching devices from API: https://www.frankyagent.xyz/api/graph/devices
+[2025-04-14T15:38:00.906Z] API returned 1 devices
+[2025-04-14T15:38:00.906Z] Processing device: 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:38:00.907Z] Found agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259 for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666
+[2025-04-14T15:38:00.907Z] Fetching agent character: https://www.frankyagent.xyz/api/graph/character?address=0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:38:01.176Z] Retrieved character config for agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259
+[2025-04-14T15:38:01.177Z] Added enhanced device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 to the list
+[2025-04-14T15:38:01.177Z] Found 1 registered devices to check
+[2025-04-14T15:38:01.177Z] Processing batch of 1 devices (1 to 1 of 1)
+[2025-04-14T15:38:01.177Z] Checking device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:38:01.177Z] Device has ngrokLink: https://example.ngrok.app
+[2025-04-14T15:38:01.178Z] Device agent info: {"__typename":"agent","id":"0xb9ef1419f79520c187f90945b54f3d5c074a6259","characterConfig":"http://3.88.107.110:8000/buckets/franky-agents/files/zendaya-1744636369996-ixuddauzms2kjfy102ukb.json/download"}
+[2025-04-14T15:38:01.178Z] Collecting metrics for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666...
+[2025-04-14T15:38:01.178Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:38:01.178Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:38:01.352Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:38:02.353Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:38:02.354Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:38:02.517Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:38:03.518Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:38:03.518Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:38:03.623Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:38:04.625Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:38:04.625Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:38:04.728Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:38:05.728Z] Checking health for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666 with agent 0xb9ef1419f79520c187f90945b54f3d5c074a6259...
+[2025-04-14T15:38:05.728Z] Making health check request to https://example.ngrok.app/api/chat/health
+[2025-04-14T15:38:05.885Z] Health check failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666: Health check failed: The endpoint example.ngrok.app is offline.
+
+ERR_NGROK_3200
+
+[2025-04-14T15:38:05.885Z] All health checks failed for device 0x0d86b689ea0c9b32060a9d9780f548b69b9f0666, skipping consensus and storage
+[2025-04-14T15:38:05.886Z] 🎯 Device check complete
+[2025-04-14T15:38:05.886Z] 📊 Summary: 0 checked, 1 skipped
