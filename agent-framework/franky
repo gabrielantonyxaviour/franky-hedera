@@ -29,17 +29,61 @@ setup_dependencies() {
         # Create backup of original config
         cp config.yaml config.yaml.backup
         
-        # Update specific settings in config.yaml
-        sed -i 's/listen: false/listen: true/' config.yaml
-        sed -i 's/port: [0-9]*/port: 8000/' config.yaml
-        sed -i 's/whitelistMode: true/whitelistMode: false/' config.yaml
-        sed -i 's/securityOverride: false/securityOverride: true/' config.yaml
-        sed -i 's/disableCsrfProtection: false/disableCsrfProtection: true/' config.yaml
+        # Detect OS for sed compatibility
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS
+            SED_CMD="sed -i ''"
+        elif [[ "$OSTYPE" == "linux"* ]] || [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]]; then
+            # Linux or Windows (Git Bash/Cygwin)
+            SED_CMD="sed -i"
+        else
+            # Fallback - try Linux style
+            SED_CMD="sed -i"
+        fi
+        
+        # Create a temporary file for the new configuration
+        TMP_CONFIG=$(mktemp)
+        
+        # Read the original config and apply changes
+        while IFS= read -r line; do
+            case "$line" in
+                *"listen:"*)
+                    echo "listen: true" >> "$TMP_CONFIG"
+                    ;;
+                *"port:"*)
+                    echo "port: 8000" >> "$TMP_CONFIG"
+                    ;;
+                *"whitelistMode:"*)
+                    echo "whitelistMode: false" >> "$TMP_CONFIG"
+                    ;;
+                *"securityOverride:"*)
+                    echo "securityOverride: true" >> "$TMP_CONFIG"
+                    ;;
+                *"disableCsrfProtection:"*)
+                    echo "disableCsrfProtection: true" >> "$TMP_CONFIG"
+                    ;;
+                *)
+                    echo "$line" >> "$TMP_CONFIG"
+                    ;;
+            esac
+        done < config.yaml
+        
+        # Replace the original file with the new one
+        mv "$TMP_CONFIG" config.yaml
+        
+        # Ensure proper line endings for the OS
+        if [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]]; then
+            # Convert to DOS line endings for Windows
+            unix2dos config.yaml 2>/dev/null || true
+        fi
         
         echo "✅ Configuration updated successfully"
     else
         echo "⚠️ config.yaml not found. Creating with custom settings..."
-        cat > config.yaml << 'EOL'
+        # Create the config file with the appropriate line endings
+        if [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]]; then
+            # Windows - use DOS line endings
+            cat > config.yaml << 'EOL'
 # SillyTavern configuration
 listen: true
 port: 8000
@@ -47,6 +91,18 @@ whitelistMode: false
 securityOverride: true
 disableCsrfProtection: true
 EOL
+            unix2dos config.yaml 2>/dev/null || true
+        else
+            # Unix-like systems - use Unix line endings
+            cat > config.yaml << 'EOL'
+# SillyTavern configuration
+listen: true
+port: 8000
+whitelistMode: false
+securityOverride: true
+disableCsrfProtection: true
+EOL
+        fi
         echo "✅ Custom config.yaml created"
     fi
 }
@@ -537,7 +593,7 @@ create_wallet() {
                             # Set restrictive permissions on the credentials file
                             chmod 600 "$CREDS_FILE"
                             
-                            echo "�� Device credentials saved to: $CREDS_FILE"
+                            echo "✅ Device credentials saved to: $CREDS_FILE"
                             
                             # Clean up temporary files
                             rm -f "$TEMP_FILE" "$METADATA_FILE"
