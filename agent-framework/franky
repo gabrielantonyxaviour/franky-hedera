@@ -7,6 +7,10 @@
 DEVICE_WEBHOOK_URL="https://693f-111-235-226-130.ngrok-free.app"
 AGENT_WEBHOOK_URL="https://2b55-111-235-226-130.ngrok-free.app"
 
+# API Endpoints for fetching devices and agents
+DEVICES_ENDPOINT="https://www.frankyagent.xyz/api/graph/devices"
+AGENT_ENDPOINT="https://www.frankyagent.xyz/api/graph/agent"
+
 # Function to setup dependencies and configuration    
 setup_dependencies() {
     # Install all dependencies
@@ -426,109 +430,140 @@ create_wallet() {
             
             echo "⏳ Checking for registration events... (${ELAPSED}s elapsed)"
             
-            # Query the webhook server for the latest transaction
-            curl -s "$DEVICE_WEBHOOK_URL/last-device" > "$TEMP_FILE" 2>/dev/null
+            # Fetch the list of devices from new API endpoint
+            TEMP_FILE=$(mktemp)
+            curl -s "$DEVICES_ENDPOINT" > "$TEMP_FILE" 2>/dev/null
             
             # Check if we got a valid response
-            if [ -s "$TEMP_FILE" ]; then
-                # Extract the registered details from the new response format
-                REGISTERED_ADDRESS=$(cat "$TEMP_FILE" | jq -r '.args.deviceAddress' 2>/dev/null)
-                REGISTERED_OWNER=$(cat "$TEMP_FILE" | jq -r '.args.owner' 2>/dev/null)
-                REGISTERED_MODEL=$(cat "$TEMP_FILE" | jq -r '.args.deviceModel' 2>/dev/null)
-                REGISTERED_RAM=$(cat "$TEMP_FILE" | jq -r '.args.ram' 2>/dev/null)
-                REGISTERED_STORAGE=$(cat "$TEMP_FILE" | jq -r '.args.storageCapacity' 2>/dev/null)
-                REGISTERED_CPU=$(cat "$TEMP_FILE" | jq -r '.args.cpu' 2>/dev/null)
-                REGISTERED_NGROK=$(cat "$TEMP_FILE" | jq -r '.args.ngrokLink' 2>/dev/null)
-                REGISTERED_FEE=$(cat "$TEMP_FILE" | jq -r '.args.hostingFee' 2>/dev/null)
-                TX_HASH=$(cat "$TEMP_FILE" | jq -r '.transactionHash' 2>/dev/null)
-                BLOCK_NUMBER=$(cat "$TEMP_FILE" | jq -r '.blockNumber' 2>/dev/null)
-                TIMESTAMP=$(cat "$TEMP_FILE" | jq -r '.timestamp' 2>/dev/null)
+            if [ -s "$TEMP_FILE" ] && jq empty "$TEMP_FILE" 2>/dev/null; then
+                echo "✅ Received device list from API"
                 
-                # Check if the device address matches
-                if [ "$REGISTERED_ADDRESS" = "$WALLET_ADDRESS" ]; then
-                    echo "✅ Device registration confirmed on-chain!"
-                    echo "✅ Device address verified: $REGISTERED_ADDRESS"
-                    echo "✅ Transaction hash: $TX_HASH"
-                    echo "✅ Block number: $BLOCK_NUMBER"
-                    echo "✅ Timestamp: $TIMESTAMP"
+                # Get the most recent device (last in the array)
+                DEVICES_COUNT=$(jq length "$TEMP_FILE")
+                
+                if [ "$DEVICES_COUNT" -gt 0 ]; then
+                    # Get the last device in the array
+                    LAST_DEVICE_INDEX=$((DEVICES_COUNT - 1))
+                    LAST_DEVICE=$(jq ".[$LAST_DEVICE_INDEX]" "$TEMP_FILE")
                     
-                    # Display the full transaction details
-                    echo "=== Registration Details ==="
-                    echo "Owner: $REGISTERED_OWNER"
-                    echo "Device Model: $REGISTERED_MODEL"
-                    echo "RAM: $REGISTERED_RAM"
-                    echo "Storage: $REGISTERED_STORAGE"
-                    echo "CPU: $REGISTERED_CPU"
-                    echo "Ngrok Link: $REGISTERED_NGROK"
-                    echo "Hosting Fee: $REGISTERED_FEE"
-                    echo
+                    # Extract device details
+                    REGISTERED_ADDRESS=$(echo "$LAST_DEVICE" | jq -r '.id')
+                    REGISTERED_OWNER=$(echo "$LAST_DEVICE" | jq -r '.owner.id')
+                    REGISTERED_NGROK=$(echo "$LAST_DEVICE" | jq -r '.ngrokLink')
+                    REGISTERED_FEE=$(echo "$LAST_DEVICE" | jq -r '.hostingFee')
+                    CREATED_AT=$(echo "$LAST_DEVICE" | jq -r '.createdAt')
+                    UPDATED_AT=$(echo "$LAST_DEVICE" | jq -r '.updatedAt')
+                    DEVICE_METADATA_URL=$(echo "$LAST_DEVICE" | jq -r '.deviceMetadata')
                     
-                    # Verify device details
-                    echo "=== Device Details Verification ==="
-                    if [ "$REGISTERED_MODEL" = "$DEVICE_MODEL" ]; then
-                        echo "✅ Device model verified"
-                    else
-                        echo "ℹ️ Device model differs:"
-                        echo "  Local: $DEVICE_MODEL"
-                        echo "  Registered: $REGISTERED_MODEL"
+                    echo "📱 Found latest registered device: $REGISTERED_ADDRESS"
+                    
+                    # Check if the device address matches our wallet address
+                    if [ "$REGISTERED_ADDRESS" = "$WALLET_ADDRESS" ]; then
+                        echo "✅ Device registration confirmed!"
+                        echo "✅ Device address verified: $REGISTERED_ADDRESS"
+                        
+                        # Fetch device metadata to verify details
+                        echo "🔍 Fetching device metadata from Akave..."
+                        METADATA_FILE=$(mktemp)
+                        curl -s "$DEVICE_METADATA_URL" > "$METADATA_FILE" 2>/dev/null
+                        
+                        if [ -s "$METADATA_FILE" ] && jq empty "$METADATA_FILE" 2>/dev/null; then
+                            # Extract device details from metadata
+                            REGISTERED_MODEL=$(jq -r '.deviceModel' "$METADATA_FILE")
+                            REGISTERED_RAM=$(jq -r '.ram' "$METADATA_FILE")
+                            REGISTERED_STORAGE=$(jq -r '.storage' "$METADATA_FILE")
+                            REGISTERED_CPU=$(jq -r '.cpu' "$METADATA_FILE")
+                            
+                            echo "=== Registration Details ==="
+                            echo "Owner: $REGISTERED_OWNER"
+                            echo "Device Model: $REGISTERED_MODEL"
+                            echo "RAM: $REGISTERED_RAM"
+                            echo "Storage: $REGISTERED_STORAGE" 
+                            echo "CPU: $REGISTERED_CPU"
+                            echo "Ngrok Link: $REGISTERED_NGROK"
+                            echo "Hosting Fee: $REGISTERED_FEE"
+                            echo "Created At: $CREATED_AT"
+                            echo "Updated At: $UPDATED_AT"
+                            echo
+                            
+                            # Verify device details
+                            echo "=== Device Details Verification ==="
+                            if [ "$REGISTERED_MODEL" = "$DEVICE_MODEL" ]; then
+                                echo "✅ Device model verified"
+                            else
+                                echo "ℹ️ Device model differs:"
+                                echo "  Local: $DEVICE_MODEL"
+                                echo "  Registered: $REGISTERED_MODEL"
+                            fi
+                            
+                            if [ "$REGISTERED_RAM" = "$RAM" ]; then
+                                echo "✅ RAM verified"
+                            else
+                                echo "ℹ️ RAM differs:"
+                                echo "  Local: $RAM"
+                                echo "  Registered: $REGISTERED_RAM"
+                            fi
+                            
+                            if [ "$REGISTERED_STORAGE" = "$STORAGE" ]; then
+                                echo "✅ Storage verified"
+                            else
+                                echo "ℹ️ Storage differs:"
+                                echo "  Local: $STORAGE"
+                                echo "  Registered: $REGISTERED_STORAGE"
+                            fi
+                            
+                            if [ "$REGISTERED_CPU" = "$CPU" ]; then
+                                echo "✅ CPU verified"
+                            else
+                                echo "ℹ️ CPU differs:"
+                                echo "  Local: $CPU"
+                                echo "  Registered: $REGISTERED_CPU"
+                            fi
+                            
+                            # Create the credentials directory if it doesn't exist
+                            CREDS_DIR="$PWD/credentials"
+                            mkdir -p "$CREDS_DIR"
+                            
+                            # Store device credentials in a predictable location
+                            CREDS_FILE="$CREDS_DIR/device_credentials.txt"
+                            echo "=== Device Credentials ===" > "$CREDS_FILE"
+                            echo "Device Address: $REGISTERED_ADDRESS" >> "$CREDS_FILE"
+                            echo "Owner Address: $REGISTERED_OWNER" >> "$CREDS_FILE"
+                            echo "Private Key: $PRIVATE_KEY" >> "$CREDS_FILE"
+                            echo "Mnemonic: $MNEMONIC" >> "$CREDS_FILE"
+                            echo "Hosting Fee: $REGISTERED_FEE" >> "$CREDS_FILE"
+                            echo "Registration Time: $CREATED_AT" >> "$CREDS_FILE"
+                            
+                            # Set restrictive permissions on the credentials file
+                            chmod 600 "$CREDS_FILE"
+                            
+                            echo "�� Device credentials saved to: $CREDS_FILE"
+                            
+                            # Clean up temporary files
+                            rm -f "$TEMP_FILE" "$METADATA_FILE"
+                            return 0
+                        else
+                            echo "⚠️ Could not fetch or parse device metadata"
+                        fi
+                        
+                        # Clean up temporary files
+                        rm -f "$TEMP_FILE" "$METADATA_FILE"
+                        return 0
+                    } else {
+                        echo "ℹ️ Device address doesn't match local wallet"
+                        echo "Found: $REGISTERED_ADDRESS"
+                        echo "Local: $WALLET_ADDRESS"
+                    }
                     fi
-                    
-                    if [ "$REGISTERED_RAM" = "$RAM" ]; then
-                        echo "✅ RAM verified"
-                    else
-                        echo "ℹ️ RAM differs:"
-                        echo "  Local: $RAM"
-                        echo "  Registered: $REGISTERED_RAM"
-                    fi
-                    
-                    if [ "$REGISTERED_STORAGE" = "$STORAGE" ]; then
-                        echo "✅ Storage verified"
-                    else
-                        echo "ℹ️ Storage differs:"
-                        echo "  Local: $STORAGE"
-                        echo "  Registered: $REGISTERED_STORAGE"
-                    fi
-                    
-                    if [ "$REGISTERED_CPU" = "$CPU" ]; then
-                        echo "✅ CPU verified"
-                    else
-                        echo "ℹ️ CPU differs:"
-                        echo "  Local: $CPU"
-                        echo "  Registered: $REGISTERED_CPU"
-                    fi
-                    
-                    # Create the credentials directory if it doesn't exist
-                    CREDS_DIR="$PWD/credentials"
-                    mkdir -p "$CREDS_DIR"
-                    
-                    # Store device credentials in a predictable location
-                    CREDS_FILE="$CREDS_DIR/device_credentials.txt"
-                    echo "=== Device Credentials ===" > "$CREDS_FILE"
-                    echo "Device Address: $REGISTERED_ADDRESS" >> "$CREDS_FILE"
-                    echo "Owner Address: $REGISTERED_OWNER" >> "$CREDS_FILE"
-                    echo "Private Key: $PRIVATE_KEY" >> "$CREDS_FILE"
-                    echo "Mnemonic: $MNEMONIC" >> "$CREDS_FILE"
-                    echo "Hosting Fee: $REGISTERED_FEE" >> "$CREDS_FILE"
-                    echo "Registration Time: $TIMESTAMP" >> "$CREDS_FILE"
-                    echo "Transaction Hash: $TX_HASH" >> "$CREDS_FILE"
-                    
-                    # Set restrictive permissions on the credentials file
-                    chmod 600 "$CREDS_FILE"
-                    
-                    echo "💾 Device credentials saved to: $CREDS_FILE"
-                    
-                    return 0
                 else
-                    # If we found a transaction but address doesn't match
-                    if [ -n "$REGISTERED_ADDRESS" ]; then
-                        echo "ℹ️ Found a registration transaction, but for a different device:"
-                        echo "Transaction device: $REGISTERED_ADDRESS"
-                        echo "Local device: $WALLET_ADDRESS"
-                    fi
+                    echo "ℹ️ No devices found in the API response"
                 fi
             else
-                echo "ℹ️ No registration transaction found yet"
+                echo "ℹ️ No valid response from devices API"
             fi
+            
+            # Clean up
+            rm -f "$TEMP_FILE"
             
             # Wait before checking again
             sleep 10
@@ -571,127 +606,117 @@ create_wallet() {
 list_latest_agent() {
     echo "🔍 Fetching latest agent details..."
     
-    # Validate webhook URL
-    if [ -z "$AGENT_WEBHOOK_URL" ]; then
-        echo "❌ Error: AGENT_WEBHOOK_URL is not set"
-        return 1
-    fi
-    
     # Create a temporary file to store the response
     TEMP_FILE=$(mktemp)
     
-    # Construct the full URL
-    FULL_URL="${AGENT_WEBHOOK_URL}/last-agent"
+    # First fetch the list of all devices to find agents
+    echo "📡 Fetching devices from: $DEVICES_ENDPOINT"
+    curl -s "$DEVICES_ENDPOINT" > "$TEMP_FILE" 2>/dev/null
     
-    # Show the URL we're calling
-    echo "📡 Calling endpoint: $FULL_URL"
-    
-    # Fetch latest agent data with verbose output
-    RESPONSE=$(curl -s -f "$FULL_URL" 2>&1)
-    CURL_EXIT_CODE=$?
-    
-    if [ $CURL_EXIT_CODE -ne 0 ]; then
-        echo "❌ Failed to fetch data from webhook"
-        echo "Error response:"
-        echo "$RESPONSE"
-        rm -f "$TEMP_FILE"
-        return 1
-    fi
-    
-    echo "$RESPONSE" > "$TEMP_FILE"
-    
-    # Check if we got a valid response with content
-    if [ -s "$TEMP_FILE" ]; then
-        # Try to parse as JSON
-        if jq empty "$TEMP_FILE" 2>/dev/null; then
-            echo "✅ Valid JSON response received"
+    # Check if we got a valid response
+    if [ -s "$TEMP_FILE" ] && jq empty "$TEMP_FILE" 2>/dev/null; then
+        echo "✅ Successfully fetched device list"
+        
+        # Find the latest device with agents
+        DEVICES_COUNT=$(jq length "$TEMP_FILE")
+        
+        if [ "$DEVICES_COUNT" -gt 0 ]; then
+            # Iterate through devices to find ones with agents
+            FOUND_AGENT=false
             
-            # Extract event name
-            EVENT_NAME=$(cat "$TEMP_FILE" | jq -r '.eventName')
-            echo "📋 Event type: $EVENT_NAME"
+            for (( i=$DEVICES_COUNT-1; i>=0; i-- )); do
+                DEVICE=$(jq ".[$i]" "$TEMP_FILE")
+                AGENTS_COUNT=$(echo "$DEVICE" | jq '.agents | length')
+                
+                if [ "$AGENTS_COUNT" -gt 0 ]; then
+                    echo "✅ Found device with agents"
+                    AGENT_ID=$(echo "$DEVICE" | jq -r '.agents[0].id')
+                    DEVICE_ID=$(echo "$DEVICE" | jq -r '.id')
+                    echo "📱 Device ID: $DEVICE_ID"
+                    echo "🤖 Agent ID: $AGENT_ID"
+                    FOUND_AGENT=true
+                    break
+                fi
+            done
             
-            if [ "$EVENT_NAME" = "AgentCreated" ]; then
-                # Extract agent details from the new format
-                AGENT_ADDRESS=$(cat "$TEMP_FILE" | jq -r '.args.agentAddress')
-                DEVICE_ADDRESS=$(cat "$TEMP_FILE" | jq -r '.args.deviceAddress')
-                PREFIX=$(cat "$TEMP_FILE" | jq -r '.args.prefix')
-                OWNER=$(cat "$TEMP_FILE" | jq -r '.args.owner')
-                PER_API_CALL_FEE=$(cat "$TEMP_FILE" | jq -r '.args.perApiCallFee')
-                SECRETS_HASH=$(cat "$TEMP_FILE" | jq -r '.args.secretsHash')
-                CHARACTER_URL=$(cat "$TEMP_FILE" | jq -r '.args.character')
-                SECRETS=$(cat "$TEMP_FILE" | jq -r '.args.secrets')
-                IS_PUBLIC=$(cat "$TEMP_FILE" | jq -r '.args.isPublic')
-                TX_HASH=$(cat "$TEMP_FILE" | jq -r '.transactionHash')
-                BLOCK_NUMBER=$(cat "$TEMP_FILE" | jq -r '.blockNumber')
-                TIMESTAMP=$(cat "$TEMP_FILE" | jq -r '.timestamp')
+            if [ "$FOUND_AGENT" = true ]; then
+                # Fetch detailed agent information
+                echo "🔍 Fetching agent details from: $AGENT_ENDPOINT?address=$AGENT_ID"
+                curl -s "$AGENT_ENDPOINT?address=$AGENT_ID" > "$TEMP_FILE" 2>/dev/null
                 
-                echo "=== Latest Agent Details ==="
-                echo "Event: $EVENT_NAME"
-                echo "Agent Address: $AGENT_ADDRESS"
-                echo "Device Address: $DEVICE_ADDRESS"
-                echo "Prefix: $PREFIX"
-                echo "Owner: $OWNER"
-                echo "Per API Call Fee: $PER_API_CALL_FEE"
-                echo "Secrets Hash: $SECRETS_HASH"
-                echo "Public: $IS_PUBLIC"
-                echo "Block Number: $BLOCK_NUMBER"
-                echo "Transaction Hash: $TX_HASH"
-                echo "Created At: $TIMESTAMP"
-                echo
-                
-                # Extract IPFS hash from character URL
-                IPFS_HASH=$(echo "$CHARACTER_URL" | sed -n 's/.*\/ipfs\/\([^/]*\).*/\1/p')
-                if [ -n "$IPFS_HASH" ]; then
-                    echo "🎭 Fetching character data from IPFS..."
-                    echo "IPFS Hash: $IPFS_HASH"
+                if [ -s "$TEMP_FILE" ] && jq empty "$TEMP_FILE" 2>/dev/null; then
+                    echo "✅ Successfully fetched agent details"
+                    
+                    # Extract agent details
+                    AGENT_ADDRESS=$(jq -r '.id' "$TEMP_FILE")
+                    DEVICE_ADDRESS=$(jq -r '.deviceAddress.id' "$TEMP_FILE")
+                    OWNER_ADDRESS=$(jq -r '.owner.id' "$TEMP_FILE")
+                    SERVER_WALLET=$(jq -r '.owner.serverWalletAddress' "$TEMP_FILE")
+                    SUBNAME=$(jq -r '.subname' "$TEMP_FILE")
+                    AVATAR_URL=$(jq -r '.avatar' "$TEMP_FILE")
+                    PER_CALL_FEE=$(jq -r '.perApiCallFee' "$TEMP_FILE")
+                    CHARACTER_CONFIG_URL=$(jq -r '.characterConfig' "$TEMP_FILE")
+                    IS_PUBLIC=$(jq -r '.isPublic' "$TEMP_FILE")
+                    KEY_HASH=$(jq -r '.keyHash' "$TEMP_FILE")
+                    CREATED_AT=$(jq -r '.createdAt' "$TEMP_FILE")
+                    UPDATED_AT=$(jq -r '.updatedAt' "$TEMP_FILE")
+                    
+                    echo "=== Latest Agent Details ==="
+                    echo "Agent Address: $AGENT_ADDRESS"
+                    echo "Subname: $SUBNAME"
+                    echo "Device Address: $DEVICE_ADDRESS"
+                    echo "Owner: $OWNER_ADDRESS"
+                    echo "Server Wallet: $SERVER_WALLET"
+                    echo "Per API Call Fee: $PER_CALL_FEE"
+                    echo "Public: $IS_PUBLIC"
+                    echo "Key Hash: $KEY_HASH"
+                    echo "Created At: $CREATED_AT"
+                    echo "Updated At: $UPDATED_AT"
                     echo
                     
-                    # Try to fetch from IPFS
-                    GATEWAY_URL="https://ipfs.io/ipfs/$IPFS_HASH"
-                    CHARACTER_DATA=$(curl -s "$GATEWAY_URL")
+                    # Fetch character config
+                    echo "🎭 Fetching character config from: $CHARACTER_CONFIG_URL"
+                    curl -s "$CHARACTER_CONFIG_URL" > "$TEMP_FILE" 2>/dev/null
                     
-                    if [ -n "$CHARACTER_DATA" ]; then
+                    if [ -s "$TEMP_FILE" ] && jq empty "$TEMP_FILE" 2>/dev/null; then
+                        echo "✅ Successfully fetched character config"
+                        
+                        # Extract key character details
+                        NAME=$(jq -r '.name // "Unknown"' "$TEMP_FILE")
+                        DESCRIPTION=$(jq -r '.description // "None"' "$TEMP_FILE")
+                        PERSONALITY=$(jq -r '.personality // "None"' "$TEMP_FILE")
+                        FIRST_MESSAGE=$(jq -r '.first_mes // "None"' "$TEMP_FILE")
+                        
                         echo "=== Character Details ==="
-                        # Pretty print the JSON with proper indentation
-                        echo "$CHARACTER_DATA" | jq '.' || echo "$CHARACTER_DATA"
+                        echo "Name: $NAME"
+                        echo "Description: $DESCRIPTION"
+                        echo "Personality: $PERSONALITY"
+                        echo
+                        echo "First Message: $FIRST_MESSAGE"
                         echo
                         
-                        # Extract key details
-                        NAME=$(echo "$CHARACTER_DATA" | jq -r '.name')
-                        DESCRIPTION=$(echo "$CHARACTER_DATA" | jq -r '.description')
-                        PERSONALITY=$(echo "$CHARACTER_DATA" | jq -r '.personality')
-                        SCENARIO=$(echo "$CHARACTER_DATA" | jq -r '.scenario')
-                        CREATOR=$(echo "$CHARACTER_DATA" | jq -r '.creator')
-                        CREATED_AT=$(echo "$CHARACTER_DATA" | jq -r '.createdAt')
-                        
-                        echo "=== Summary ==="
-                        echo "Name: ${NAME:-'(not set)'}"
-                        echo "Description: ${DESCRIPTION:-'(not set)'}"
-                        echo "Personality: ${PERSONALITY:-'(not set)'}"
-                        echo "Scenario: ${SCENARIO:-'(not set)'}"
-                        echo "Creator: ${CREATOR:-'(unknown)'}"
-                        echo "Created At: ${CREATED_AT:-'(unknown)'}"
+                        echo "=== API Usage ==="
+                        echo "Base URL: https://www.frankyagent.xyz/api/chat/$AGENT_ADDRESS"
+                        echo "Example curl command:"
+                        echo 'curl -X POST "https://www.frankyagent.xyz/api/chat/'"$AGENT_ADDRESS"'" \'
+                        echo '  -H "Content-Type: application/json" \'
+                        echo '  -d '\''{"message": "Hello, how are you?", "apiKey": "your_api_key"}'\'''
                     else
-                        echo "❌ Failed to fetch character data from IPFS"
+                        echo "❌ Failed to fetch character config"
                     fi
                 else
-                    echo "❌ Invalid character URL format"
+                    echo "❌ Failed to fetch agent details"
                 fi
             else
-                echo "❌ Unexpected event type: $EVENT_NAME"
-                return 1
+                echo "❌ No agents found on any device"
             fi
         else
-            echo "❌ Invalid JSON response"
-            echo "Response content:"
-            cat "$TEMP_FILE"
-            return 1
+            echo "❌ No devices found"
         fi
     else
-        echo "❌ Empty response received"
-        echo "Full curl output:"
-        echo "$RESPONSE"
-        return 1
+        echo "❌ Failed to fetch devices list"
+        echo "Response:"
+        cat "$TEMP_FILE"
     fi
     
     # Clean up

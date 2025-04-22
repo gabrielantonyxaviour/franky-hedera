@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "check-devices": "ts-node scripts/check-devices.ts"
+    "check-devices": "node scripts/check-devices.js"
   },
   "dependencies": {
     "@apollo/client": "^3.13.7",

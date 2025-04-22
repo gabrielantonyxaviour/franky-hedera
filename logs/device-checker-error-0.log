@@ -1,0 +1,264 @@
+TSError: ⨯ Unable to compile TypeScript:
+frontend/scripts/check-devices.ts(428,10): error TS18046: 'healthData' is of type 'unknown'.
+frontend/scripts/check-devices.ts(433,10): error TS18046: 'healthData' is of type 'unknown'.
+frontend/scripts/check-devices.ts(437,43): error TS18046: 'healthData' is of type 'unknown'.
+
+    at createTSError (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1096:12)
+    at /Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/lib/ProcessContainer.js:292:27
+Channel is already closed can't broadcast error:
+TypeError: Converting circular structure to JSON
+    --> starting at object with constructor 'SourceFileObject'
+    |     property 'statements' -> object with constructor 'Array'
+    |     index 0 -> object with constructor 'NodeObject'
+    --- property 'parent' closes the circle
+    at stringify (<anonymous>)
+    at writeChannelMessage (node:internal/child_process/serialization:164:20)
+    at process.target._send (node:internal/child_process:851:17)
+    at process.target.send (node:internal/child_process:751:19)
+    at process.send (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/lib/ProcessContainer.js:52:21)
+    at process.uncaughtListener (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/lib/ProcessContainer.js:260:19)
+    at process.emit (node:events:536:35)
+    at process.emit (node:domain:489:12)
+    at process.emit.sharedData.processEmitHook.installedValue [as emit] (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/ts-node/node_modules/@cspotcode/source-map-support/source-map-support.js:745:40)
+    at process._fatalException (node:internal/process/execution:188:25)
+TSError: ⨯ Unable to compile TypeScript:
+frontend/scripts/check-devices.ts(428,10): error TS18046: 'healthData' is of type 'unknown'.
+frontend/scripts/check-devices.ts(433,10): error TS18046: 'healthData' is of type 'unknown'.
+frontend/scripts/check-devices.ts(437,43): error TS18046: 'healthData' is of type 'unknown'.
+
+    at createTSError (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/ts-node/src/index.ts:859:12)
+    at reportTSError (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/ts-node/src/index.ts:863:19)
+    at getOutput (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/ts-node/src/index.ts:1077:36)
+    at Object.compile (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/ts-node/src/index.ts:1433:41)
+    at Module.m._compile (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/ts-node/src/index.ts:1617:30)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+    at Object.require.extensions.<computed> [as .ts] (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/ts-node/src/index.ts:1621:12)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:1096:12)
+    at /Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/lib/ProcessContainer.js:292:27
+Channel is already closed can't broadcast error:
+TypeError: Converting circular structure to JSON
+    --> starting at object with constructor 'SourceFileObject'
+    |     property 'statements' -> object with constructor 'Array'
+    |     index 0 -> object with constructor 'NodeObject'
+    --- property 'parent' closes the circle
+    at stringify (<anonymous>)
+    at writeChannelMessage (node:internal/child_process/serialization:164:20)
+    at process.target._send (node:internal/child_process:851:17)
+    at process.target.send (node:internal/child_process:751:19)
+    at process.send (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/lib/ProcessContainer.js:52:21)
+    at process.uncaughtListener (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/lib/ProcessContainer.js:260:19)
+    at process.emit (node:events:536:35)
+    at process.emit (node:domain:489:12)
+    at process.emit.sharedData.processEmitHook.installedValue [as emit] (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/ts-node/node_modules/@cspotcode/source-map-support/source-map-support.js:745:40)
+    at process._fatalException (node:internal/process/execution:188:25)
+ApolloError: currentFetch is not a function
+    at new ApolloError (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/errors/errors.cjs:33:28)
+    at /Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:1775:78
+    at both (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1422:31)
+    at /Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1413:72
+    at new Promise (<anonymous>)
+    at Object.then (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1413:24)
+    at Object.error (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1424:49)
+    at notifySubscription (/Users/sam/Developer/franky/frontend/node_modules/zen-observable/lib/Observable.js:140:18)
+    at onNotify (/Users/sam/Developer/franky/frontend/node_modules/zen-observable/lib/Observable.js:179:3)
+    at SubscriptionObserver.error (/Users/sam/Developer/franky/frontend/node_modules/zen-observable/lib/Observable.js:240:7) {
+  graphQLErrors: [],
+  protocolErrors: [],
+  clientErrors: [],
+  networkError: TypeError: currentFetch is not a function
+      at /Users/sam/Developer/franky/frontend/node_modules/@apollo/client/link/http/http.cjs:583:13
+      at new Subscription (/Users/sam/Developer/franky/frontend/node_modules/zen-observable/lib/Observable.js:197:34)
+      at Observable.subscribe (/Users/sam/Developer/franky/frontend/node_modules/zen-observable/lib/Observable.js:279:14)
+      at Object.complete (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1510:43)
+      at Concast.start (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1537:23)
+      at new Concast (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1529:19)
+      at QueryManager.getObservableFromLink (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:1709:37)
+      at QueryManager.getResultsFromLink (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:1748:40)
+      at resultsFromLink (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:1971:26)
+      at QueryManager.fetchQueryByPolicy (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:2031:52),
+  extraInfo: undefined,
+  cause: TypeError: currentFetch is not a function
+      at /Users/sam/Developer/franky/frontend/node_modules/@apollo/client/link/http/http.cjs:583:13
+      at new Subscription (/Users/sam/Developer/franky/frontend/node_modules/zen-observable/lib/Observable.js:197:34)
+      at Observable.subscribe (/Users/sam/Developer/franky/frontend/node_modules/zen-observable/lib/Observable.js:279:14)
+      at Object.complete (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1510:43)
+      at Concast.start (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1537:23)
+      at new Concast (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1529:19)
+      at QueryManager.getObservableFromLink (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:1709:37)
+      at QueryManager.getResultsFromLink (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:1748:40)
+      at resultsFromLink (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:1971:26)
+      at QueryManager.fetchQueryByPolicy (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:2031:52)
+}
+ApolloError: currentFetch is not a function
+    at new ApolloError (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/errors/errors.cjs:33:28)
+    at /Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:1775:78
+    at both (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1422:31)
+    at /Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1413:72
+    at new Promise (<anonymous>)
+    at Object.then (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1413:24)
+    at Object.error (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1424:49)
+    at notifySubscription (/Users/sam/Developer/franky/frontend/node_modules/zen-observable/lib/Observable.js:140:18)
+    at onNotify (/Users/sam/Developer/franky/frontend/node_modules/zen-observable/lib/Observable.js:179:3)
+    at SubscriptionObserver.error (/Users/sam/Developer/franky/frontend/node_modules/zen-observable/lib/Observable.js:240:7) {
+  graphQLErrors: [],
+  protocolErrors: [],
+  clientErrors: [],
+  networkError: TypeError: currentFetch is not a function
+      at /Users/sam/Developer/franky/frontend/node_modules/@apollo/client/link/http/http.cjs:583:13
+      at new Subscription (/Users/sam/Developer/franky/frontend/node_modules/zen-observable/lib/Observable.js:197:34)
+      at Observable.subscribe (/Users/sam/Developer/franky/frontend/node_modules/zen-observable/lib/Observable.js:279:14)
+      at Object.complete (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1510:43)
+      at Concast.start (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1537:23)
+      at new Concast (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1529:19)
+      at QueryManager.getObservableFromLink (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:1709:37)
+      at QueryManager.getResultsFromLink (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:1748:40)
+      at resultsFromLink (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:1971:26)
+      at QueryManager.fetchQueryByPolicy (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:2031:52),
+  extraInfo: undefined,
+  cause: TypeError: currentFetch is not a function
+      at /Users/sam/Developer/franky/frontend/node_modules/@apollo/client/link/http/http.cjs:583:13
+      at new Subscription (/Users/sam/Developer/franky/frontend/node_modules/zen-observable/lib/Observable.js:197:34)
+      at Observable.subscribe (/Users/sam/Developer/franky/frontend/node_modules/zen-observable/lib/Observable.js:279:14)
+      at Object.complete (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1510:43)
+      at Concast.start (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1537:23)
+      at new Concast (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/utilities/utilities.cjs:1529:19)
+      at QueryManager.getObservableFromLink (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:1709:37)
+      at QueryManager.getResultsFromLink (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:1748:40)
+      at resultsFromLink (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:1971:26)
+      at QueryManager.fetchQueryByPolicy (/Users/sam/Developer/franky/frontend/node_modules/@apollo/client/core/core.cjs:2031:52)
+}
+TypeError: fetch is not a function
+    at fetchDevices (/Users/sam/Developer/franky/frontend/scripts/check-devices-simplified.js:260:28)
+    at main (/Users/sam/Developer/franky/frontend/scripts/check-devices-simplified.js:636:27)
+    at Object.<anonymous> (/Users/sam/Developer/franky/frontend/scripts/check-devices-simplified.js:673:1)
+    at Module._compile (node:internal/modules/cjs/loader:1529:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Module._load (node:internal/modules/cjs/loader:1096:12)
+    at /Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/lib/ProcessContainer.js:292:27
+    at wrapper (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/node_modules/async/internal/once.js:12:16)
+    at next (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/node_modules/async/waterfall.js:96:20)
+TypeError: fetch is not a function
+    at fetchDevices (/Users/sam/Developer/franky/frontend/scripts/check-devices-simplified.js:260:28)
+    at main (/Users/sam/Developer/franky/frontend/scripts/check-devices-simplified.js:636:27)
+    at Object.<anonymous> (/Users/sam/Developer/franky/frontend/scripts/check-devices-simplified.js:673:1)
+    at Module._compile (node:internal/modules/cjs/loader:1529:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Module._load (node:internal/modules/cjs/loader:1096:12)
+    at /Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/lib/ProcessContainer.js:292:27
+    at wrapper (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/node_modules/async/internal/once.js:12:16)
+    at next (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/node_modules/async/waterfall.js:96:20)
+TypeError: fetch is not a function
+    at fetchDevices (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:260:28)
+    at main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:636:27)
+    at Object.<anonymous> (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:673:1)
+    at Module._compile (node:internal/modules/cjs/loader:1529:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Module._load (node:internal/modules/cjs/loader:1096:12)
+    at /Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/lib/ProcessContainer.js:292:27
+    at wrapper (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/node_modules/async/internal/once.js:12:16)
+    at next (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/node_modules/async/waterfall.js:96:20)
+TypeError: fetch is not a function
+    at fetchDevices (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:260:28)
+    at main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:636:27)
+    at Object.<anonymous> (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:673:1)
+    at Module._compile (node:internal/modules/cjs/loader:1529:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Module._load (node:internal/modules/cjs/loader:1096:12)
+    at /Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/lib/ProcessContainer.js:292:27
+    at wrapper (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/node_modules/async/internal/once.js:12:16)
+    at next (/Users/sam/.nvm/versions/node/v20.19.0/lib/node_modules/pm2/node_modules/async/waterfall.js:96:20)
+Error: GraphQL errors: [{"message":"This endpoint has been removed. If you have any questions, reach out to support@thegraph.zendesk.com"}]
+    at fetchDevices (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:276:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:640:21)
+Error: GraphQL errors: [{"message":"This endpoint has been removed. If you have any questions, reach out to support@thegraph.zendesk.com"}]
+    at fetchDevices (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:276:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:640:21)
+Error: GraphQL errors: [{"message":"This endpoint has been removed. If you have any questions, reach out to support@thegraph.zendesk.com"}]
+    at fetchDevices (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:276:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:640:21)
+Error: GraphQL errors: [{"message":"This endpoint has been removed. If you have any questions, reach out to support@thegraph.zendesk.com"}]
+    at fetchDevices (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:276:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:640:21)
+TypeError: Cannot read properties of undefined (reading 'id')
+    at Object.submitVote (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:116:35)
+    at checkDevice (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:288:28)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async processBatch (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:573:20)
+    at async main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:625:28)
+TypeError: Cannot read properties of undefined (reading 'id')
+    at Object.submitVote (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:116:35)
+    at checkDevice (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:288:28)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async processBatch (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:573:20)
+    at async main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:625:28)
+TypeError: Cannot read properties of undefined (reading 'id')
+    at Object.submitVote (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:116:35)
+    at checkDevice (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:288:28)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async processBatch (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:573:20)
+    at async main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:625:28)
+TypeError: Cannot read properties of undefined (reading 'id')
+    at Object.submitVote (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:116:35)
+    at checkDevice (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:295:28)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async processBatch (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:609:20)
+    at async main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:661:28)
+TypeError: Cannot read properties of undefined (reading 'id')
+    at Object.submitVote (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:120:35)
+    at checkDevice (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:299:28)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async processBatch (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:603:20)
+    at async main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:655:28)
+Error: GraphQL errors: [{"message":"This endpoint has been removed. If you have any questions, reach out to support@thegraph.zendesk.com"}]
+    at fetchDevices (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:276:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:640:21)
+Error: GraphQL errors: [{"message":"This endpoint has been removed. If you have any questions, reach out to support@thegraph.zendesk.com"}]
+    at fetchDevices (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:276:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:640:21)
+Error: GraphQL errors: [{"message":"This endpoint has been removed. If you have any questions, reach out to support@thegraph.zendesk.com"}]
+    at fetchDevices (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:276:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:640:21)
+TypeError: Cannot read properties of undefined (reading 'id')
+    at Object.submitVote (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:117:35)
+    at checkDevice (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:337:28)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async processBatch (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:622:20)
+    at async main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:674:28)
+TypeError: Cannot read properties of undefined (reading 'id')
+    at Object.submitVote (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:117:35)
+    at checkDevice (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:337:28)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async processBatch (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:622:20)
+    at async main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:674:28)
+TypeError: Cannot read properties of undefined (reading 'id')
+    at Object.submitVote (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:123:35)
+    at checkDevice (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:357:28)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async processBatch (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:650:20)
+    at async main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:702:28)
+TypeError: Cannot read properties of undefined (reading 'id')
+    at Object.submitVote (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:123:35)
+    at checkDevice (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:357:28)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async processBatch (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:650:20)
+    at async main (/Users/sam/Developer/franky/frontend/scripts/check-devices.js:702:28)

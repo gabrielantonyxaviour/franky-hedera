@@ -1,0 +1,30 @@
+[2025-04-14T14:41:17.383Z] Starting Franky Device Checker (Simplified) v1.0.0
+[2025-04-14T14:41:17.425Z] Checker initialized with address: 0x01d62bbf194f9a92525800F650b3e3D1A2cc1e3c
+[2025-04-14T14:41:17.426Z] Fetching up to 20 devices from subgraph...
+[2025-04-14T14:41:17.426Z] Error fetching devices: fetch is not a function
+[2025-04-14T14:41:17.426Z] Found 0 devices to check
+[2025-04-14T14:41:17.426Z] 📊 Check complete: 0/0 devices healthy
+[2025-04-14T14:42:00.354Z] Starting Franky Device Checker (Simplified) v1.0.0
+[2025-04-14T14:42:00.391Z] Checker initialized with address: 0x72983529c84db5e0039256de66944A45D88dd324
+[2025-04-14T14:42:00.391Z] Fetching up to 20 devices from subgraph...
+[2025-04-14T14:42:00.391Z] Error fetching devices: fetch is not a function
+[2025-04-14T14:42:00.392Z] Found 0 devices to check
+[2025-04-14T14:42:00.392Z] 📊 Check complete: 0/0 devices healthy
+[2025-04-14T14:44:00.364Z] Starting Franky Device Checker (Simplified) v1.0.0
+[2025-04-14T14:44:00.401Z] Checker initialized with address: 0x392B923410a7eD79061b1050F49703B92b0f7e81
+[2025-04-14T14:44:00.402Z] Fetching up to 20 devices from subgraph...
+[2025-04-14T14:44:00.402Z] Error fetching devices: fetch is not a function
+[2025-04-14T14:44:00.402Z] Found 0 devices to check
+[2025-04-14T14:44:00.402Z] 📊 Check complete: 0/0 devices healthy
+[2025-04-14T14:46:00.353Z] Starting Franky Device Checker (Simplified) v1.0.0
+[2025-04-14T14:46:00.391Z] Checker initialized with address: 0xA82aDD950001d704Ec6813f359cccc0E679aaF20
+[2025-04-14T14:46:00.391Z] Fetching up to 20 devices from subgraph...
+[2025-04-14T14:46:00.391Z] Error fetching devices: fetch is not a function
+[2025-04-14T14:46:00.391Z] Found 0 devices to check
+[2025-04-14T14:46:00.391Z] 📊 Check complete: 0/0 devices healthy
+[2025-04-14T14:48:00.378Z] Starting Franky Device Checker (Simplified) v1.0.0
+[2025-04-14T14:48:00.420Z] Checker initialized with address: 0xAdA13C968eC1f382CEafA744Eabb7f72c069A555
+[2025-04-14T14:48:00.420Z] Fetching up to 20 devices from subgraph...
+[2025-04-14T14:48:00.421Z] Error fetching devices: fetch is not a function
+[2025-04-14T14:48:00.421Z] Found 0 devices to check
+[2025-04-14T14:48:00.421Z] 📊 Check complete: 0/0 devices healthy

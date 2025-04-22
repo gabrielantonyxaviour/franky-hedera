@@ -1,4 +1,3 @@
-import { ApolloClient, InMemoryCache, gql } from '@apollo/client';
 import { LitNodeClient } from "@lit-protocol/lit-node-client";
 import { LIT_NETWORK, LIT_ABILITY, LIT_RPC } from "@lit-protocol/constants";
 import { decryptToString } from "@lit-protocol/encryption";
@@ -12,38 +11,8 @@ import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 
-// Create Apollo Client for GraphQL queries
-const graphqlClient = new ApolloClient({
-  uri: 'https://1ca6-124-123-105-119.ngrok-free.app/subgraphs/name/graph-indexer',
-  cache: new InMemoryCache(),
-});
-
 // FRANKY contract address on Filecoin Calibration Testnet
 const FRANKY_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29';
-
-// GraphQL query for agent details
-const AGENT_DETAILS_QUERY = gql`
-  query($agentId: ID!) {
-    agents(where: {id: $agentId}, first: 1) {
-      id
-      owner {
-        id
-      }
-      deviceAddress {
-        id
-        ngrokLink
-      }
-      avatar
-      subname
-      perApiCallFee
-      characterConfig
-      isPublic
-      keyHash
-      createdAt
-      updatedAt
-    }
-  }
-`;
 
 // Function to read device credentials from file
 async function readDeviceCredentials() {
@@ -288,83 +257,69 @@ async function fetchCharacterConfigData(characterConfig) {
 }
 
 export async function getAgentCharacter(agentId) {
-    const startTime = new Date();
-    console.log(`\n🔍 [${startTime.toISOString()}] AGENT FETCH: Starting agent data fetch for ID: ${agentId}`);
+  const startTime = new Date();
+  console.log(`\n🔍 [${startTime.toISOString()}] AGENT FETCH: Starting agent data fetch for ID: ${agentId}`);
+  
+  try {
+    // First fetch the character config URL from the new endpoint
+    console.log(`🌐 [${new Date().toISOString()}] AGENT FETCH: Fetching character config URL...`);
+    const configResponse = await fetch(`https://www.frankyagent.xyz/api/graph/character?address=${agentId}`);
     
-    try {
-        // Fetch agent details using GraphQL
-        console.log(`🌐 [${new Date().toISOString()}] AGENT FETCH: Querying GraphQL API for agent details...`);
-        const apiStartTime = new Date();
-        
-        const { data } = await graphqlClient.query({
-            query: AGENT_DETAILS_QUERY,
-            variables: {
-                agentId
-            }
-        });
-        
-        const apiEndTime = new Date();
-        const apiDuration = apiEndTime.getTime() - apiStartTime.getTime();
-        
-        // Validate agent exists
-        if (!data.agents || data.agents.length === 0) {
-            console.error(`❌ [${new Date().toISOString()}] AGENT FETCH: Agent not found with ID ${agentId}`);
-            throw new Error(`Agent with ID ${agentId} not found`);
-        }
-        
-        const agent = data.agents[0];
-        console.log(`📋 [${new Date().toISOString()}] AGENT FETCH: Retrieved agent data in ${apiDuration}ms`);
-        console.log(`✅ [${new Date().toISOString()}] AGENT FETCH: Found agent with ID: ${agent.id}`);
-        
-        // Fetch character config from URL
-        console.log(`🔄 [${new Date().toISOString()}] AGENT FETCH: Fetching character from URL...`);
-        
-        let characterData;
-        try {
-            characterData = await fetchCharacterConfigData(agent.characterConfig);
-            console.log(`✅ [${new Date().toISOString()}] AGENT FETCH: Successfully fetched character data`);
-        } catch (error) {
-            console.error(`❌ [${new Date().toISOString()}] AGENT FETCH: Error fetching character data: ${error.message}`);
-            throw error;
-        }
-        
-        // Create return object with agent data
-        const agentData = {
-            // Basic agent info
-            id: agent.id,
-            subname: agent.subname,
-            owner: agent.owner?.id,
-            agentAddress: agent.id,
-            deviceAddress: agent.deviceAddress?.id,
-            ngrokLink: agent.deviceAddress?.ngrokLink,
-            
-            // Avatar and visibility
-            avatar: agent.avatar,
-            isPublic: agent.isPublic,
-            
-            // Fee information
-            perApiCallAmount: parseFloat(agent.perApiCallFee || '0'),
-            
-            // Character configuration - the complete object
-            character: characterData,
-            
-            // Additional metadata
-            keyHash: agent.keyHash,
-            createdAt: agent.createdAt,
-            updatedAt: agent.updatedAt
-        };
-        
-        // Log completion and return data
-        const endTime = new Date();
-        const totalDuration = endTime.getTime() - startTime.getTime();
-        console.log(`✅ [${endTime.toISOString()}] AGENT FETCH: Completed agent fetch in ${totalDuration}ms`);
-        
-        return agentData;
-    } catch (error) {
-        const endTime = new Date();
-        const totalDuration = endTime.getTime() - startTime.getTime();
-        console.error(`❌ [${endTime.toISOString()}] AGENT FETCH ERROR (${totalDuration}ms):`, error);
-        console.error(`❌ AGENT FETCH STACK: ${error.stack}`);
-        throw error;
+    if (!configResponse.ok) {
+      throw new Error(`Failed to fetch character config URL: ${configResponse.status}`);
     }
+    
+    const { characterConfig } = await configResponse.json();
+    console.log(`✅ [${new Date().toISOString()}] AGENT FETCH: Got character config URL`);
+    
+    // Fetch character data from the config URL
+    console.log(`🔄 [${new Date().toISOString()}] AGENT FETCH: Fetching character data...`);
+    const characterResponse = await fetch(characterConfig);
+    
+    if (!characterResponse.ok) {
+      throw new Error(`Failed to fetch character data: ${characterResponse.status}`);
+    }
+    
+    const characterData = await characterResponse.json();
+    console.log(`✅ [${new Date().toISOString()}] AGENT FETCH: Successfully fetched character data`);
+    
+    // Create return object with agent data
+    const agentData = {
+      // Basic agent info
+      id: agentId,
+      subname: characterData.name || '',
+      owner: agentId,
+      agentAddress: agentId,
+      deviceAddress: agentId,
+      ngrokLink: characterData.ngrokLink || '',
+      
+      // Avatar and visibility
+      avatar: characterData.avatar || '',
+      isPublic: true,
+      
+      // Fee information
+      perApiCallAmount: 0,
+      
+      // Character configuration - the complete object
+      character: characterData,
+      
+      // Additional metadata
+      keyHash: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    // Log completion and return data
+    const endTime = new Date();
+    const totalDuration = endTime.getTime() - startTime.getTime();
+    console.log(`✅ [${endTime.toISOString()}] AGENT FETCH: Completed agent fetch in ${totalDuration}ms`);
+    
+    return agentData;
+  } catch (error) {
+    const endTime = new Date();
+    const totalDuration = endTime.getTime() - startTime.getTime();
+    console.error(`❌ [${endTime.toISOString()}] AGENT FETCH ERROR (${totalDuration}ms):`, error);
+    console.error(`❌ AGENT FETCH STACK: ${error.stack}`);
+    throw error;
+  }
 } 

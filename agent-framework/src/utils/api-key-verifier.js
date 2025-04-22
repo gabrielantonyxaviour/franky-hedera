@@ -32,18 +32,32 @@ const keyHashAbi = [{
 
 const isMainnet = false;
 
-async function recoverApiKey(apiKey, agentAddress, ownerKeyHash) {
+// Function to fetch agent details including keyHash
+async function fetchAgentDetails(agentAddress) {
+    console.log(`\n🔍 Fetching agent details for: ${agentAddress}`);
+    try {
+        const response = await fetch(`https://www.frankyagent.xyz/api/graph/agent?address=${agentAddress}`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch agent details: ${response.status}`);
+        }
+        const agentData = await response.json();
+        console.log(`✅ Successfully fetched agent details`);
+        return agentData;
+    } catch (error) {
+        console.error(`❌ Error fetching agent details: ${error.message}`);
+        throw error;
+    }
+}
+
+async function recoverApiKey(apiKey, agentAddress) {
     console.log("\n--- Recovering API Key ---");
     console.log(`API Key: ${apiKey}`);
     console.log(`Agent address: ${agentAddress}`);
 
-    const keyHash = "0x0000000000000000000000000000000000000000000000000000000000000000";
-    
-    // Create client for contract interaction
-    const client = createPublicClient({
-        chain: isMainnet ? base : baseSepolia,
-        transport: http()
-    });
+    // Fetch agent details to get the correct keyHash
+    const agentDetails = await fetchAgentDetails(agentAddress);
+    const keyHash = agentDetails.keyHash;
+    console.log(`Using keyHash: ${keyHash}`);
     
     // Decode base58 API key to get the original signature
     console.log("Decoding API key...");
@@ -51,7 +65,7 @@ async function recoverApiKey(apiKey, agentAddress, ownerKeyHash) {
     const signature = bytesToHex(bytes);
     console.log(`Signature: ${signature.substring(0, 10)}...${signature.substring(signature.length - 10)}`);
     
-    // Recover the signing address using the correct key hash
+    // Recover the signing address using the fetched keyHash
     console.log("Recovering address...");
     const address = await recoverMessageAddress({
         message: keyHash,
@@ -59,79 +73,62 @@ async function recoverApiKey(apiKey, agentAddress, ownerKeyHash) {
     });
     console.log(`Recovered address: ${address}`);
     
-    // Only try to recover owner address if a valid ownerKeyHash is provided
-    let ownerAddress = null;
-    if (ownerKeyHash && typeof ownerKeyHash === 'string') {
-        try {
-            ownerAddress = await recoverMessageAddress({
-                message: ownerKeyHash,
-                signature
-            });
-            console.log(`Owner address recovered: ${ownerAddress}`);
-        } catch (error) {
-            console.error(`Failed to recover owner address: ${error.message}`);
-            // Continue with null ownerAddress
-        }
-    } else {
-        console.log(`No ownerKeyHash provided, skipping owner recovery`);
-        ownerAddress = address; // Use the same address as fallback
-    }
-
-    return {address, ownerAddress: ownerAddress || address};
+    // Check if the recovered address matches either the owner or their server wallet
+    const isOwner = address.toLowerCase() === agentDetails.owner.id.toLowerCase();
+    const isServerWallet = address.toLowerCase() === agentDetails.owner.serverWalletAddress.toLowerCase();
+    
+    return {
+        address,
+        isOwner,
+        isServerWallet,
+        ownerAddress: agentDetails.owner.id,
+        serverWalletAddress: agentDetails.owner.serverWalletAddress
+    };
 }
 
-export async function isCallerOwner(agentAddress, apiKey, ownerKeyHash) {
+export async function isCallerOwner(agentAddress, apiKey) {
     console.log("\n--- Checking Ownership ---");
     const client = createPublicClient({
         chain: isMainnet ? base : baseSepolia,
         transport: http()
     });
     
-    // Recover the address from the API key
-    const {address, ownerAddress} = await recoverApiKey(apiKey, agentAddress, ownerKeyHash);
-    
-    // Check if this address is the owner of the agent
-    console.log("Checking if address is owner...");
-    console.log(`Caller Address: ${address}`);
-    console.log(`Owner Address: ${ownerAddress || 'Same as caller'}`);
-    console.log(`Agent ID: ${agentAddress}`);
-    
     try {
-        // First check if the caller address is allowed to use the API
-        const isCallerUser = Boolean(await client.readContract({
+        // Recover the address from the API key and check ownership
+        const {
+            address,
+            isOwner,
+            isServerWallet,
+            ownerAddress,
+            serverWalletAddress
+        } = await recoverApiKey(apiKey, agentAddress);
+        
+        console.log("Checking permissions...");
+        console.log(`Caller Address: ${address}`);
+        console.log(`Owner Address: ${ownerAddress}`);
+        console.log(`Server Wallet Address: ${serverWalletAddress}`);
+        console.log(`Is Owner: ${isOwner}`);
+        console.log(`Is Server Wallet: ${isServerWallet}`);
+        
+        // If the caller is either the owner or their server wallet, they have full access
+        if (isOwner || isServerWallet) {
+            return { status: 2, caller: address };
+        }
+        
+        // Otherwise, check if they have API call permission
+        const isCallerAllowed = Boolean(await client.readContract({
             address: FRANKY_ADDRESS,
             abi: FRANKY_ABI,
             functionName: 'allowApiCall',
             args: [address, agentAddress]
         }));
         
-        console.log(`Caller allowed: ${isCallerUser}`);
+        console.log(`API Call Permission: ${isCallerAllowed}`);
+        return { status: isCallerAllowed ? 1 : 0, caller: address };
         
-        // Only check owner if we have a different owner address
-        let isCallerOwner = false;
-        if (ownerAddress && ownerAddress !== address) {
-            // Try to check if the owner address is allowed
-            try {
-                isCallerOwner = Boolean(await client.readContract({
-                    address: FRANKY_ADDRESS,
-                    abi: FRANKY_ABI,
-                    functionName: 'allowApiCall',
-                    args: [ownerAddress, agentAddress]
-                }));
-                console.log(`Owner allowed: ${isCallerOwner}`);
-            } catch (error) {
-                console.error(`Error checking owner permissions: ${error.message}`);
-                // Proceed with isCallerOwner = false
-            }
-        }
-        
-        return {status: isCallerUser ? 1 : isCallerOwner ? 2 : 0, caller: isCallerOwner ? ownerAddress : address};
     } catch (error) {
-        console.error(`Contract call failed: ${error.message}`);
-        // Fallback to a less secure check - just assume the recovered address is valid
-        // This is a temporary solution until the contract issues are fixed
-        console.log(`⚠️ WARNING: Fallback to basic API key verification without contract`);
-        // If the address recovered from API key matches what we expect for the agent, allow it
-        return {status: 1, caller: address};
+        console.error(`Verification failed: ${error.message}`);
+        // No fallback - if we can't verify, we deny access
+        return { status: 0, caller: null };
     }
 } 

@@ -247,7 +247,7 @@ router.post('/generate', async (request, response) => {
     }
 
     // Verify API key with whatever data we have
-    const { status, caller } = await isCallerOwner(agentId, apiKey, null);
+    const { status, caller } = await isCallerOwner(agentId, apiKey);
 
     if (status == 0) {
       console.error('❌ Invalid API key or agent ID');
@@ -351,7 +351,6 @@ router.post('/', async (request, response) => {
 
     // Step 1: Fetch agent data and ENSURE we have it before proceeding
     let agentData;
-    let ownerKeyHash = null;
     let character_data;
     let perApiCallAmount;
     let agentOwner;
@@ -403,7 +402,7 @@ router.post('/', async (request, response) => {
     // Step 3: Verify API key with whatever data we have
     console.log(`🔄 Verifying API key`);
     console.log(`🔑 Agent ID: ${agentId}, Owner: ${agentOwner}`);
-    const { status, caller } = await isCallerOwner(agentId, apiKey, null); // Pass null for ownerKeyHash
+    const { status, caller } = await isCallerOwner(agentId, apiKey); // Pass null for ownerKeyHash
 
     if (status == 0) {
       console.error('❌ Invalid API key or agent ID');
