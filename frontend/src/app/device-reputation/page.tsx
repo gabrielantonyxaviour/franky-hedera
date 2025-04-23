@@ -10,6 +10,8 @@ interface ReputationStats {
   successRate: number
   averageResponseTime: number
   totalChecks: number
+  consistency?: number
+  lastSeen?: string
 }
 
 interface DeviceReputation {
@@ -19,6 +21,8 @@ interface DeviceReputation {
   reputationScore: number
   retrievalStats: ReputationStats
   checked: string
+  error?: string
+  reputationDataUrl?: string | null
 }
 
 // Background component (reused from marketplace)
@@ -84,6 +88,12 @@ const Background = () => {
 
 // Device reputation card component
 const ReputationCard = ({ device }: { device: DeviceReputation }) => {
+  const stats = device.retrievalStats || {
+    successRate: 0,
+    averageResponseTime: 0,
+    totalChecks: 0
+  };
+
   return (
     <motion.div
       className="p-6 rounded-xl border border-[#00FF88] border-opacity-30 bg-black/50 backdrop-blur-sm h-full flex flex-col"
@@ -106,10 +116,18 @@ const ReputationCard = ({ device }: { device: DeviceReputation }) => {
           </h3>
           <div className="flex items-center mt-1">
             <span className={`inline-block w-2 h-2 rounded-full ${device.status === 'checked' ? 'bg-[#00FF88]' : 'bg-gray-400'} mr-2`}></span>
-            <span className="text-sm text-gray-400">{device.status} • Last checked: {new Date(device.checked).toLocaleString()}</span>
+            <span className="text-sm text-gray-400">
+              {device.status} • Last checked: {new Date(device.checked).toLocaleString()}
+            </span>
           </div>
         </div>
       </div>
+
+      {device.error ? (
+        <div className="text-red-500 mb-4">
+          Error: {device.error}
+        </div>
+      ) : null}
 
       <div className="space-y-3 flex-grow">
         <div className="flex items-center text-[#CCCCCC]">
@@ -119,17 +137,17 @@ const ReputationCard = ({ device }: { device: DeviceReputation }) => {
 
         <div className="flex items-center text-[#CCCCCC]">
           <FiActivity className="mr-2 text-[#00FF88]" />
-          <span>Success Rate: <span className="text-[#00FF88] font-medium">{(device.retrievalStats.successRate * 100).toFixed(1)}%</span></span>
+          <span>Success Rate: <span className="text-[#00FF88] font-medium">{(stats.successRate * 100).toFixed(1)}%</span></span>
         </div>
 
         <div className="flex items-center text-[#CCCCCC]">
           <FiClock className="mr-2 text-[#00FF88]" />
-          <span>Avg Response Time: <span className="text-[#00FF88] font-medium">{device.retrievalStats.averageResponseTime.toFixed(0)}ms</span></span>
+          <span>Avg Response Time: <span className="text-[#00FF88] font-medium">{stats.averageResponseTime.toFixed(0)}ms</span></span>
         </div>
 
         <div className="flex items-center text-[#CCCCCC]">
           <FiShield className="mr-2 text-[#00FF88]" />
-          <span>Total Checks: <span className="text-[#00FF88] font-medium">{device.retrievalStats.totalChecks}</span></span>
+          <span>Total Checks: <span className="text-[#00FF88] font-medium">{stats.totalChecks}</span></span>
         </div>
 
         <div className="flex items-start text-[#CCCCCC]">
@@ -138,6 +156,19 @@ const ReputationCard = ({ device }: { device: DeviceReputation }) => {
             Endpoint: {device.ngrokLink}
           </span>
         </div>
+
+        {device.reputationDataUrl && (
+          <div className="mt-4 text-sm">
+            <a 
+              href={device.reputationDataUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-[#00FF88] hover:underline"
+            >
+              View Full Report
+            </a>
+          </div>
+        )}
       </div>
     </motion.div>
   )
@@ -157,15 +188,34 @@ export default function DeviceReputationPage() {
           throw new Error('Failed to fetch device reputation data')
         }
         const data = await response.json()
-        setDevices(data.results)
+        
+        // Ensure each device has the required data structure
+        const processedDevices = data.results.map((device: any) => ({
+          ...device,
+          retrievalStats: device.retrievalStats || {
+            successRate: 0,
+            averageResponseTime: 0,
+            totalChecks: 0
+          },
+          reputationScore: device.reputationScore || 0,
+          status: device.status || 'unknown',
+          checked: device.checked || new Date().toISOString()
+        }));
+        
+        setDevices(processedDevices)
       } catch (err: any) {
         setError(err.message)
+        console.error('Error fetching device data:', err)
       } finally {
         setLoading(false)
       }
     }
 
     fetchDevices()
+
+    // Refresh data every 5 minutes
+    const interval = setInterval(fetchDevices, 5 * 60 * 1000)
+    return () => clearInterval(interval)
   }, [])
 
   return (

@@ -138,55 +138,83 @@ function calculateLatencyPercentiles(durations: number[]) {
 
 // Function to store reputation data in Akave (which stores on Filecoin)
 async function storeReputationData(deviceAddress: string, reputationData: any) {
-  try {
-    // Ensure bucket exists before uploading
-    await ensureBucket();
+  const MAX_RETRIES = 3;
+  const INITIAL_DELAY = 1000; // 1 second
 
-    // Add checker subnet metadata
-    const dataWithMetadata = {
-      ...reputationData,
-      _checkerMetadata: {
-        subnet: CHECKER_SUBNET_NAME,
-        version: CHECKER_SUBNET_VERSION,
-        timestamp: new Date().toISOString(),
-        verificationMethod: 'character-retrieval',
-        storageProtocol: 'filecoin',
-        metrics: {
-          successRate: { weight: 0.6, description: 'Rate of successful character data retrievals' },
-          responseTime: { weight: 0.25, description: 'Average response time for successful retrievals' },
-          consistency: { weight: 0.15, description: 'Consistency of response times' }
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      // Ensure bucket exists before uploading
+      await ensureBucket();
+
+      // Add checker subnet metadata
+      const dataWithMetadata = {
+        ...reputationData,
+        _checkerMetadata: {
+          subnet: CHECKER_SUBNET_NAME,
+          version: CHECKER_SUBNET_VERSION,
+          timestamp: new Date().toISOString(),
+          verificationMethod: 'character-retrieval',
+          storageProtocol: 'filecoin',
+          metrics: {
+            successRate: { weight: 0.6, description: 'Rate of successful character data retrievals' },
+            responseTime: { weight: 0.25, description: 'Average response time for successful retrievals' },
+            consistency: { weight: 0.15, description: 'Consistency of response times' }
+          }
         }
+      };
+
+      // Create a clean copy of the data
+      const cleanData = JSON.parse(JSON.stringify(dataWithMetadata));
+      const jsonData = JSON.stringify(cleanData, null, 2);
+      const filename = `${deviceAddress.toLowerCase()}-${Date.now()}.json`;
+
+      // Create form data with proper buffering and content type
+      const formData = new FormData();
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      formData.append('file', blob, filename);
+      
+      // Upload file to bucket with increased timeout
+      const uploadResponse = await fetch(`${AKAVE_API_URL}/buckets/${DEVICE_REPUTATION_BUCKET}/files`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json'
+        },
+        // Increase timeout for Filecoin transactions
+        signal: AbortSignal.timeout(30000) // 30 seconds timeout
+      });
+      
+      const uploadData = await uploadResponse.json();
+      if (!uploadResponse.ok || !uploadData.success) {
+        const error = uploadData.error || uploadResponse.status;
+        if (error.includes('replacement transaction underpriced') && attempt < MAX_RETRIES - 1) {
+          // Wait with exponential backoff before retrying
+          const delay = INITIAL_DELAY * Math.pow(2, attempt);
+          console.log(`Retry attempt ${attempt + 1}/${MAX_RETRIES} after ${delay}ms delay...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        throw new Error(`Failed to upload reputation data: ${error}`);
       }
-    };
-
-    // Create a clean copy of the data
-    const cleanData = JSON.parse(JSON.stringify(dataWithMetadata));
-    const jsonData = JSON.stringify(cleanData, null, 2);
-    const filename = `${deviceAddress.toLowerCase()}-${Date.now()}.json`;
-
-    // Create form data with proper buffering
-    const formData = new FormData();
-    formData.append('file', new Blob([jsonData], { type: 'application/json' }), filename);
-    
-    // Upload file to bucket
-    const uploadResponse = await fetch(`${AKAVE_API_URL}/buckets/${DEVICE_REPUTATION_BUCKET}/files`, {
-      method: 'POST',
-      body: formData
-    });
-    
-    const uploadData = await uploadResponse.json();
-    if (!uploadResponse.ok || !uploadData.success) {
-      throw new Error(`Failed to upload reputation data: ${uploadData.error || uploadResponse.status}`);
+      
+      // Return download URL for the file
+      const downloadUrl = `${AKAVE_API_URL}/buckets/${DEVICE_REPUTATION_BUCKET}/files/${filename}/download`;
+      return { success: true, url: downloadUrl };
+      
+    } catch (error: any) {
+      if (attempt === MAX_RETRIES - 1) {
+        console.error('Error storing reputation data:', error);
+        return { success: false, error: error.message };
+      }
+      
+      // Wait before retrying on unexpected errors
+      const delay = INITIAL_DELAY * Math.pow(2, attempt);
+      console.log(`Unexpected error, retry attempt ${attempt + 1}/${MAX_RETRIES} after ${delay}ms delay...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
-    
-    // Return download URL for the file
-    const downloadUrl = `${AKAVE_API_URL}/buckets/${DEVICE_REPUTATION_BUCKET}/files/${filename}/download`;
-    return { success: true, url: downloadUrl };
-    
-  } catch (error: any) {
-    console.error('Error storing reputation data:', error);
-    return { success: false, error: error.message };
   }
+  
+  return { success: false, error: 'Max retries exceeded' };
 }
 
 // Function to check device availability and character data
@@ -371,6 +399,14 @@ export async function GET(request: Request) {
           ngrokLink: device.ngrokLink || 'unknown',
           status: 'error',
           error: error.message || 'Unknown error',
+          reputationScore: 0,
+          retrievalStats: {
+            successRate: 0,
+            averageResponseTime: 0,
+            totalChecks: 0,
+            consistency: 0,
+            lastSeen: new Date().toISOString()
+          },
           checked: new Date().toISOString()
         };
       }
