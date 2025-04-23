@@ -16,6 +16,7 @@ contract Franky is HederaTokenService {
 
     struct Agent {
         uint256 agentTokenId;
+        address agentAddress;
         address deviceAddress;
         string subdomain;
         string characterConfigTopicId;
@@ -26,7 +27,6 @@ contract Franky is HederaTokenService {
 
     uint256 public devicesCount = 0;
     uint256 public agentsCount = 0;
-    uint32 public protocolFeeInBps = 0;
 
     address public frankyAgentAccountImplemetation;
     address public frankyAgentsNftAddress;
@@ -37,25 +37,58 @@ contract Franky is HederaTokenService {
 
     mapping(address => mapping(address => bool)) public ownerDevices;
 
-    mapping(uint256 => Agent) public agents;
+    mapping(address => Agent) public agents;
 
-    mapping(address => mapping(uint256 => bool)) public deviceAgents;
+    mapping(address => mapping(address => bool)) public deviceAgents;
 
-    mapping(uint256 => mapping(address => bytes32)) public agentsKeyHash;
+    mapping(address => mapping(address => bytes32)) public agentsKeyHash;
 
-    mapping(address => address) public embeddedToServerWallets;
+    mapping(address => address) public serverWalletsMapping;
 
-    constructor(
-        address _frankyAgentAccountImplemetation,
-        uint32 _protocolFeeInBps
-    ) {
+    constructor(address _frankyAgentAccountImplemetation) {
         frankyAgentAccountImplemetation = _frankyAgentAccountImplemetation;
-        frankyAgentsNftAddress = address(0);
-        protocolFeeInBps = _protocolFeeInBps;
+        IHederaTokenService.RoyaltyFee[]
+            memory royaltyFees = new IHederaTokenService.RoyaltyFee[](1);
+        royaltyFees[0] = IHederaTokenService.RoyaltyFee({
+            numerator: 1,
+            denominator: 10,
+            amount: 100000000, // Fallback fee of 1 HBAR in tinybars (1 HBAR = 1e8 tinybars)
+            tokenId: address(0),
+            useHbarsForPayment: true,
+            feeCollector: msg.sender
+        });
+        IHederaTokenService.FixedFee[]
+            memory fixedFees = new IHederaTokenService.FixedFee[](0);
+        IHederaTokenService.HederaToken memory token;
+        token.name = "Franky Agents";
+        token.symbol = "$FRANKY";
+        token.memo = "Franky Agents Collection";
+        token.treasury = address(this);
+        IHederaTokenService.TokenKey[]
+            memory keys = new IHederaTokenService.TokenKey[](1);
+        keys[0] = getSingleKey(
+            KeyType.SUPPLY,
+            KeyValueType.CONTRACT_ID,
+            address(this)
+        );
+        token.tokenKeys = keys;
+        (
+            int responseCode,
+            address createdToken
+        ) = createNonFungibleTokenWithCustomFees(token, fixedFees, royaltyFees);
+        require(
+            responseCode == HederaResponseCodes.SUCCESS,
+            "Failed to create NFT"
+        );
+        frankyAgentsNftAddress = createdToken;
+        emit NFTCreated(createdToken);
     }
+
+    event FrankyAgentsNftCreated(address nftAddress);
 
     event AgentCreated(
         uint256 indexed agentTokenId,
+        address indexed agentAddress,
         address indexed deviceAddress,
         string subdomain,
         address owner,
@@ -71,18 +104,19 @@ contract Franky is HederaTokenService {
         uint256 hostingFee
     );
     event ServerWalletConfigured(
-        address indexed embeddedWalletAddress,
+        address indexed walletAddress,
         address indexed serverWalletAddress
     );
 
     function configureServerWallet(address serverWalletAddress) external {
         require(
-            embeddedToServerWallets[msg.sender] == address(0),
+            serverWalletsMapping[msg.sender] == address(0),
             "Server wallet already configured"
         );
-        embeddedToServerWallets[msg.sender] = serverWalletAddress;
+        serverWalletsMapping[msg.sender] = serverWalletAddress;
         emit ServerWalletConfigured(msg.sender, serverWalletAddress);
     }
+
     function registerDevice(
         string calldata deviceMetadataTopicId,
         uint256 hostingFee,
@@ -176,9 +210,9 @@ contract Franky is HederaTokenService {
     }
 
     function checkAvailableCredits(
-        address embeddedWalletAddress
+        address walletAddress
     ) public view returns (uint256 amount) {
-        return embeddedToServerWallets[embeddedWalletAddress].balance;
+        return serverWalletsMapping[walletAddress].balance;
     }
 
     function isDeviceOwned(
@@ -194,7 +228,7 @@ contract Franky is HederaTokenService {
     ) external view returns (bool) {
         return
             agents[agentTokenId].owner == caller ||
-            embeddedToServerWallets[caller].balance >=
+            serverWalletsMapping[caller].balance >=
             agents[agentTokenId].perApiCallFee;
     }
 
