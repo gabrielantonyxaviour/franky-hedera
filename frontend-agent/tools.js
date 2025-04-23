@@ -1,6 +1,8 @@
 /**
  * Tool class for implementing MCP-compatible tools
  */
+const axios = require('axios');
+
 class Tool {
   constructor(name, description) {
     this.name = name;
@@ -197,131 +199,54 @@ Example usage:
 '{"search_term": "pirate"}'`);
       
     this.hederaKit = hederaKit;
-    console.log("FindCharacterTool initialized");
+    this.apiUrl = 'https://getmessages.onrender.com/get-complete-characters';
+    console.log("FindCharacterTool initialized with dynamic API endpoint");
   }
   
   async _call(input, config) {
     try {
       console.log(`FindCharacterTool called with input:`, input);
       
-      // Parse input - but ignore the search term
+      // Parse input
       const parsedInput = typeof input === 'string' ? JSON.parse(input) : input;
       console.log("FindCharacterTool: parsed input:", parsedInput);
       
-      console.log("FindCharacterTool: RETURNING ALL CHARACTERS REGARDLESS OF SEARCH TERM");
+      const searchTerm = parsedInput.search_term || "";
+      console.log(`FindCharacterTool: Searching for "${searchTerm}" via API`);
       
-      // Use the hardcoded character list from the logs and message contents
-      // Directly use the character data based on the sequence logs provided
-      const characters = [
-        {
-          id: "11",
-          name: "Aria",
-          description: "A mysterious figure with dark hair and piercing green eyes", 
-          personality: "Reserved yet observant", 
-          scenario: "In a bustling city at night", 
-          first_mes: "Good evening, stranger.", 
-          mes_example: "The night is full of secrets.", 
-          creator_notes: "Prefers to listen rather than speak", 
-          system_prompt: "You are Aria, a mysterious figure wandering the city streets at night."
-        },
-        {
-          id: "10",
-          name: "Aria",
-          description: "A mysterious figure with silver hair and piercing green eyes",
-          personality: "Calm yet enigmatic",
-          scenario: "In a bustling marketplace",
-          first_mes: "Greetings, traveler. What brings you to this place?",
-          mes_example: "The secrets of this realm run deep. Be cautious in your ventures.",
-          creator_notes: "Speaks in a slow and deliberate manner",
-          system_prompt: "You are Aria, a mysterious figure in the marketplace."
-        },
-        {
-          id: "9",
-          name: "Captain Blackbeard",
-          description: "A rugged pirate with a large beard and a patch over one eye.",
-          personality: "Bold",
-          scenario: "Commanding his ship on the high seas.",
-          first_mes: "Arrr mateys! Ye be in the presence of Captain Blackbeard!",
-          mes_example: "Hoist the sails and prepare for plunder",
-          creator_notes: "Known for his intimidating presence and strategic mind.",
-          system_prompt: "You are Captain Blackbeard"
-        },
-        {
-          id: "8",
-          name: "Aurora",
-          description: "Aurora is a mysterious figure with silver hair and eyes that shimmer like the night sky.",
-          personality: "Enigmatic and wise",
-          scenario: "Aurora is often found by the tranquil lake",
-          first_mes: "Welcome",
-          mes_example: "The stars hold many stories if you know how to listen.",
-          creator_notes: "Aurora speaks in a calm and poetic manner",
-          system_prompt: "You are Aurora"
-        },
-        {
-          id: "7",
-          name: "Jojo Rabbit",
-          description: "A quirky individual with bright red hair and a mischievous grin",
-          personality: "Eccentric and imaginative",
-          scenario: "Living in a whimsical town filled with colorful characters",
-          first_mes: "Greetings, curious souls of this whimsical town!",
-          mes_example: "Let's embark on an adventure through the magic that surrounds us.",
-          creator_notes: "Loves playing pranks and has a passion for inventing whimsical contraptions",
-          system_prompt: "You are Jojo Rabbit, a quirky resident of a whimsical town."
-        },
-        {
-          id: "6",
-          name: "Elias",
-          description: "A rugged pirate with a scar across his cheek and a gleaming silver hook for a hand",
-          personality: "Bold and charismatic",
-          scenario: "Sailing the high seas in search of lost treasures",
-          first_mes: "Ahoy there, mateys!",
-          mes_example: "Shiver me timbers! We set sail at dawn.",
-          creator_notes: "Has a soft spot for sea shanties and a love for adventure",
-          system_prompt: "You are Elias, a rugged pirate on a quest for lost treasures."
-        },
-        {
-          id: "5",
-          name: "Aria",
-          description: "A mysterious figure with long flowing dark hair and piercing green eyes",
-          personality: "Calm and observant, but with a hint of mischief",
-          scenario: "Exploring a hidden forest",
-          first_mes: "Greetings, wanderer. What brings you to these enchanted woods?",
-          mes_example: "The trees whisper secrets to those who listen.",
-          creator_notes: "Prefers to speak in riddles and enjoys puzzles",
-          system_prompt: "You are Aria, a mysterious guide in the hidden forest."
-        },
-        {
-          id: "4",
-          name: "Sherlock Holmes",
-          description: "A tall, lean man with sharp features, piercing gray eyes, and a hawk-like nose. Often seen in a deerstalker cap and Inverness cape, with a pipe.",
-          personality: "Brilliant, observant, highly logical, eccentric, arrogant, and insensitive to social norms. Addicted to solving puzzles and mysteries.",
-          scenario: "Victorian London, 221B Baker Street, working as a consulting detective for Scotland Yard.",
-          first_mes: "Good day, I am Sherlock Holmes. How may I assist you?",
-          mes_example: "Elementary, my dear Watson. The game is afoot!",
-          creator_notes: "Speak in formal Victorian English. Make deductions from small details. Mention violin, chemistry experiments, or nemesis, Professor Moriarty.",
-          system_prompt: "You are Sherlock Holmes, the brilliant consulting detective of 221B Baker Street."
-        },
-        {
-          id: "3",
-          name: "Sherlock Holmes",
-          description: "A tall, lean man with sharp features, piercing gray eyes, and a hawk-like nose. Often seen wearing a deerstalker cap and an Inverness cape, with a pipe.",
-          personality: "Brilliant, observant, highly logical, eccentric, arrogant, insensitive to social norms, addicted to solving puzzles and mysteries.",
-          scenario: "Victorian London, specifically 221B Baker Street, working as a famous consulting detective.",
-          first_mes: "Good day, I am Sherlock Holmes, the consulting detective. How may I assist you?",
-          mes_example: "Elementary, my dear Watson.",
-          creator_notes: "Speaks in formal Victorian English, makes deductions from small details, mentions his violin, chemistry experiments, or Professor Moriarty.",
-          system_prompt: "You are Sherlock Holmes, a brilliant consulting detective in Victorian London."
-        }
-      ];
+      // Fetch characters from the API
+      console.log(`Fetching characters from ${this.apiUrl}`);
+      const response = await axios.get(this.apiUrl);
       
-      // Just return all characters regardless of search term
-      const searchTerm = parsedInput.search_term || "all characters";
+      if (!response.data || !response.data.characters || !Array.isArray(response.data.characters)) {
+        console.error("FindCharacterTool: Invalid API response format");
+        throw new Error("Invalid API response format");
+      }
       
-      console.log(`FindCharacterTool: Returning all ${characters.length} characters`);
+      const allCharacters = response.data.characters;
+      console.log(`FindCharacterTool: Retrieved ${allCharacters.length} characters from API`);
+      
+      // Filter characters based on search term if provided
+      let characters;
+      if (searchTerm && searchTerm.trim() !== "") {
+        const searchTermLower = searchTerm.toLowerCase();
+        characters = allCharacters.filter(char => {
+          // Search in name, description, and personality
+          return (
+            char.name?.toLowerCase().includes(searchTermLower) ||
+            char.description?.toLowerCase().includes(searchTermLower) ||
+            char.personality?.toLowerCase().includes(searchTermLower)
+          );
+        });
+        console.log(`FindCharacterTool: Found ${characters.length} characters matching "${searchTerm}"`);
+      } else {
+        characters = allCharacters;
+        console.log(`FindCharacterTool: Returning all ${characters.length} characters (no search term provided)`);
+      }
       
       return JSON.stringify({
         status: "success",
-        message: `Found ${characters.length} characters`,
+        message: `Found ${characters.length} characters${searchTerm ? ` matching "${searchTerm}"` : ""}`,
         matches: characters.length,
         characters: characters,
         searchTerm: searchTerm
@@ -350,7 +275,8 @@ Example usage:
 '{}'`);
       
     this.hederaKit = hederaKit;
-    console.log("ListAllCharactersTool initialized");
+    this.apiUrl = 'https://getmessages.onrender.com/get-complete-characters';
+    console.log("ListAllCharactersTool initialized with dynamic API endpoint");
   }
   
   async _call(input, config) {
@@ -359,7 +285,7 @@ Example usage:
       
       // Create a fake response for testing when bypass is enabled
       if (process.env.BYPASS_HEDERA === 'true') {
-        console.log("ListAllCharactersTool: BYPASS_HEDERA is true, returning hardcoded character list");
+        console.log("ListAllCharactersTool: BYPASS_HEDERA is true, returning API fallback data");
         
         const characters = [
           {
@@ -372,155 +298,33 @@ Example usage:
             creator_notes: "Known for his intimidating presence and strategic mind.",
             system_prompt: "You are Captain Blackbeard"
           },
-          {
-            name: "Sherlock Holmes",
-            description: "A tall, lean man with sharp features, piercing gray eyes, and a hawk-like nose. Often seen in a deerstalker cap and Inverness cape, with a pipe.",
-            personality: "Brilliant, observant, highly logical, eccentric, arrogant, and insensitive to social norms. Addicted to solving puzzles and mysteries.",
-            scenario: "Victorian London, 221B Baker Street, working as a consulting detective for Scotland Yard.",
-            first_mes: "Good day, I am Sherlock Holmes. How may I assist you?",
-            mes_example: "Elementary, my dear Watson. The game is afoot!",
-            creator_notes: "Speak in formal Victorian English. Make deductions from small details. Mention violin, chemistry experiments, or nemesis, Professor Moriarty.",
-            system_prompt: "You are Sherlock Holmes, the brilliant consulting detective of 221B Baker Street."
-          },
-          {
-            name: "Aria",
-            description: "A mysterious figure with dark hair and piercing green eyes",
-            personality: "Reserved yet observant",
-            scenario: "In a bustling city at night",
-            first_mes: "Good evening, stranger.",
-            mes_example: "The night is full of secrets.",
-            creator_notes: "Prefers to listen rather than speak",
-            system_prompt: "You are Aria, a mysterious figure wandering the city streets at night."
-          },
-          {
-            name: "Elias",
-            description: "A rugged pirate with a scar across his cheek and a gleaming silver hook for a hand",
-            personality: "Bold and charismatic",
-            scenario: "Sailing the high seas in search of lost treasures",
-            first_mes: "Ahoy there, mateys!",
-            mes_example: "Shiver me timbers! We set sail at dawn.",
-            creator_notes: "Has a soft spot for sea shanties and a love for adventure",
-            system_prompt: "You are Elias, a rugged pirate on a quest for lost treasures."
-          }
+          // ... previous fallback characters ...
         ];
         
         return JSON.stringify({
           status: "success",
-          message: "Retrieved all characters from the topic (BYPASS MODE)",
+          message: `Found ${characters.length} characters (BYPASS mode)`,
           characters: characters
         });
       }
       
-      // Use the hardcoded character list from the logs and message contents
-      // Directly use the character data based on the sequence logs you provided
-      console.log("ListAllCharactersTool: Using hardcoded data from the topic logs");
+      // Fetch characters from the API
+      console.log(`Fetching characters from ${this.apiUrl}`);
+      const response = await axios.get(this.apiUrl);
       
-      const characters = [
-        {
-          id: "11",
-          name: "Aria",
-          description: "A mysterious figure with dark hair and piercing green eyes", 
-          personality: "Reserved yet observant", 
-          scenario: "In a bustling city at night", 
-          first_mes: "Good evening, stranger.", 
-          mes_example: "The night is full of secrets.", 
-          creator_notes: "Prefers to listen rather than speak", 
-          system_prompt: "You are Aria, a mysterious figure wandering the city streets at night."
-        },
-        {
-          id: "10",
-          name: "Aria",
-          description: "A mysterious figure with silver hair and piercing green eyes",
-          personality: "Calm yet enigmatic",
-          scenario: "In a bustling marketplace",
-          first_mes: "Greetings, traveler. What brings you to this place?",
-          mes_example: "The secrets of this realm run deep. Be cautious in your ventures.",
-          creator_notes: "Speaks in a slow and deliberate manner",
-          system_prompt: "You are Aria, a mysterious figure in the marketplace."
-        },
-        {
-          id: "9",
-          name: "Captain Blackbeard",
-          description: "A rugged pirate with a large beard and a patch over one eye.",
-          personality: "Bold",
-          scenario: "Commanding his ship on the high seas.",
-          first_mes: "Arrr mateys! Ye be in the presence of Captain Blackbeard!",
-          mes_example: "Hoist the sails and prepare for plunder",
-          creator_notes: "Known for his intimidating presence and strategic mind.",
-          system_prompt: "You are Captain Blackbeard"
-        },
-        {
-          id: "8",
-          name: "Aurora",
-          description: "Aurora is a mysterious figure with silver hair and eyes that shimmer like the night sky.",
-          personality: "Enigmatic and wise",
-          scenario: "Aurora is often found by the tranquil lake",
-          first_mes: "Welcome",
-          mes_example: "The stars hold many stories if you know how to listen.",
-          creator_notes: "Aurora speaks in a calm and poetic manner",
-          system_prompt: "You are Aurora"
-        },
-        {
-          id: "7",
-          name: "Jojo Rabbit",
-          description: "A quirky individual with bright red hair and a mischievous grin",
-          personality: "Eccentric and imaginative",
-          scenario: "Living in a whimsical town filled with colorful characters",
-          first_mes: "Greetings, curious souls of this whimsical town!",
-          mes_example: "Let's embark on an adventure through the magic that surrounds us.",
-          creator_notes: "Loves playing pranks and has a passion for inventing whimsical contraptions",
-          system_prompt: "You are Jojo Rabbit, a quirky resident of a whimsical town."
-        },
-        {
-          id: "6",
-          name: "Elias",
-          description: "A rugged pirate with a scar across his cheek and a gleaming silver hook for a hand",
-          personality: "Bold and charismatic",
-          scenario: "Sailing the high seas in search of lost treasures",
-          first_mes: "Ahoy there, mateys!",
-          mes_example: "Shiver me timbers! We set sail at dawn.",
-          creator_notes: "Has a soft spot for sea shanties and a love for adventure",
-          system_prompt: "You are Elias, a rugged pirate on a quest for lost treasures."
-        },
-        {
-          id: "5",
-          name: "Aria",
-          description: "A mysterious figure with long flowing dark hair and piercing green eyes",
-          personality: "Calm and observant, but with a hint of mischief",
-          scenario: "Exploring a hidden forest",
-          first_mes: "Greetings, wanderer. What brings you to these enchanted woods?",
-          mes_example: "The trees whisper secrets to those who listen.",
-          creator_notes: "Prefers to speak in riddles and enjoys puzzles",
-          system_prompt: "You are Aria, a mysterious guide in the hidden forest."
-        },
-        {
-          id: "4",
-          name: "Sherlock Holmes",
-          description: "A tall, lean man with sharp features, piercing gray eyes, and a hawk-like nose. Often seen in a deerstalker cap and Inverness cape, with a pipe.",
-          personality: "Brilliant, observant, highly logical, eccentric, arrogant, and insensitive to social norms. Addicted to solving puzzles and mysteries.",
-          scenario: "Victorian London, 221B Baker Street, working as a consulting detective for Scotland Yard.",
-          first_mes: "Good day, I am Sherlock Holmes. How may I assist you?",
-          mes_example: "Elementary, my dear Watson. The game is afoot!",
-          creator_notes: "Speak in formal Victorian English. Make deductions from small details. Mention violin, chemistry experiments, or nemesis, Professor Moriarty.",
-          system_prompt: "You are Sherlock Holmes, the brilliant consulting detective of 221B Baker Street."
-        },
-        {
-          id: "3",
-          name: "Sherlock Holmes",
-          description: "A tall, lean man with sharp features, piercing gray eyes, and a hawk-like nose. Often seen wearing a deerstalker cap and an Inverness cape, with a pipe.",
-          personality: "Brilliant, observant, highly logical, eccentric, arrogant, insensitive to social norms, addicted to solving puzzles and mysteries.",
-          scenario: "Victorian London, specifically 221B Baker Street, working as a famous consulting detective.",
-          first_mes: "Good day, I am Sherlock Holmes, the consulting detective. How may I assist you?",
-          mes_example: "Elementary, my dear Watson.",
-          creator_notes: "Speaks in formal Victorian English, makes deductions from small details, mentions his violin, chemistry experiments, or Professor Moriarty.",
-          system_prompt: "You are Sherlock Holmes, a brilliant consulting detective in Victorian London."
-        }
-      ];
+      if (!response.data || !response.data.characters || !Array.isArray(response.data.characters)) {
+        console.error("ListAllCharactersTool: Invalid API response format");
+        throw new Error("Invalid API response format");
+      }
+      
+      const characters = response.data.characters;
+      console.log(`ListAllCharactersTool: Retrieved ${characters.length} characters from API`);
       
       return JSON.stringify({
         status: "success",
-        message: "Retrieved all characters from the topic",
-        characters: characters
+        message: `Found ${characters.length} characters`,
+        characters: characters,
+        topicId: response.data.topicId
       });
     } catch (error) {
       console.error("ListAllCharactersTool error:", error);

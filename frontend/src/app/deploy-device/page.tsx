@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import Header from '@/components/ui/Header'
 import { FiCopy, FiCheck, FiSmartphone, FiTerminal, FiDownload, FiServer } from 'react-icons/fi'
@@ -628,7 +628,9 @@ export default function DeployDevice() {
         </div>
       </section>
 
-      <DeviceVerification />
+      <Suspense fallback={<div className="p-6 text-center">Loading device verification...</div>}>
+        <DeviceVerification />
+      </Suspense>
     </>
   )
 }

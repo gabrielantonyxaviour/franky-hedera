@@ -1,5 +1,6 @@
 const { Client, AccountId, PrivateKey, TopicCreateTransaction, TopicMessageSubmitTransaction, TopicId, TopicMessageQuery } = require('@hashgraph/sdk');
 const uuid = require('uuid');
+const axios = require('axios');
 
 /**
  * Simplified HederaAgentKit class for Hedera operations
@@ -392,132 +393,83 @@ class HederaAgentKit {
       }
       
       try {
-        // Get all messages from the topic
-        console.log("Attempting to retrieve messages from topic...");
-        const messages = await this.getTopicMessages(topicId);
-        console.log(`Retrieved ${messages.length} messages from topic ${topicId}`);
+        // Fetch characters from the API
+        const apiUrl = 'https://getmessages.onrender.com/get-complete-characters';
+        console.log(`Fetching characters from API: ${apiUrl}`);
         
-        if (messages.length === 0) {
+        const response = await axios.get(apiUrl);
+        
+        if (!response.data || !response.data.characters || !Array.isArray(response.data.characters)) {
+          console.error("Invalid API response format");
+          throw new Error("Invalid API response format");
+        }
+        
+        const allCharacters = response.data.characters;
+        console.log(`Retrieved ${allCharacters.length} characters from API`);
+        
+        // Filter characters based on search term
+        let matchedCharacter = null;
+        
+        if (searchTerm && searchTerm.trim() !== "") {
+          const searchTermLower = searchTerm.toLowerCase();
+          
+          // Find the first character that matches the search term
+          matchedCharacter = allCharacters.find(char => {
+            return (
+              char.name?.toLowerCase().includes(searchTermLower) ||
+              char.description?.toLowerCase().includes(searchTermLower) ||
+              char.personality?.toLowerCase().includes(searchTermLower)
+            );
+          });
+        } else if (allCharacters.length > 0) {
+          // If no search term, just return the first character
+          matchedCharacter = allCharacters[0];
+        }
+        
+        if (matchedCharacter) {
+          console.log(`Found character matching '${searchTerm}': ${matchedCharacter.name}`);
+          
           return {
             status: "success",
-            message: "No messages found in the topic",
-            matches: 0,
+            message: `Found character information for "${matchedCharacter.name}"`,
+            character: matchedCharacter,
             getStringifiedResponse: function() {
               return JSON.stringify({
                 status: "success",
                 message: this.message,
-                matches: 0
+                character: this.character
               });
             }
           };
-        }
-        
-        // Parse messages and look for character data matching the search term
-        const matchingCharacters = [];
-        
-        for (const message of messages) {
-          try {
-            // Check if content exists and is a string
-            if (!message.content || typeof message.content !== 'string') {
-              console.log(`Skipping message with invalid content: ${JSON.stringify(message)}`);
-              continue;
-            }
-            
-            let content;
-            
-            // Try to parse message content as JSON
-            try {
-              content = JSON.parse(message.content);
-            } catch (jsonError) {
-              // Not valid JSON, check if it might be a character description in plain text
-              const textContent = message.content;
-              if (textContent.toLowerCase().includes(searchTerm.toLowerCase())) {
-                console.log(`Found text match in message: ${message.sequenceNumber}`);
-                // Simple extraction of potential character info from text
-                matchingCharacters.push({
-                  character: {
-                    name: "Unknown Character",
-                    description: textContent.substring(0, 200) + "...",
-                    note: "Text content matching search term"
-                  },
-                  sequenceNumber: message.sequenceNumber,
-                  timestamp: message.timestamp,
-                  rawContent: textContent
-                });
-              }
-              continue;
-            }
-            
-            // Check if this is a character data message
-            if (content && typeof content === 'object' && content.name) {
-              // Check if it matches the search term
-              const searchLower = searchTerm.toLowerCase();
-              const nameLower = (content.name || '').toLowerCase();
-              const descLower = (content.description || '').toLowerCase();
-              const personalityLower = (content.personality || '').toLowerCase();
-              const scenarioLower = (content.scenario || '').toLowerCase();
-              
-              if (nameLower.includes(searchLower) || 
-                  descLower.includes(searchLower) || 
-                  personalityLower.includes(searchLower) ||
-                  scenarioLower.includes(searchLower)) {
-                
-                console.log(`Found matching character: ${content.name}`);
-                matchingCharacters.push({
-                  character: content,
-                  sequenceNumber: message.sequenceNumber,
-                  timestamp: message.timestamp
-                });
-              }
-            }
-          } catch (parseError) {
-            // Skip messages that can't be processed
-            console.log(`Error processing message ${message.sequenceNumber}: ${parseError.message}`);
-          }
-        }
-        
-        if (matchingCharacters.length === 0) {
+        } else {
+          console.log(`No characters found matching '${searchTerm}'`);
           return {
-            status: "success",
+            status: "error",
             message: `No characters found matching "${searchTerm}"`,
-            matches: 0,
-            searchTerm: searchTerm,
             getStringifiedResponse: function() {
               return JSON.stringify({
-                status: "success",
-                message: this.message,
-                matches: 0,
-                searchTerm: this.searchTerm
+                status: "error",
+                message: this.message
               });
             }
           };
         }
-        
-        // Return the matching characters
-        return {
-          status: "success",
-          message: `Found ${matchingCharacters.length} characters matching "${searchTerm}"`,
-          matches: matchingCharacters.length,
-          characters: matchingCharacters,
-          searchTerm: searchTerm,
-          getStringifiedResponse: function() {
-            return JSON.stringify({
-              status: "success",
-              message: this.message,
-              matches: this.matches,
-              characters: this.characters,
-              searchTerm: this.searchTerm
-            });
-          }
-        };
-      } catch (topicError) {
-        console.error(`Error retrieving messages: ${topicError.message}`);
-        throw new Error(`Failed to retrieve messages: ${topicError.message}`);
+      } catch (error) {
+        console.error(`API error: ${error.message}`);
+        throw error;
       }
-      
     } catch (error) {
       console.error("Error finding character:", error.message);
-      throw error;
+      return {
+        status: "error",
+        message: `Error finding character: ${error.message}`,
+        getStringifiedResponse: function() {
+          return JSON.stringify({
+            status: "error",
+            message: this.message
+          });
+        }
+      };
     }
   }
 }
