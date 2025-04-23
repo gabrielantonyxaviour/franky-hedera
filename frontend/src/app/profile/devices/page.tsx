@@ -1,14 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAccount } from 'wagmi'
-import axios from 'axios'
-import { ethers } from 'ethers'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { usePrivy } from '@privy-io/react-auth'
 
-// Define interface types for our data
 interface Device {
   id: number
   txHash: string
@@ -26,47 +22,12 @@ interface Device {
   error?: boolean
 }
 
-interface Transaction {
-  transactionHash: string
-  blockNumber: number
-  timestamp: number
-  from: string
-  input: string
-  functionSelector?: string
-}
 
 // Shared styles
 const cardStyle = "bg-black/30 backdrop-blur-sm border border-[#00FF88]/20 rounded-lg p-4 mb-4 hover:border-[#00FF88]/40 transition-all cursor-pointer"
 const labelStyle = "text-[#00FF88] text-sm"
 const valueStyle = "text-white text-lg font-medium"
-const idStyle = "text-white/60 text-xs mt-1"
 const emptyStateStyle = "text-white/60 italic text-center mt-12"
-
-// Helper function to add delay between requests
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-// Contract information
-const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
-
-const CONTRACT_ABI = [
-  {
-    "inputs": [
-      { "internalType": "string", "name": "deviceModel", "type": "string" },
-      { "internalType": "string", "name": "ram", "type": "string" },
-      { "internalType": "string", "name": "storageCapacity", "type": "string" },
-      { "internalType": "string", "name": "cpu", "type": "string" },
-      { "internalType": "string", "name": "ngrokLink", "type": "string" },
-      { "internalType": "uint256", "name": "hostingFee", "type": "uint256" },
-      { "internalType": "address", "name": "deviceAddress", "type": "address" },
-      { "internalType": "bytes32", "name": "verificationHash", "type": "bytes32" },
-      { "internalType": "bytes", "name": "signature", "type": "bytes" }
-    ],
-    "name": "registerDevice",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  }
-] as const
 
 export default function DevicesPage() {
   const { user } = usePrivy()
@@ -99,12 +60,34 @@ export default function DevicesPage() {
     setDebugInfo(null)
 
     try {
-      const devicesRequest = await fetch('/api/graph/devices-by-owner?address' + user.wallet.address)
+      const devicesRequest = await fetch('/api/graph/devices-by-owner?address=' + walletAddress)
       if (!devicesRequest.ok) {
         throw new Error(`HTTP error! status: ${devicesRequest.status}`)
       }
       const fetchedDevices = await devicesRequest.json()
-      setDevices(fetchedDevices)
+      const formattedDevices = await Promise.all(
+        fetchedDevices.map(async (device: any) => {
+          if (device.agents.length > 0) return;
+          const metadataRequest = await fetch(`/api/akave/fetch-json?url=${encodeURIComponent(device.metadata)}`);
+          const metadata = await metadataRequest.json();
+
+          return {
+            id: device.id,
+            deviceModel: metadata.deviceModal ?? 'Samsung Galaxy S23',
+            ram: metadata.ram ?? '8GB',
+            storage: metadata.storage ?? '128GB',
+            cpu: metadata.cpu ?? 'Snapdragon 8 Gen 2',
+            ngrokLink: device.ngrokLink,
+            walletAddress: device.id,
+            hostingFee: device.hostingFee,
+            agentCount: device.agents.length,
+            status: device.agents.length > 0 ? 'In Use' : 'Available',
+            lastActive: new Date(device.updatedAt * 1000).toLocaleDateString(),
+            registeredAt: new Date(device.createdAt * 1000).toLocaleDateString(),
+          };
+        })
+      );
+      setDevices(formattedDevices.filter(Boolean));
     } catch (error: any) {
       console.error("Error fetching devices:", error)
       setError(error?.message || "Failed to load devices data")
@@ -161,25 +144,25 @@ export default function DevicesPage() {
           </motion.div>
         </div>
 
-        {!user?.smartWallet && (
+        {!user?.wallet && (
           <div className="text-center py-20 text-white/70">
             <p className="text-xl">Please connect your wallet to view your devices</p>
           </div>
         )}
 
-        {user?.smartWallet && loading && (
+        {user?.wallet && loading && (
           <div className="text-center py-20 text-white/70">
             <div className="w-12 h-12 border-4 border-[#00FF88]/20 border-t-[#00FF88] rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-xl">Loading your devices...</p>
           </div>
         )}
 
-        {user?.smartWallet && !loading && error && (
+        {user?.wallet && !loading && error && (
           <div className="text-center py-20 text-red-400">
             <p className="text-xl">Error loading devices</p>
             <p className="text-sm mt-2">{error}</p>
             <button
-              onClick={() => fetchDevices(user?.smartWallet?.address || '')}
+              onClick={() => fetchDevices(user?.wallet?.address || '')}
               className="mt-4 px-4 py-2 bg-[#00FF88]/20 text-[#00FF88] rounded-lg hover:bg-[#00FF88]/30 transition-colors"
             >
               Try Again
@@ -187,7 +170,7 @@ export default function DevicesPage() {
           </div>
         )}
 
-        {user?.smartWallet && !loading && !error && (
+        {user?.wallet && !loading && !error && (
           <div className="max-w-3xl mx-auto">
             {/* Devices List */}
             <motion.div

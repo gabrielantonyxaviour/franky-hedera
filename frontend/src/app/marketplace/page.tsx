@@ -309,7 +309,7 @@ export default function MarketplacePage() {
       const formattedDevices = await Promise.all(
         fetchedDevices.map(async (device: any) => {
           if (device.agents.length > 0) return;
-          const metadataRequest = await fetch(device.deviceMetadata);
+          const metadataRequest = await fetch(`/api/akave/fetch-json?url=${encodeURIComponent(device.metadata)}`);
           const metadata = await metadataRequest.json();
 
           return {

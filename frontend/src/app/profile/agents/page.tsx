@@ -1,9 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAccount } from 'wagmi'
-import axios from 'axios'
-import { ethers } from 'ethers'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { usePrivy } from '@privy-io/react-auth'
@@ -41,75 +38,7 @@ interface Agent {
 const cardStyle = "bg-black/30 backdrop-blur-sm border border-[#00FF88]/20 rounded-lg p-4 mb-4 hover:border-[#00FF88]/40 transition-all cursor-pointer"
 const labelStyle = "text-[#00FF88] text-sm"
 const valueStyle = "text-white text-lg font-medium"
-const idStyle = "text-white/60 text-xs mt-1"
 const emptyStateStyle = "text-white/60 italic text-center mt-12"
-
-// Helper function to add delay between requests
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-// Contract information - updated to match the new contract
-const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
-
-// Updated ABI to match the new contract
-const CONTRACT_ABI = [
-  {
-    "inputs": [
-      { "internalType": "string", "name": "subname", "type": "string" },
-      { "internalType": "string", "name": "avatar", "type": "string" },
-      {
-        "components": [
-          { "internalType": "string", "name": "name", "type": "string" },
-          { "internalType": "string", "name": "description", "type": "string" },
-          { "internalType": "string", "name": "personality", "type": "string" },
-          { "internalType": "string", "name": "scenario", "type": "string" },
-          { "internalType": "string", "name": "first_mes", "type": "string" },
-          { "internalType": "string", "name": "mes_example", "type": "string" },
-          { "internalType": "string", "name": "creatorcomment", "type": "string" },
-          { "internalType": "string", "name": "tags", "type": "string" },
-          { "internalType": "string", "name": "talkativeness", "type": "string" }
-        ], "internalType": "struct Character", "name": "characterConfig", "type": "tuple"
-      },
-      { "internalType": "string", "name": "secrets", "type": "string" },
-      { "internalType": "bytes32", "name": "secretsHash", "type": "bytes32" },
-      { "internalType": "address", "name": "deviceAddress", "type": "address" },
-      { "internalType": "uint256", "name": "perApiCallFee", "type": "uint256" },
-      { "internalType": "bool", "name": "isPublic", "type": "bool" }
-    ],
-    "name": "createAgent",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      { "indexed": true, "internalType": "address", "name": "agentAddress", "type": "address" },
-      { "indexed": true, "internalType": "address", "name": "deviceAddress", "type": "address" },
-      { "indexed": false, "internalType": "string", "name": "avatar", "type": "string" },
-      { "indexed": false, "internalType": "string", "name": "subname", "type": "string" },
-      { "indexed": false, "internalType": "address", "name": "owner", "type": "address" },
-      { "indexed": false, "internalType": "uint256", "name": "perApiCallFee", "type": "uint256" },
-      { "indexed": false, "internalType": "bytes32", "name": "secretsHash", "type": "bytes32" },
-      {
-        "components": [
-          { "internalType": "string", "name": "name", "type": "string" },
-          { "internalType": "string", "name": "description", "type": "string" },
-          { "internalType": "string", "name": "personality", "type": "string" },
-          { "internalType": "string", "name": "scenario", "type": "string" },
-          { "internalType": "string", "name": "first_mes", "type": "string" },
-          { "internalType": "string", "name": "mes_example", "type": "string" },
-          { "internalType": "string", "name": "creatorcomment", "type": "string" },
-          { "internalType": "string", "name": "tags", "type": "string" },
-          { "internalType": "string", "name": "talkativeness", "type": "string" }
-        ], "indexed": false, "internalType": "struct Character", "name": "characterConfig", "type": "tuple"
-      },
-      { "indexed": false, "internalType": "string", "name": "secrets", "type": "string" },
-      { "indexed": false, "internalType": "bool", "name": "isPublic", "type": "bool" }
-    ],
-    "name": "AgentCreated",
-    "type": "event"
-  }
-] as const
 
 export default function AgentsPage() {
   const { user } = usePrivy()
@@ -149,7 +78,7 @@ export default function AgentsPage() {
       console.log(agentsResponse)
       const formattedAgents = await Promise.all(agentsResponse.map(async (agent: any) => {
         if (!agent) return;
-        const characterRequest = await fetch(agent.characterConfig)
+        const characterRequest = await fetch(`/api/akave/fetch-json?url=${encodeURIComponent(agent.characterConfig)}`)
         const character = await characterRequest.json()
         return {
           id: agent.id,
@@ -285,7 +214,7 @@ export default function AgentsPage() {
                           {agent.avatar ? (
                             <div className="h-12 w-12 rounded-full overflow-hidden mr-4">
                               <img
-                                src={agent.avatar}
+                                src={`/api/akave/fetch-image?url=${encodeURIComponent(agent.avatar)}`}
                                 alt={agent.prefix}
                                 className="h-full w-full object-cover"
                                 onError={(e) => {

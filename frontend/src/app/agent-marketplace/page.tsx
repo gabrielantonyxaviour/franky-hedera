@@ -118,7 +118,7 @@ const AgentCard = ({ keyVal, agent, onClick }: { keyVal: string, agent: Agent, o
         {agent.character ? (
           <div className="h-12 w-12 rounded-full overflow-hidden mr-4">
             <img
-              src={agent.character}
+              src={`/api/akave/fetch-image?url=${encodeURIComponent(agent.character)}`}
               alt={agent.name || agent.prefix}
               className="h-full w-full object-cover"
               onError={(e) => {
@@ -524,7 +524,7 @@ export default function AgentMarketplacePage() {
       const agentsResponse = await agentsRequest.json()
       console.log(agentsResponse)
       const formattedAgents = await Promise.all(agentsResponse.map(async (agent: any) => {
-        const characterRequest = await fetch(agent.characterConfig)
+        const characterRequest = await fetch(`/api/akave/fetch-json?url=${encodeURIComponent(agent.characterConfig)}`)
         const character = await characterRequest.json()
 
         return {
