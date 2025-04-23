@@ -6,6 +6,7 @@ import Header from "@/components/ui/Header";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import ChatInterface from "@/components/chat/ChatInterface";
 
 const HeroAnimation = () => {
   return (
@@ -119,7 +120,8 @@ const OptionCard = ({
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [getStarted, setGetStarted] = useState(false);
-  const router = useRouter()
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const router = useRouter();
 
   // Ensure component is mounted to avoid hydration issues
   useEffect(() => {
@@ -148,6 +150,9 @@ export default function Home() {
             <div className="flex flex-col md:flex-row justify-center gap-6 md:gap-8">
               <GlowButton onClick={() => setGetStarted(true)}>
                 Get Started
+              </GlowButton>
+              <GlowButton onClick={() => setIsChatOpen(true)}>
+                Launch Chat
               </GlowButton>
             </div>
           </div>
@@ -257,17 +262,30 @@ export default function Home() {
                 }}
               />
             </div>
-            <motion.button
-              className="mt-12 py-2 px-4 text-[#00FF88] hover:text-white border border-[#00FF88]/30 rounded-lg transition-colors duration-300"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setGetStarted(false)}
-            >
-              ←  Go Back
-            </motion.button>
+            <div className="mt-12 flex flex-col md:flex-row justify-center gap-6">
+              <motion.button
+                className="py-2 px-4 text-[#00FF88] hover:text-white border border-[#00FF88]/30 rounded-lg transition-colors duration-300"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setGetStarted(false)}
+              >
+                ←  Go Back
+              </motion.button>
+              <motion.button
+                className="py-2 px-6 text-[#00FF88] hover:text-white border border-[#00FF88]/30 rounded-lg transition-colors duration-300"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsChatOpen(true)}
+              >
+                Launch Chat
+              </motion.button>
+            </div>
           </motion.div>
         )}
       </div>
+      
+      {/* Chat Interface Modal */}
+      <ChatInterface isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </section>
   );
 }

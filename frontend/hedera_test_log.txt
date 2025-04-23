@@ -1,0 +1,30 @@
+[2025-04-22T21:35:11.607Z] Starting Hedera test script...
+[2025-04-22T21:35:11.609Z] Environment variables:
+[2025-04-22T21:35:11.610Z] HEDERA_ACCOUNT_ID: 0.0.5616430
+[2025-04-22T21:35:11.610Z] HEDERA_NETWORK: testnet
+[2025-04-22T21:35:11.611Z] HEDERA_PRIVATE_KEY exists: true
+[2025-04-22T21:35:11.665Z] Hedera client created and operator set
+[2025-04-22T21:35:11.666Z] Using Topic ID: 0.0.5882994
+[2025-04-22T21:35:11.666Z] Starting getTopicMessages...
+[2025-04-22T21:35:11.667Z] Fetching messages from topic 0.0.5882994...
+[2025-04-22T21:35:11.668Z] Creating topic message query...
+[2025-04-22T21:35:11.717Z] Subscription created, waiting for messages...
+[2025-04-22T21:35:11.718Z] Press Ctrl+C to stop when finished
+[2025-04-22T21:35:12.358Z] Subscription error: [object Object]
+[2025-04-22T21:35:12.359Z] Subscription error: [object Object]
+[2025-04-22T21:35:12.360Z] Subscription error: [object Object]
+[2025-04-22T21:35:12.360Z] Subscription error: [object Object]
+[2025-04-22T21:35:12.361Z] Subscription error: [object Object]
+[2025-04-22T21:35:12.362Z] Subscription error: [object Object]
+[2025-04-22T21:35:12.362Z] Subscription error: [object Object]
+[2025-04-22T21:35:12.363Z] Subscription error: [object Object]
+[2025-04-22T21:35:12.363Z] Subscription error: [object Object]
+[2025-04-22T21:35:12.364Z] Subscription error: [object Object]
+[2025-04-22T21:35:12.364Z] Subscription error: [object Object]
+[2025-04-22T21:35:12.365Z] Subscription error: [object Object]
+[2025-04-22T21:35:12.436Z] Subscription error: [object Object]
+[2025-04-22T21:35:12.437Z] Subscription error: [object Object]
+[2025-04-22T21:35:12.438Z] Subscription error: [object Object]
+[2025-04-22T21:35:12.439Z] Subscription error: [object Object]
+[2025-04-22T21:35:12.440Z] Subscription error: [object Object]
+[2025-04-22T21:35:12.440Z] Subscription error: [object Object]
