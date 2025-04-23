@@ -1,0 +1,51 @@
+{
+  "name": "hedera-agent-kit",
+  "version": "1.0.6",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "ts-node tests/index.ts",
+    "test-vitest": "vitest run",
+    "test-ollama": "ts-node tests/test-ollama.ts",
+    "test-mcp": "ts-node tests/mcp.ts",
+    "character-mcp": "ts-node tests/character-mcp.ts",
+    "prepare": "npm run build",
+    "build": "tsc"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/body-parser": "^1.19.5",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.1",
+    "@types/node-fetch": "^2.6.12",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
+    "vitest": "^3.0.7"
+  },
+  "dependencies": {
+    "@hashgraph/sdk": "^2.63.0",
+    "@langchain/core": "^0.3.26",
+    "@langchain/langgraph": "^0.2.34",
+    "@langchain/ollama": "^0.2.0",
+    "@langchain/openai": "^0.3.16",
+    "@types/uuid": "^10.0.0",
+    "axios": "^1.8.4",
+    "bignumber.js": "^9.1.2",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.18.2",
+    "node-fetch": "^2.6.12",
+    "openai": "^4.95.1",
+    "qrcode-terminal": "^0.12.0",
+    "systeminformation": "^5.25.11",
+    "uuid": "^11.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hedera-dev/hedera-agent-kit"
+  }
+}

@@ -1,0 +1,53 @@
+#!/bin/bash
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+
+# Display banner
+display_banner() {
+  echo "
+  ███████╗██████╗  █████╗ ███╗   ██╗██╗  ██╗██╗   ██╗
+  ██╔════╝██╔══██╗██╔══██╗████╗  ██║██║ ██╔╝╚██╗ ██╔╝
+  █████╗  ██████╔╝███████║██╔██╗ ██║█████╔╝  ╚████╔╝ 
+  ██╔══╝  ██╔══██╗██╔══██║██║╚██╗██║██╔═██╗   ╚██╔╝  
+  ██║     ██║  ██║██║  ██║██║ ╚████║██║  ██╗   ██║   
+  ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝   ╚═╝   
+                                                     
+  █████╗  ██████╗ ███████╗███╗   ██╗████████╗        
+ ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝        
+ ███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║           
+ ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║           
+ ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║           
+ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝           
+                                                      
+"
+}
+
+# Display help
+display_help() {
+  echo "Usage: franky [command]"
+  echo ""
+  echo "Commands:"
+  echo "  start       Start the Franky Agent with device registration"
+  echo "  status      Check the status of your Franky Agent"
+  echo "  help        Display this help message"
+  echo ""
+}
+
+# Main command handler
+case "$1" in
+  start)
+    "$SCRIPT_DIR/scripts/franky-start.sh"
+    ;;
+  status)
+    echo "Status check is not implemented yet"
+    ;;
+  help|"")
+    display_banner
+    display_help
+    ;;
+  *)
+    echo "Unknown command: $1"
+    display_help
+    exit 1
+    ;;
+esac 

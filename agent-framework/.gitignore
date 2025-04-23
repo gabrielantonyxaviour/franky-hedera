@@ -1,0 +1,89 @@
+# Dependencies
+node_modules/
+npm-debug.log
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+.pnp.*
+.pnp.js
+
+# Environment and secrets
+.env*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+secrets.json
+credentials.json
+*-credentials.json
+
+# Build outputs
+dist/
+build/
+out/
+lib/
+coverage/
+.nyc_output/
+*.tsbuildinfo
+
+# TypeScript cache
+*.tsbuildinfo
+.tscache/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Editor and IDE files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+.project
+.settings/
+.classpath
+*.swp
+*.swo
+*~
+.DS_Store
+.history/
+
+# Hedera specific
+.hedera-config/
+hedera-private-key*
+.mirror-node-data/
+
+# Testing
+test-results/
+.jest-cache/
+.jest-coverage/
+mocks/generated/
+
+# Temporary files
+tmp/
+temp/
+.cache/
+*.tmp
+
+# Miscellaneous
+.turbo
+.vercel
+.next
+.serverless/
+.fusebox/
+.dynamodb/
+.webpack/
+.netlify/
+
+# Operating System Files
+Thumbs.db
+.DS_Store
+.directory
+Desktop.ini
+
+# Debug files
+*.debug
+debug.log
+debug/
