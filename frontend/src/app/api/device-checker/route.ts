@@ -27,45 +27,31 @@ async function fetchDevices(limit: number) {
   }
 }
 
-// Function to fetch agent character
-async function fetchAgentCharacter(agentAddress: string) {
-  try {
-    const url = `${CHARACTER_API_ENDPOINT}?address=${agentAddress}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch character: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching agent character:', error);
-    throw error;
-  }
-}
 
 // Function to calculate reputation score with weights
 function calculateReputationScore(retrievalResults: any[]) {
   if (!retrievalResults.length) return 0;
-  
+
   // Weights for different metrics
   const WEIGHTS = {
     SUCCESS_RATE: 0.6,    // 60% weight for success rate
     RESPONSE_TIME: 0.25,  // 25% weight for response time
     CONSISTENCY: 0.15     // 15% weight for consistency
   };
-  
+
   const successfulRetrievals = retrievalResults.filter(r => r.success).length;
   const successRate = successfulRetrievals / retrievalResults.length;
-  
+
   const successfulDurations = retrievalResults
     .filter(r => r.success)
     .map(r => r.duration);
-  
+
   let responseTimeScore = 0;
   let avgResponseTime = 0;
-  
+
   if (successfulDurations.length > 0) {
     avgResponseTime = successfulDurations.reduce((sum, duration) => sum + duration, 0) / successfulDurations.length;
-    
+
     // Response time scoring based on latency thresholds
     if (avgResponseTime < 500) responseTimeScore = 1.0;      // Excellent: < 500ms
     else if (avgResponseTime < 1000) responseTimeScore = 0.9; // Very Good: < 1s
@@ -73,7 +59,7 @@ function calculateReputationScore(retrievalResults: any[]) {
     else if (avgResponseTime < 5000) responseTimeScore = 0.6; // Fair: < 5s
     else responseTimeScore = 0.4;                            // Poor: >= 5s
   }
-  
+
   // Calculate consistency score using standard deviation
   let consistencyScore = 1.0;
   if (successfulDurations.length > 1) {
@@ -84,14 +70,14 @@ function calculateReputationScore(retrievalResults: any[]) {
     const normalizedStdDev = Math.min(stdDev / mean, 1);
     consistencyScore = 1 - normalizedStdDev;
   }
-  
+
   // Calculate final weighted score
   const finalScore = (
-    (successRate * WEIGHTS.SUCCESS_RATE) + 
-    (responseTimeScore * WEIGHTS.RESPONSE_TIME) + 
+    (successRate * WEIGHTS.SUCCESS_RATE) +
+    (responseTimeScore * WEIGHTS.RESPONSE_TIME) +
     (consistencyScore * WEIGHTS.CONSISTENCY)
   ) * 100;
-  
+
   return Math.round(finalScore * 100) / 100;
 }
 
@@ -101,7 +87,7 @@ async function ensureBucket() {
     // Check if bucket exists
     const checkResponse = await fetch(`${AKAVE_API_URL}/buckets/${DEVICE_REPUTATION_BUCKET}`);
     const checkData = await checkResponse.json();
-    
+
     if (!checkResponse.ok || !checkData.success) {
       // Create bucket if it doesn't exist
       const createResponse = await fetch(`${AKAVE_API_URL}/buckets`, {
@@ -111,12 +97,12 @@ async function ensureBucket() {
         },
         body: JSON.stringify({ bucketName: DEVICE_REPUTATION_BUCKET })
       });
-      
+
       const createData = await createResponse.json();
       if (!createResponse.ok || !createData.success) {
         throw new Error(`Failed to create bucket: ${createData.error || createResponse.status}`);
       }
-      
+
       console.log(`Created new bucket: ${DEVICE_REPUTATION_BUCKET}`);
     }
   } catch (error: any) {
@@ -172,7 +158,7 @@ async function storeReputationData(deviceAddress: string, reputationData: any) {
       const formData = new FormData();
       const blob = new Blob([jsonData], { type: 'application/json' });
       formData.append('file', blob, filename);
-      
+
       // Upload file to bucket with increased timeout
       const uploadResponse = await fetch(`${AKAVE_API_URL}/buckets/${DEVICE_REPUTATION_BUCKET}/files`, {
         method: 'POST',
@@ -183,7 +169,7 @@ async function storeReputationData(deviceAddress: string, reputationData: any) {
         // Increase timeout for Filecoin transactions
         signal: AbortSignal.timeout(30000) // 30 seconds timeout
       });
-      
+
       const uploadData = await uploadResponse.json();
       if (!uploadResponse.ok || !uploadData.success) {
         const error = uploadData.error || uploadResponse.status;
@@ -196,24 +182,24 @@ async function storeReputationData(deviceAddress: string, reputationData: any) {
         }
         throw new Error(`Failed to upload reputation data: ${error}`);
       }
-      
+
       // Return download URL for the file
       const downloadUrl = `${AKAVE_API_URL}/buckets/${DEVICE_REPUTATION_BUCKET}/files/${filename}/download`;
       return { success: true, url: downloadUrl };
-      
+
     } catch (error: any) {
       if (attempt === MAX_RETRIES - 1) {
         console.error('Error storing reputation data:', error);
         return { success: false, error: error.message };
       }
-      
+
       // Wait before retrying on unexpected errors
       const delay = INITIAL_DELAY * Math.pow(2, attempt);
       console.log(`Unexpected error, retry attempt ${attempt + 1}/${MAX_RETRIES} after ${delay}ms delay...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
-  
+
   return { success: false, error: 'Max retries exceeded' };
 }
 
@@ -225,13 +211,13 @@ async function checkDeviceAvailability(characterUrl: string) {
       method: 'GET',
       headers: { 'Accept': 'application/json' }
     });
-    
+
     const endTime = Date.now();
     const duration = endTime - startTime;
-    
+
     let success = false;
     let data = null;
-    
+
     if (response.ok) {
       try {
         data = await response.json();
@@ -240,7 +226,7 @@ async function checkDeviceAvailability(characterUrl: string) {
         success = false;
       }
     }
-    
+
     return {
       success,
       status: response.status,
@@ -266,52 +252,30 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const deviceAddress = searchParams.get('deviceAddress');
     const numRetrievals = parseInt(searchParams.get('numRetrievals') || '5', 10);
-    
+
     if (deviceAddress && !/^0x[a-fA-F0-9]{40}$/.test(deviceAddress)) {
       return NextResponse.json(
         { error: 'Invalid device address format' },
         { status: 400 }
       );
     }
-    
+
     // Fetch devices using our new function
     const allDevices = await fetchDevices(deviceAddress ? 1 : 10);
-    
+
     // Filter by device address if provided
-    const devices = deviceAddress 
+    const devices = deviceAddress
       ? allDevices.filter((d: any) => d.id.toLowerCase() === deviceAddress.toLowerCase())
       : allDevices;
-    
+
     if (!devices || devices.length === 0) {
       return NextResponse.json(
         { error: 'No devices found' },
         { status: 404 }
       );
     }
-    
-    // Enhance devices with character config
-    const enhancedDevices = await Promise.all(devices.map(async (device: any) => {
-      try {
-        if (device.agents && device.agents.length > 0) {
-          const agentAddress = device.agents[0].id;
-          const characterData = await fetchAgentCharacter(agentAddress);
-          
-          return {
-            ...device,
-            agents: [{
-              ...device.agents[0],
-              characterConfig: characterData.characterConfig
-            }]
-          };
-        }
-        return device;
-      } catch (error) {
-        console.error(`Error enhancing device ${device.id}:`, error);
-        return device;
-      }
-    }));
-    
-    const results = await Promise.all(enhancedDevices.map(async (device: any) => {
+
+    const results = await Promise.all(devices.map(async (device: any) => {
       try {
         if (!device.agents || device.agents.length === 0) {
           return {
@@ -323,18 +287,18 @@ export async function GET(request: Request) {
             checked: new Date().toISOString()
           };
         }
-        
+
         const agent = device.agents[0];
         const retrievalResults = [];
-        
+
         for (let i = 0; i < numRetrievals; i++) {
           const result = await checkDeviceAvailability(agent.characterConfig);
           retrievalResults.push(result);
           if (i < numRetrievals - 1) await new Promise(r => setTimeout(r, 1000));
         }
-        
+
         const reputationScore = calculateReputationScore(retrievalResults);
-        
+
         const successfulResults = retrievalResults.filter(r => r.success);
         const startTime = new Date(retrievalResults[0].timestamp).getTime();
         const endTime = new Date(retrievalResults[retrievalResults.length - 1].timestamp).getTime();
@@ -342,8 +306,8 @@ export async function GET(request: Request) {
         const avgTime = durations.length ? durations.reduce((sum, d) => sum + d, 0) / durations.length : 0;
 
         // Calculate consistency score
-        const variance = durations.length > 1 
-          ? durations.reduce((sum, d) => sum + Math.pow(d - avgTime, 2), 0) / durations.length 
+        const variance = durations.length > 1
+          ? durations.reduce((sum, d) => sum + Math.pow(d - avgTime, 2), 0) / durations.length
           : 0;
         const consistency = Math.sqrt(variance);
 
@@ -379,9 +343,9 @@ export async function GET(request: Request) {
             }))
           }
         };
-        
+
         const storageResult = await storeReputationData(device.id, reputationData);
-        
+
         return {
           deviceAddress: device.id,
           ngrokLink: device.ngrokLink,
@@ -391,7 +355,7 @@ export async function GET(request: Request) {
           reputationDataUrl: storageResult.success ? storageResult.url : null,
           checked: new Date().toISOString()
         };
-        
+
       } catch (error: any) {
         console.error(`Error processing device ${device.id}:`, error);
         return {
@@ -411,14 +375,14 @@ export async function GET(request: Request) {
         };
       }
     }));
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       subnet: CHECKER_SUBNET_NAME,
       version: CHECKER_SUBNET_VERSION,
       timestamp: new Date().toISOString(),
-      results 
+      results
     });
-    
+
   } catch (error: any) {
     console.error('Error in device-checker API:', error);
     return NextResponse.json(

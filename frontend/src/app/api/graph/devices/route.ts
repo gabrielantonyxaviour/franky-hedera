@@ -19,6 +19,7 @@ export async function GET() {
           updatedAt
           agents {
             id
+            characterConfig
           }
         }
       }

@@ -22,12 +22,9 @@ interface Agent {
   txHash: string
   blockNumber: number
   timestamp: number
-  name: string
-  description: string
   avatar?: string // Alias for character for better naming
   characterConfig?: {
     name: string
-    description: string
     personality: string
     scenario: string
     first_mes: string
@@ -38,9 +35,6 @@ interface Agent {
   }
 }
 
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-// Background animation component
 const Background = () => {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden">
@@ -119,7 +113,7 @@ const AgentCard = ({ keyVal, agent, onClick }: { keyVal: string, agent: Agent, o
           <div className="h-12 w-12 rounded-full overflow-hidden mr-4">
             <img
               src={`/api/akave/fetch-image?url=${encodeURIComponent(agent.character)}`}
-              alt={agent.name || agent.prefix}
+              alt={agent.prefix}
               className="h-full w-full object-cover"
               onError={(e) => {
                 e.currentTarget.onerror = null;
@@ -136,21 +130,15 @@ const AgentCard = ({ keyVal, agent, onClick }: { keyVal: string, agent: Agent, o
           <h3 className="text-xl font-bold bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
             {agent.prefix}
           </h3>
-          {agent.name && (
+          {agent.characterConfig && (
             <p className="text-white/80 text-sm mt-1">
-              {agent.name}
+              {agent.characterConfig.name}
             </p>
           )}
         </div>
       </div>
 
       <div className="space-y-4 flex-grow">
-        {agent.description && (
-          <div className="text-[#CCCCCC] border-l-2 border-[#00FF88]/30 pl-3">
-            <p className="text-sm italic">{agent.description}</p>
-          </div>
-        )}
-
         <div className="flex items-center text-[#CCCCCC]">
           <FiDollarSign className="mr-2 text-[#00FF88]" />
           <span>Fee per API Call: <span className="text-[#00FF88] font-medium">{agent.perApiCallFee} $FIL</span></span>
@@ -177,7 +165,7 @@ const AgentCard = ({ keyVal, agent, onClick }: { keyVal: string, agent: Agent, o
         <div className="flex items-center justify-between mt-1">
           <span className="text-xs text-gray-400">Registration Tx</span>
           <a
-            href={`https://filecoin-testnet.blockscout.com/tx/` + agent.txHash}
+            href={`https://filecoin-testnet.blockscout.com/address/` + agent.agentAddress}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-[#00FF88] hover:underline"
@@ -298,8 +286,8 @@ const PreviewModal = ({
               {agent.character ? (
                 <div className="h-16 w-16 rounded-full overflow-hidden mr-4">
                   <img
-                    src={agent.character}
-                    alt={agent.name || agent.prefix}
+                    src={`/api/akave/fetch-image?url=${encodeURIComponent(agent.character)}`}
+                    alt={agent.prefix}
                     className="h-full w-full object-cover"
                     onError={(e) => {
                       e.currentTarget.onerror = null;
@@ -314,18 +302,12 @@ const PreviewModal = ({
               )}
               <div>
                 <h2 className="text-2xl font-bold text-white">{agent.prefix}</h2>
-                {agent.name && (
-                  <p className="text-[#00FF88]">{agent.name}</p>
+                {agent.characterConfig?.name && (
+                  <p className="text-[#00FF88]">{agent.characterConfig?.name}</p>
                 )}
               </div>
             </div>
 
-            {/* Description */}
-            {agent.description && (
-              <div className="mb-6 bg-[#00FF88]/5 border border-[#00FF88]/20 rounded-lg p-4">
-                <p className="text-gray-200">{agent.description}</p>
-              </div>
-            )}
 
             {/* Character Configuration Details */}
             {agent.characterConfig && (
@@ -333,10 +315,10 @@ const PreviewModal = ({
                 <h3 className="text-xl font-bold text-white border-b border-[#00FF88]/20 pb-2">Character Details</h3>
 
                 {/* Personality */}
-                {agent.characterConfig.personality && (
+                {agent && (
                   <div>
                     <h4 className="text-[#00FF88] text-sm mb-1">Personality</h4>
-                    <p className="text-gray-200">{agent.characterConfig.personality}</p>
+                    <p className="text-gray-200">{JSON.stringify(agent.characterConfig)}</p>
                   </div>
                 )}
 
@@ -525,8 +507,8 @@ export default function AgentMarketplacePage() {
       console.log(agentsResponse)
       const formattedAgents = await Promise.all(agentsResponse.map(async (agent: any) => {
         const characterRequest = await fetch(`/api/akave/fetch-json?url=${encodeURIComponent(agent.characterConfig)}`)
+        console.log(`/api/akave/fetch-json?url=${encodeURIComponent(agent.characterConfig)}`)
         const character = await characterRequest.json()
-
         return {
           id: agent.id,
           prefix: agent.subname,

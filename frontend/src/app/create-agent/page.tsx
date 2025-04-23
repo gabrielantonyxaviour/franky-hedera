@@ -4,73 +4,25 @@ import Header from "@/components/ui/Header";
 import { useState, useEffect, Suspense } from "react";
 import { motion } from "framer-motion";
 import {
-  FiCpu,
   FiServer,
   FiSmartphone,
   FiLink,
   FiUploadCloud,
   FiCheck,
   FiX,
-  FiAlertTriangle,
   FiCopy,
-  FiKey,
   FiImage,
 } from "react-icons/fi";
-import { uploadImageToPinata } from "@/utils/pinata";
-
-import { encrypt } from "@/utils/lit";
-import { getApiKey } from "@/utils/apiKey";
 import { usePrivy, useSendTransaction } from "@privy-io/react-auth";
 import { normalize } from "viem/ens";
 import { createPublicClient, encodeFunctionData, formatEther, http, parseEther } from "viem";
-import { sepolia, mainnet } from "viem/chains";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { uploadFormData } from "@/lib/akave";
 import { publicClient } from "@/lib/utils";
 import { FRANKY_ABI, FRANKY_ADDRESS, FRANKY_AGENTS_BUCKET } from "@/lib/constants";
+import { mainnet } from "viem/chains";
 
-// Akave bucket upload utility
 const AKAVE_API_URL = "http://3.88.107.110:8000";
-
-// Function to create bucket if it doesn't exist
-async function ensureBucketExists(bucketName: string) {
-  try {
-    // First check if bucket exists
-    const checkResponse = await fetch(`${AKAVE_API_URL}/buckets/${bucketName}`, {
-      method: 'GET',
-    });
-
-    if (checkResponse.ok) {
-      console.log(`Bucket '${bucketName}' already exists`);
-      return true;
-    }
-
-    // Create bucket if it doesn't exist
-    const createResponse = await fetch(`${AKAVE_API_URL}/buckets`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ bucketName }),
-    });
-
-    if (createResponse.ok) {
-      console.log(`Created bucket '${bucketName}'`);
-      return true;
-    } else {
-      console.error('Failed to create bucket:', await createResponse.text());
-      return false;
-    }
-  } catch (error) {
-    console.error('Error ensuring bucket exists:', error);
-    return false;
-  }
-}
-
-// Function to upload character data to Akave bucket
-
-// Define tool types
 export interface Tool {
   id: string;
   name: string;
@@ -1033,7 +985,7 @@ function CreateAgentContent() {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              characterData: constructedCharacter,
+              character: constructedCharacter,
               subname,
               secrets,
             }),
