@@ -2,13 +2,12 @@
 pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/proxy/Clones.sol";
-import "./interfaces/IL2Registrar.sol";
+import "./HederaTokenService.sol";
 import {IFrankyAgentAccountImplementation} from "./interfaces/IFrankyAgentAccountImplementation.sol";
 
-contract Franky {
+contract Franky is HederaTokenService {
     struct Device {
-        string deviceMetadata;
-        string ngrokLink;
+        string deviceMetadataTopicId;
         address deviceAddress;
         uint256 hostingFee;
         uint256 agentCount;
@@ -16,10 +15,10 @@ contract Franky {
     }
 
     struct Agent {
-        address agentAddress;
+        uint256 agentTokenId;
         address deviceAddress;
-        string subname;
-        string characterConfig;
+        string subdomain;
+        string characterConfigTopicId;
         address owner;
         uint256 perApiCallFee;
         uint8 status;
@@ -30,7 +29,7 @@ contract Franky {
     uint32 public protocolFeeInBps = 0;
 
     address public frankyAgentAccountImplemetation;
-    address public frankyENSRegistrar;
+    address public frankyAgentsNftAddress;
 
     mapping(address => Device) public devices;
 
@@ -38,11 +37,11 @@ contract Franky {
 
     mapping(address => mapping(address => bool)) public ownerDevices;
 
-    mapping(address => Agent) public agents;
+    mapping(uint256 => Agent) public agents;
 
-    mapping(address => mapping(address => bool)) public deviceAgents;
+    mapping(address => mapping(uint256 => bool)) public deviceAgents;
 
-    mapping(address => mapping(address => bytes32)) public agentsKeyHash;
+    mapping(uint256 => mapping(address => bytes32)) public agentsKeyHash;
 
     mapping(address => address) public embeddedToServerWallets;
 
@@ -51,41 +50,30 @@ contract Franky {
         uint32 _protocolFeeInBps
     ) {
         frankyAgentAccountImplemetation = _frankyAgentAccountImplemetation;
+        frankyAgentsNftAddress = address(0);
         protocolFeeInBps = _protocolFeeInBps;
     }
 
     event AgentCreated(
-        address indexed agentAddress,
+        uint256 indexed agentTokenId,
         address indexed deviceAddress,
-        string avatar,
-        string subname,
+        string subdomain,
         address owner,
         uint256 perApiCallFee,
-        string characterConfig,
+        string characterConfigTopicId,
         bool isPublic
     );
-    event ApiKeyRegenerated(address indexed agentAddress, bytes32 keyHash);
+    event ApiKeyRegenerated(address indexed agentTokenId, bytes32 keyHash);
     event DeviceRegistered(
         address indexed deviceAddress,
         address indexed owner,
-        string deviceMetadata,
-        string ngrokLink,
+        string deviceMetadataTopicId,
         uint256 hostingFee
     );
-    event Initialized(address indexed frankyENSRegistrar);
     event ServerWalletConfigured(
         address indexed embeddedWalletAddress,
         address indexed serverWalletAddress
     );
-
-    // function intialize(address _frankyENSRegistrar) external {
-    //     require(
-    //         frankyENSRegistrar == address(0),
-    //         "Franky: Already initialized"
-    //     );
-    //     frankyENSRegistrar = _frankyENSRegistrar;
-    //     emit Initialized(_frankyENSRegistrar);
-    // }
 
     function configureServerWallet(address serverWalletAddress) external {
         require(
@@ -95,10 +83,8 @@ contract Franky {
         embeddedToServerWallets[msg.sender] = serverWalletAddress;
         emit ServerWalletConfigured(msg.sender, serverWalletAddress);
     }
-
     function registerDevice(
-        string calldata deviceMetadata,
-        string calldata ngrokLink,
+        string calldata deviceMetadataTopicId,
         uint256 hostingFee,
         address deviceAddress,
         bytes32 verificationHash,
@@ -109,8 +95,7 @@ contract Franky {
         require(recoveredAddress == deviceAddress, "Invalid signature");
 
         devices[deviceAddress] = Device({
-            deviceMetadata: deviceMetadata,
-            ngrokLink: ngrokLink,
+            deviceMetadataTopicId: deviceMetadataTopicId,
             deviceAddress: deviceAddress,
             agentCount: 0,
             hostingFee: hostingFee,
@@ -124,41 +109,24 @@ contract Franky {
         emit DeviceRegistered(
             deviceAddress,
             msg.sender,
-            deviceMetadata,
-            ngrokLink,
+            deviceMetadataTopicId,
             hostingFee
         );
     }
 
     function createAgent(
-        string calldata avatar,
-        string calldata subname,
+        string calldata subdomain,
         string memory characterConfig,
         address deviceAddress,
         uint256 perApiCallFee,
         bool isPublic
     ) external {
-        // require(frankyENSRegistrar != address(0), "Registrar not initialized");
         require(devices[deviceAddress].isRegistered, "Device not registered");
-        address agentAddress = _deployAgentAccount(
-            subname,
-            msg.sender,
-            keccak256(abi.encodePacked(characterConfig))
-        );
-        // require(
-        //     IL2Registrar(frankyENSRegistrar).available(subname),
-        //     "ENS Subname Already taken"
-        // );
-        // IL2Registrar(frankyENSRegistrar).register(subname, agentAddress);
-        // IFrankyAgentAccountImplementation(agentAddress).setCharacterAndUrl(
-        //     characterConfig,
-        //     devices[deviceAddress].ngrokLink,
-        //     avatar
-        // );
+
         agents[agentAddress] = Agent({
             agentAddress: agentAddress,
             deviceAddress: deviceAddress,
-            subname: subname,
+            subdomain: subdomain,
             characterConfig: characterConfig,
             perApiCallFee: perApiCallFee,
             owner: msg.sender,
@@ -172,7 +140,7 @@ contract Franky {
             agentAddress,
             deviceAddress,
             avatar,
-            subname,
+            subdomain,
             msg.sender,
             perApiCallFee,
             agents[agentAddress].characterConfig,
@@ -222,12 +190,12 @@ contract Franky {
 
     function allowApiCall(
         address caller,
-        address agentAddress
+        uint256 agentTokenId
     ) external view returns (bool) {
         return
-            agents[agentAddress].owner == caller ||
+            agents[agentTokenId].owner == caller ||
             embeddedToServerWallets[caller].balance >=
-            agents[agentAddress].perApiCallFee;
+            agents[agentTokenId].perApiCallFee;
     }
 
     function isRegisteredDevice() external view returns (bool) {
@@ -242,10 +210,10 @@ contract Franky {
     }
 
     function getAgent(
-        address agentAddress
+        uint256 agentTokenId
     ) external view returns (Agent memory) {
-        require(agents[agentAddress].status != 0, "Agent not active");
-        return agents[agentAddress];
+        require(agents[agentTokenId].status != 0, "Agent not active");
+        return agents[agentTokenId];
     }
 
     function recoverSigner(
@@ -285,49 +253,20 @@ contract Franky {
 
     function isHostingAgent(
         address deviceAddress,
-        address agentAddress
+        uint256 agentTokenId
     ) external view returns (bool) {
-        return deviceAgents[deviceAddress][agentAddress];
+        return deviceAgents[deviceAddress][agentTokenId];
     }
 
     function getKeyHash(
-        address agentAddress,
+        uint256 agentTokenId,
         address caller
     ) external view returns (bytes32) {
-        return agentsKeyHash[agentAddress][caller];
+        return agentsKeyHash[agentTokenId][caller];
     }
 
-    function isAgentPublic(address agentAddress) external view returns (bool) {
-        return agents[agentAddress].status == 2;
-    }
-
-    function _deployAgentAccount(
-        string memory,
-        address,
-        bytes32 salt
-    ) internal returns (address instance) {
-        instance = Clones.cloneDeterministic(
-            frankyAgentAccountImplemetation,
-            salt
-        );
-        // IFrankyAgentAccountImplementation(instance).initialize(
-        //     subname,
-        //     owner,
-        //     address(this),
-        //     address(IL2Registrar(frankyENSRegistrar).registry())
-        // );
-
-        return instance;
-    }
-
-    function getSmartAccountAddress(
-        bytes32 salt
-    ) public view returns (address) {
-        return
-            Clones.predictDeterministicAddress(
-                frankyAgentAccountImplemetation,
-                salt
-            );
+    function isAgentPublic(uint256 agentTokenId) external view returns (bool) {
+        return agents[agentTokenId].status == 2;
     }
 
     function getRandomBytes32() public view returns (bytes32) {

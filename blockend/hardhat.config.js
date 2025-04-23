@@ -19,37 +19,23 @@ module.exports = {
     },
   },
   networks: {
-    baseSepolia: {
-      url: "https://sepolia.base.org",
-      accounts: [PRIVATE_KEY],
-      chainId: 84532,
+    hederaTestnet: {
+      url: process.env.HEDERA_RPC_URL,
+      accounts: [process.env.OPERATOR_KEY],
+      chainId: 296,
     },
-    calibration: {
-      url: "https://rpc.ankr.com/filecoin_testnet",
-      accounts: [PRIVATE_KEY],
-      chainId: 314159,
-    }
   },
   etherscan: {
     apiKey: {
-      calibration: "empty",
-      baseSepolia: process.env.BASESCAN_API_KEY,
+      hederaTestnet: "empty",
     },
     customChains: [
       {
-        network: "calibration",
+        network: "hederaTestnet",
         chainId: 314159,
         urls: {
-          apiURL: "https://filecoin-testnet.blockscout.com/api",
-          browserURL: "https://filecoin-testnet.blockscout.com",
-        },
-      },
-      {
-        network: "baseSepolia",
-        chainId: 84532,
-        urls: {
-          apiURL: "https://api-sepolia.basescan.org/api",
-          browserURL: "http://sepolia.basescan.org",
+          apiURL: "https://hashscan.io/testnet/api",
+          browserURL: "https://hashscan.io/testnet",
         },
       },
     ],
