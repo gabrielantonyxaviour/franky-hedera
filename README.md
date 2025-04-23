@@ -52,6 +52,7 @@ An LLM runs locally in the mobile phone and the Agent Framework implemented for 
 - Secure environment secret management
 - Restricted access to ensure only the hosting device can access agent secrets
 
+Let us now look at a detailed implementation explanation of these technologies below..
 
 ## Checker Network
 
