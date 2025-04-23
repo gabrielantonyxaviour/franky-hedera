@@ -91,69 +91,30 @@ const DeployDeviceInfo = () => {
       
       <InstructionStep 
         number={1} 
-        title="Prepare Your Device" 
+        title="Setup your Phone" 
         icon={<FiSmartphone size={20} />}
       >
-        <p>You'll need:</p>
-        <ul className="list-disc ml-5 mt-2 space-y-1">
-          <li>An Android device (5.0+) or iOS device (12.0+)</li>
-          <li>At least 2GB RAM and 16GB storage</li>
-          <li>Stable internet connection</li>
-        </ul>
-      </InstructionStep>
-      
-      <InstructionStep 
-        number={2} 
-        title="Install the Franky App" 
-        icon={<FiDownload size={20} />}
-      >
-        <p>Download our application from the app store or use the direct link below:</p>
-        <div className="mt-2">
-          <Link 
-            href="https://frankyagent.xyz/download" 
-            target="_blank"
-            className="inline-block px-4 py-2 bg-[#00FF88]/20 text-[#00FF88] rounded-lg border border-[#00FF88]/30 hover:bg-[#00FF88]/30 transition-colors"
-          >
-            Download Franky App
-          </Link>
+        <p>Watch this video tutorial to set up your phone with Termux, an Android terminal emulator that allows you to run Linux commands:</p>
+        <div className="mt-3 relative w-full" style={{ paddingBottom: '56.25%' }}>
+          <iframe 
+            className="absolute inset-0 w-full h-full rounded-lg border border-[#00FF88]/30"
+            src="https://www.youtube.com/embed/s3TXc-jiQ40?si=xq88k3gI5n1OUJHk"
+            title="Setup Termux for Franky"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          ></iframe>
         </div>
       </InstructionStep>
       
       <InstructionStep 
-        number={3} 
-        title="Setup Your Device" 
+        number={2} 
+        title="Run Franky" 
         icon={<FiTerminal size={20} />}
       >
-        <p>Launch the app and follow the on-screen instructions to:</p>
-        <ul className="list-disc ml-5 mt-2 space-y-1">
-          <li>Create or connect your wallet</li>
-          <li>Configure device settings</li>
-          <li>Complete the verification process</li>
-        </ul>
-        <p className="mt-2">The app will guide you through creating a secure connection.</p>
+        <p>Use the following curl command to download, install and run Franky:</p>
+        <CodeBlock code="pkg update && pkg install nodejs libqrencode termux-api jq curl && git clone https://github.com/Marshal-AM/franky.git && cd franky && cd agent-framework && chmod +x franky && ./franky start" />
+        <p>This script will download all necessary files to run Franky on your device.</p>
       </InstructionStep>
-      
-      <InstructionStep 
-        number={4} 
-        title="Start Earning" 
-        icon={<FiServer size={20} />}
-      >
-        <p>Once your device is verified:</p>
-        <ul className="list-disc ml-5 mt-2 space-y-1">
-          <li>Your device will be listed in the marketplace</li>
-          <li>Users can select your device to host their AI agents</li>
-          <li>You'll earn $FIL for each agent hosted</li>
-        </ul>
-      </InstructionStep>
-      
-      <div className="mt-6 flex justify-center">
-        <Link 
-          href="/deploy-device" 
-          className="px-6 py-3 bg-[#00FF88]/20 text-[#00FF88] rounded-lg border border-[#00FF88]/30 hover:bg-[#00FF88]/30 transition-colors"
-        >
-          View Full Deployment Guide
-        </Link>
-      </div>
     </div>
   )
 }
