@@ -318,7 +318,7 @@ const PreviewModal = ({
                 {agent && (
                   <div>
                     <h4 className="text-[#00FF88] text-sm mb-1">Personality</h4>
-                    <p className="text-gray-200">{JSON.stringify(agent.characterConfig)}</p>
+                    <p className="text-gray-200">{agent.characterConfig.personality}</p>
                   </div>
                 )}
 
