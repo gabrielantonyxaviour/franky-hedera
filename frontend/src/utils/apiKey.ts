@@ -4,7 +4,6 @@ import { base, baseSepolia, filecoinCalibration } from 'viem/chains';
 import { SignMessageModalUIOptions } from '@privy-io/react-auth';
 import { FRANKY_ABI } from '@/lib/constants';
 
-// Updated contract address for Base Mainnet
 const FRANKY_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29';
 
 const abi = [{

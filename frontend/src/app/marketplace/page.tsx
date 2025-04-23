@@ -15,19 +15,6 @@ import { usePrivy } from "@privy-io/react-auth";
 import { getAvailableDevices } from '@/lib/graph'
 import { formatEther } from 'viem'
 
-// Contract information
-const CONTRACT_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29'
-
-// Helper function to get the block explorer URL based on the chain
-const getExplorerUrl = (chainId: number, hash: string) => {
-  // Base Mainnet
-  if (chainId === 8453) {
-    return `https://basescan.org/tx/${hash}`
-  }
-  // Ethereum Mainnet (default)
-  return `https://etherscan.io/tx/${hash}`
-}
-
 // Define device interface
 interface Device {
   id: string

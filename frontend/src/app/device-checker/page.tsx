@@ -308,7 +308,7 @@ export default function DeviceCheckerPage() {
     try {
       const queryParams = new URLSearchParams()
       if (deviceAddress) {
-        queryParams.append('deviceAddress', deviceAddress)
+        queryParams.append('deviceAddress', deviceAddress.toLowerCase())
       }
       queryParams.append('numRetrievals', numChecks.toString())
 
