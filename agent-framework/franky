@@ -361,9 +361,10 @@ create_wallet() {
     fi
     echo "🔄 CPU: $CPU"
 
-    # Create a deterministic salt from device details
-    SALT=$(echo "$DEVICE_MODEL$RAM$STORAGE$CPU" | md5sum | cut -d' ' -f1)
-    echo "🧂 Generated Salt: $SALT"
+    # Create a deterministic salt from device details with added randomness
+    RANDOM_FACTOR=$(date +%s%N | md5sum | cut -d' ' -f1)
+    SALT=$(echo "$DEVICE_MODEL$RAM$STORAGE$CPU$RANDOM_FACTOR" | md5sum | cut -d' ' -f1)
+    echo "🧂 Generated Salt with Randomness: $SALT"
 
     # Prepare device details string for bytes32 conversion
     DEVICE_INFO="$DEVICE_MODEL$RAM$STORAGE$CPU"

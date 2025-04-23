@@ -305,12 +305,11 @@ export default function MarketplacePage() {
       const fetchedDevicesRequest = await fetch('/api/graph/devices')
       const fetchedDevices = await fetchedDevicesRequest.json()
       console.log("Fetched devices from Subgraph")
+      console.log(fetchedDevices)
       const formattedDevices = await Promise.all(
         fetchedDevices.map(async (device: any) => {
           if (device.agents.length > 0) return;
-          const baseUrl = device.deviceMetadata.split("/download")[0];
-          const formattedDeviceMetadata = baseUrl.endsWith(".json") ? baseUrl + "/download" : baseUrl + ".json/download";
-          const metadataRequest = await fetch(formattedDeviceMetadata);
+          const metadataRequest = await fetch(device.deviceMetadata);
           const metadata = await metadataRequest.json();
 
           return {
