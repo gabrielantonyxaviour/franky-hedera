@@ -3,7 +3,7 @@
 dataRoot: ./data
 # -- SERVER CONFIGURATION --
 # Listen for incoming connections
-listen: false
+listen: true
 # Listen on a specific address, supports IPv4 and IPv6
 listenAddress:
   ipv4: 0.0.0.0
@@ -33,7 +33,7 @@ ssl:
   keyPath: "./certs/privkey.pem"
 # -- SECURITY CONFIGURATION --
 # Toggle whitelist mode
-whitelistMode: true
+whitelistMode: false
 # Whitelist will also verify IP in X-Forwarded-For / X-Real-IP headers
 enableForwardedWhitelist: true
 # Whitelist of allowed IP addresses
@@ -83,9 +83,9 @@ perUserBasicAuth: false
 ## Set to a negative number to disable session expiration
 sessionTimeout: -1
 # Disable CSRF protection - NOT RECOMMENDED
-disableCsrfProtection: false
+disableCsrfProtection: true
 # Disable startup security checks - NOT RECOMMENDED
-securityOverride: false
+securityOverride: true
 # -- LOGGING CONFIGURATION --
 logging:
   # Enable access logging to access.log file

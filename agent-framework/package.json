@@ -61,6 +61,7 @@
     "showdown": "^2.1.0",
     "sillytavern-transformers": "2.14.6",
     "simple-git": "^3.27.0",
+    "siwe": "^3.0.0",
     "slidetoggle": "^4.0.0",
     "tiktoken": "^1.0.20",
     "url-join": "^5.0.0",

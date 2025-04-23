@@ -1,0 +1,28 @@
+Mon, 14 Apr 2025 21:30:19 GMT lit-js-sdk:constants:errors deprecated LitErrorKind is deprecated and will be removed in a future version. Use LIT_ERROR_KIND instead. at node:internal/modules/cjs/loader:1529:14
+Node version: v20.19.0. Running in undefined environment. Server directory: /Users/sam/Developer/franky/agent-framework
+Preferring IPv4 for DNS resolution
+
+CSRF protection is disabled. This will make your server vulnerable to CSRF attacks.
+
+Using data root: /Users/sam/Developer/franky/agent-framework/data
+
+SillyTavern 1.12.13
+Running 'main' (77b84df5) - 2025-04-15 02:44:47 +0530
+
+
+Compiling frontend libraries...
+webpack 5.99.5 compiled [1m[32msuccessfully[39m[22m in 324 ms
+
+Warning: failed to start server on IPv4
+Error: listen EADDRINUSE: address already in use 0.0.0.0:8000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at doListen (node:net:2139:7)
+    at process.processTicksAndRejections (node:internal/process/task_queues:83:21) {
+  code: 'EADDRINUSE',
+  errno: -48,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 8000
+}
+Error: Failed to start server on IPv4 and IPv6 disabled

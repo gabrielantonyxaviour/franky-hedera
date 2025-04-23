@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { ApolloClient, InMemoryCache, gql } from '@apollo/client';
 import { publicClient } from '@/lib/utils';
 import { FRANKY_ABI, FRANKY_ADDRESS } from '@/lib/constants';
 
@@ -9,33 +8,39 @@ const CHECKER_SUBNET_VERSION = '1.0.0';
 const AKAVE_API_URL = 'http://3.88.107.110:8000';
 const DEVICE_REPUTATION_BUCKET = 'device-reputation';
 
-// Initialize Apollo Client for GraphQL queries
-const client = new ApolloClient({
-  uri: 'https://api.thegraph.com/subgraphs/name/marshal-am/franky-service',
-  cache: new InMemoryCache(),
-});
+// API Endpoints
+const DEVICES_API_ENDPOINT = 'https://www.frankyagent.xyz/api/graph/devices';
+const CHARACTER_API_ENDPOINT = 'https://www.frankyagent.xyz/api/graph/character';
 
-// GraphQL query to get registered devices
-const GET_REGISTERED_DEVICES = gql`
-  query GetRegisteredDevices($limit: Int!) {
-    devices(first: $limit) {
-      id
-      owner {
-        id
-      }
-      ngrokLink
-      deviceMetadata
-      hostingFee
-      createdAt
-      agents {
-        id
-        characterConfig
-        perApiCallFee
-        subname
-      }
+// Function to fetch registered devices
+async function fetchDevices(limit: number) {
+  try {
+    const response = await fetch(DEVICES_API_ENDPOINT);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch devices: ${response.status}`);
     }
+    const devices = await response.json();
+    return devices.slice(0, limit); // Respect the limit parameter
+  } catch (error) {
+    console.error('Error fetching devices:', error);
+    throw error;
   }
-`;
+}
+
+// Function to fetch agent character
+async function fetchAgentCharacter(agentAddress: string) {
+  try {
+    const url = `${CHARACTER_API_ENDPOINT}?address=${agentAddress}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch character: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching agent character:', error);
+    throw error;
+  }
+}
 
 // Function to calculate reputation score with weights
 function calculateReputationScore(retrievalResults: any[]) {
@@ -90,9 +95,41 @@ function calculateReputationScore(retrievalResults: any[]) {
   return Math.round(finalScore * 100) / 100;
 }
 
+// Function to ensure bucket exists
+async function ensureBucket() {
+  try {
+    // Check if bucket exists
+    const checkResponse = await fetch(`${AKAVE_API_URL}/buckets/${DEVICE_REPUTATION_BUCKET}`);
+    
+    if (!checkResponse.ok) {
+      // Create bucket if it doesn't exist
+      const createResponse = await fetch(`${AKAVE_API_URL}/buckets`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: DEVICE_REPUTATION_BUCKET })
+      });
+      
+      if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+        throw new Error(`Failed to create bucket: ${createResponse.status} - ${errorText}`);
+      }
+      
+      console.log(`Created new bucket: ${DEVICE_REPUTATION_BUCKET}`);
+    }
+  } catch (error: any) {
+    console.error('Error ensuring bucket exists:', error);
+    throw error;
+  }
+}
+
 // Function to store reputation data in Akave (which stores on Filecoin)
 async function storeReputationData(deviceAddress: string, reputationData: any) {
   try {
+    // Ensure bucket exists before uploading
+    await ensureBucket();
+
     // Add checker subnet metadata
     const dataWithMetadata = {
       ...reputationData,
@@ -110,13 +147,16 @@ async function storeReputationData(deviceAddress: string, reputationData: any) {
       }
     };
 
-    const formData = new FormData();
-    const jsonBlob = new Blob([JSON.stringify(dataWithMetadata, null, 2)], { 
-      type: 'application/json' 
-    });
-    
+    // Create a clean copy of the data
+    const cleanData = JSON.parse(JSON.stringify(dataWithMetadata));
+    const jsonData = JSON.stringify(cleanData, null, 2);
     const filename = `${deviceAddress.toLowerCase()}-${Date.now()}.json`;
-    formData.append('file', jsonBlob, filename);
+
+    // Create form data with proper buffering
+    const formData = new FormData();
+    const buffer = Buffer.from(jsonData);
+    const blob = new Blob([buffer], { type: 'application/json' });
+    formData.append('file', blob, filename);
     
     const uploadResponse = await fetch(`${AKAVE_API_URL}/buckets/${DEVICE_REPUTATION_BUCKET}/files`, {
       method: 'POST',
@@ -124,7 +164,8 @@ async function storeReputationData(deviceAddress: string, reputationData: any) {
     });
     
     if (!uploadResponse.ok) {
-      throw new Error(`Failed to upload reputation data: ${uploadResponse.status}`);
+      const errorText = await uploadResponse.text();
+      throw new Error(`Failed to upload reputation data: ${uploadResponse.status} - ${errorText}`);
     }
     
     const downloadUrl = `${AKAVE_API_URL}/buckets/${DEVICE_REPUTATION_BUCKET}/files/${filename}/download`;
@@ -193,14 +234,13 @@ export async function GET(request: Request) {
       );
     }
     
-    const { data } = await client.query({
-      query: GET_REGISTERED_DEVICES,
-      variables: { limit: deviceAddress ? 1 : 10 }
-    });
+    // Fetch devices using our new function
+    const allDevices = await fetchDevices(deviceAddress ? 1 : 10);
     
+    // Filter by device address if provided
     const devices = deviceAddress 
-      ? data.devices.filter((d: any) => d.id.toLowerCase() === deviceAddress.toLowerCase())
-      : data.devices;
+      ? allDevices.filter((d: any) => d.id.toLowerCase() === deviceAddress.toLowerCase())
+      : allDevices;
     
     if (!devices || devices.length === 0) {
       return NextResponse.json(
@@ -209,7 +249,29 @@ export async function GET(request: Request) {
       );
     }
     
-    const results = await Promise.all(devices.map(async (device: any) => {
+    // Enhance devices with character config
+    const enhancedDevices = await Promise.all(devices.map(async (device: any) => {
+      try {
+        if (device.agents && device.agents.length > 0) {
+          const agentAddress = device.agents[0].id;
+          const characterData = await fetchAgentCharacter(agentAddress);
+          
+          return {
+            ...device,
+            agents: [{
+              ...device.agents[0],
+              characterConfig: characterData.characterConfig
+            }]
+          };
+        }
+        return device;
+      } catch (error) {
+        console.error(`Error enhancing device ${device.id}:`, error);
+        return device;
+      }
+    }));
+    
+    const results = await Promise.all(enhancedDevices.map(async (device: any) => {
       try {
         if (!device.agents || device.agents.length === 0) {
           return {
