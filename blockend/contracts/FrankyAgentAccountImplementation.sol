@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
-import {StringUtils} from "@ensdomains/ens-contracts/contracts/utils/StringUtils.sol";
-import "./interfaces/IL2Registry.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "./interfaces/IFrankyAgentAccountImplementation.sol";
 
@@ -9,13 +7,9 @@ contract FrankyAgentAccountImplementation is
     ERC721Holder,
     IFrankyAgentAccountImplementation
 {
-    using StringUtils for string;
-
     string public subname;
-    string public deviceNgrokUrl;
     address public owner;
     address public franky;
-    address public registry;
     bool private initialized;
 
     /**
@@ -25,14 +19,12 @@ contract FrankyAgentAccountImplementation is
     function initialize(
         string memory _subname,
         address _owner,
-        address _franky,
-        address _registry
+        address _franky
     ) external {
         require(!initialized, "Already initialized");
         owner = _owner;
         franky = _franky;
         subname = _subname;
-        registry = _registry;
         initialized = true;
     }
 
@@ -41,11 +33,6 @@ contract FrankyAgentAccountImplementation is
      */
     modifier onlyOwner() {
         require(msg.sender == owner, "Not authorized");
-        _;
-    }
-
-    modifier onlyFrankyOrOwner() {
-        require(msg.sender == franky || msg.sender == owner, "Not authorized");
         _;
     }
 
@@ -63,28 +50,6 @@ contract FrankyAgentAccountImplementation is
         (success, ) = target.call{value: value}(data);
         require(success, "Transaction execution failed");
         return success;
-    }
-
-    function setCharacterAndUrl(
-        string memory character,
-        string memory url,
-        string memory avatar
-    ) external onlyFrankyOrOwner {
-        require(bytes(url).length > 0, "URL cannot be empty");
-        if (msg.sender == owner && bytes(deviceNgrokUrl).length > 0)
-            deviceNgrokUrl = url;
-        bytes32 nameHash = IL2Registry(registry).namehash(
-            string.concat(subname, ".frankyagent.xyz")
-        );
-        IL2Registry(registry).setText(
-            IL2Registry(registry).namehash(
-                string.concat(subname, ".frankyagent.xyz")
-            ),
-            "url",
-            url
-        );
-        IL2Registry(registry).setText(nameHash, "character", character);
-        IL2Registry(registry).setText(nameHash, "avatar", avatar);
     }
 
     /**

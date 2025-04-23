@@ -21,7 +21,7 @@ module.exports = {
   networks: {
     hederaTestnet: {
       url: process.env.HEDERA_RPC_URL,
-      accounts: [process.env.OPERATOR_KEY],
+      accounts: [PRIVATE_KEY],
       chainId: 296,
     },
   },

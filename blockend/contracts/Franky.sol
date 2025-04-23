@@ -2,10 +2,11 @@
 pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/proxy/Clones.sol";
-import "./HederaTokenService.sol";
+import "./hedera/HederaTokenService.sol";
+import "./hedera/KeyHelper.sol";
 import {IFrankyAgentAccountImplementation} from "./interfaces/IFrankyAgentAccountImplementation.sol";
 
-contract Franky is HederaTokenService {
+contract Franky is HederaTokenService, KeyHelper {
     struct Device {
         string deviceMetadataTopicId;
         address deviceAddress;
@@ -15,11 +16,11 @@ contract Franky is HederaTokenService {
     }
 
     struct Agent {
-        uint256 agentTokenId;
-        address agentAddress;
+        uint256 tokenId;
+        address smartAccountAddress;
         address deviceAddress;
         string subdomain;
-        string characterConfigTopicId;
+        bytes[] characterConfig;
         address owner;
         uint256 perApiCallFee;
         uint8 status;
@@ -81,7 +82,7 @@ contract Franky is HederaTokenService {
             "Failed to create NFT"
         );
         frankyAgentsNftAddress = createdToken;
-        emit NFTCreated(createdToken);
+        emit FrankyAgentsNftCreated(createdToken);
     }
 
     event FrankyAgentsNftCreated(address nftAddress);
@@ -93,10 +94,10 @@ contract Franky is HederaTokenService {
         string subdomain,
         address owner,
         uint256 perApiCallFee,
-        string characterConfigTopicId,
+        bytes[] characterConfig,
         bool isPublic
     );
-    event ApiKeyRegenerated(address indexed agentTokenId, bytes32 keyHash);
+    event ApiKeyRegenerated(address indexed agentAddress, bytes32 keyHash);
     event DeviceRegistered(
         address indexed deviceAddress,
         address indexed owner,
@@ -150,15 +151,31 @@ contract Franky is HederaTokenService {
 
     function createAgent(
         string calldata subdomain,
-        string memory characterConfig,
+        bytes[] memory characterConfig,
         address deviceAddress,
         uint256 perApiCallFee,
         bool isPublic
     ) external {
         require(devices[deviceAddress].isRegistered, "Device not registered");
 
+        address agentAddress = _deployAgentAccount(
+            subdomain,
+            msg.sender,
+            keccak256(characterConfig[0])
+        );
+        (
+            int responseCode,
+            int64 newTotalSupply,
+            int64[] memory serialNumbers
+        ) = mintToken(frankyAgentsNftAddress, 0, characterConfig);
+        uint256 tokenId = uint256(uint64(newTotalSupply)) - 1;
+        require(
+            responseCode == HederaResponseCodes.SUCCESS,
+            "Failed to mint NFT"
+        );
         agents[agentAddress] = Agent({
-            agentAddress: agentAddress,
+            tokenId: tokenId,
+            smartAccountAddress: agentAddress,
             deviceAddress: deviceAddress,
             subdomain: subdomain,
             characterConfig: characterConfig,
@@ -171,13 +188,13 @@ contract Franky is HederaTokenService {
         deviceAgents[deviceAddress][agentAddress] = true;
         devices[deviceAddress].agentCount++;
         emit AgentCreated(
+            tokenId,
             agentAddress,
             deviceAddress,
-            avatar,
             subdomain,
             msg.sender,
             perApiCallFee,
-            agents[agentAddress].characterConfig,
+            characterConfig,
             isPublic
         );
         emit ApiKeyRegenerated(
@@ -224,12 +241,12 @@ contract Franky is HederaTokenService {
 
     function allowApiCall(
         address caller,
-        uint256 agentTokenId
+        address agentAddress
     ) external view returns (bool) {
         return
-            agents[agentTokenId].owner == caller ||
+            agents[agentAddress].owner == caller ||
             serverWalletsMapping[caller].balance >=
-            agents[agentTokenId].perApiCallFee;
+            agents[agentAddress].perApiCallFee;
     }
 
     function isRegisteredDevice() external view returns (bool) {
@@ -244,10 +261,10 @@ contract Franky is HederaTokenService {
     }
 
     function getAgent(
-        uint256 agentTokenId
+        address agentAddress
     ) external view returns (Agent memory) {
-        require(agents[agentTokenId].status != 0, "Agent not active");
-        return agents[agentTokenId];
+        require(agents[agentAddress].status != 0, "Agent not active");
+        return agents[agentAddress];
     }
 
     function recoverSigner(
@@ -285,22 +302,39 @@ contract Franky is HederaTokenService {
             );
     }
 
+    function _deployAgentAccount(
+        string memory subname,
+        address owner,
+        bytes32 salt
+    ) internal returns (address instance) {
+        instance = Clones.cloneDeterministic(
+            frankyAgentAccountImplemetation,
+            salt
+        );
+        IFrankyAgentAccountImplementation(instance).initialize(
+            subname,
+            owner,
+            address(this)
+        );
+        return instance;
+    }
+
     function isHostingAgent(
         address deviceAddress,
-        uint256 agentTokenId
+        address agentAddress
     ) external view returns (bool) {
-        return deviceAgents[deviceAddress][agentTokenId];
+        return deviceAgents[deviceAddress][agentAddress];
     }
 
     function getKeyHash(
-        uint256 agentTokenId,
+        address agentAddress,
         address caller
     ) external view returns (bytes32) {
-        return agentsKeyHash[agentTokenId][caller];
+        return agentsKeyHash[agentAddress][caller];
     }
 
-    function isAgentPublic(uint256 agentTokenId) external view returns (bool) {
-        return agents[agentTokenId].status == 2;
+    function isAgentPublic(address agentAddress) external view returns (bool) {
+        return agents[agentAddress].status == 2;
     }
 
     function getRandomBytes32() public view returns (bytes32) {
