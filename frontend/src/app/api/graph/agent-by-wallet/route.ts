@@ -53,7 +53,12 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        return NextResponse.json(data.agents[0]);
+        return NextResponse.json(data.agents[0], {
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=59'
+            }
+        });
     } catch (error) {
         console.error('Error fetching agents by owner:', error);
         return NextResponse.json(

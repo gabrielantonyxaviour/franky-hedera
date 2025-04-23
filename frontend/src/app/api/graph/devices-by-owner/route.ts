@@ -5,18 +5,18 @@ import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
-    try {
-        const searchParams = request.nextUrl.searchParams;
-        const ownerAddress = searchParams.get('address');
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const ownerAddress = searchParams.get('address');
 
-        if (!ownerAddress) {
-            return NextResponse.json(
-                { error: 'Owner address is required' },
-                { status: 400 }
-            );
-        }
+    if (!ownerAddress) {
+      return NextResponse.json(
+        { error: 'Owner address is required' },
+        { status: 400 }
+      );
+    }
 
-        const DEVICES_BY_OWNER_QUERY = `
+    const DEVICES_BY_OWNER_QUERY = `
       query($id: ID!) {
         devices(where: { owner: $id }) {
           id
@@ -36,19 +36,24 @@ export async function GET(request: NextRequest) {
       }
     `;
 
-        const { data } = await graphClient.query({
-            query: gql(DEVICES_BY_OWNER_QUERY),
-            variables: {
-                id: ownerAddress.toLowerCase()
-            }
-        });
+    const { data } = await graphClient.query({
+      query: gql(DEVICES_BY_OWNER_QUERY),
+      variables: {
+        id: ownerAddress.toLowerCase()
+      }
+    });
 
-        return NextResponse.json(data.devices);
-    } catch (error) {
-        console.error('Error fetching devices by owner:', error);
-        return NextResponse.json(
-            { error: 'Failed to fetch devices by owner' },
-            { status: 500 }
-        );
-    }
+    return NextResponse.json(data.devices, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=59'
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching devices by owner:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch devices by owner' },
+      { status: 500 }
+    );
+  }
 }

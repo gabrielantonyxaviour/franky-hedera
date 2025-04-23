@@ -52,7 +52,12 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        return NextResponse.json([data.devices[0]]);
+        return NextResponse.json([data.devices[0]], {
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=59'
+            }
+        });
     } catch (error) {
         console.error('Error fetching devices by owner:', error);
         return NextResponse.json(

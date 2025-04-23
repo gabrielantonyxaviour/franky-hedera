@@ -31,7 +31,12 @@ export async function GET() {
       query: gql(PUBLIC_AGENTS_QUERY),
     });
 
-    return NextResponse.json(data.agents);
+    return NextResponse.json(data.agents, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=59'
+      }
+    });
   } catch (error) {
     console.error('Error fetching public agents:', error);
     return NextResponse.json(
