@@ -1,4 +1,4 @@
-export const FRANKY_ADDRESS = "0x0316A38DFD902528147fFf5D394ccB3C6d13ed8f";
+export const FRANKY_ADDRESS = "0x425F3Db4e94a77E42a5f09Dfc0Ddd472A21e4BAc";
 
 export const FRANKY_ABI = [
   {
