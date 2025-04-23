@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
         }
 
         const DEVICES_BY_OWNER_QUERY = `
-      query($ownerId: ID!) {
-        devices(where: {owner: $ownerId}) {
+      query($id: ID!) {
+        devices(where: { owner: $id }) {
           id
           deviceMetadata
           ngrokLink
@@ -29,6 +29,9 @@ export async function GET(request: NextRequest) {
           }
           createdAt
           updatedAt
+          owner {
+            id
+          }
         }
       }
     `;
@@ -36,7 +39,7 @@ export async function GET(request: NextRequest) {
         const { data } = await graphClient.query({
             query: gql(DEVICES_BY_OWNER_QUERY),
             variables: {
-                ownerId: ownerAddress
+                id: ownerAddress.toLowerCase()
             }
         });
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { usePrivy } from '@privy-io/react-auth'
+import { formatEther } from 'viem'
 
 interface Device {
   id: number
@@ -60,14 +61,15 @@ export default function DevicesPage() {
     setDebugInfo(null)
 
     try {
+      console.log(walletAddress)
       const devicesRequest = await fetch('/api/graph/devices-by-owner?address=' + walletAddress)
       if (!devicesRequest.ok) {
         throw new Error(`HTTP error! status: ${devicesRequest.status}`)
       }
       const fetchedDevices = await devicesRequest.json()
+      console.log("Fetched devices:", fetchedDevices)
       const formattedDevices = await Promise.all(
         fetchedDevices.map(async (device: any) => {
-          if (device.agents.length > 0) return;
           const metadataRequest = await fetch(`/api/akave/fetch-json?url=${encodeURIComponent(device.metadata)}`);
           const metadata = await metadataRequest.json();
 
@@ -248,7 +250,7 @@ export default function DevicesPage() {
                       <div className="mt-3">
                         <span className={labelStyle}>Hosting Fee</span>
                         <p className="text-white/80 text-sm">
-                          {parseInt(device.hostingFee) > 0 ? `${device.hostingFee} $FRANKY` : 'Free'}
+                          {parseInt(device.hostingFee) > 0 ? `${formatEther(BigInt(device.hostingFee))} $FIL` : 'Free'}
                         </p>
                       </div>
 

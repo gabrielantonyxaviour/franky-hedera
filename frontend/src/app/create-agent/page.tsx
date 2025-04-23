@@ -1049,49 +1049,7 @@ function CreateAgentContent() {
           }
 
           console.log('✅ Character data with encrypted secrets available at Akave:', characterConfigUrl);
-
-          // Verify uploaded content
-          try {
-            console.log("Verifying uploaded data...");
-            const response = await fetch(characterConfigUrl);
-            const uploadedData = await response.json();
-
-            // Verify character data integrity
-            if (!uploadedData.name || !uploadedData.description) {
-              throw new Error("Uploaded data is missing essential character properties");
-            }
-
-            // Verify secrets if they were provided
-            if (secrets.trim()) {
-              if (!uploadedData.encryptedSecrets) {
-                throw new Error("Encrypted secrets are missing from uploaded data");
-              }
-
-              // Verify secretsHash exists and has 0x prefix
-              if (!uploadedData.secretsHash) {
-                throw new Error("secretsHash is missing from uploaded data");
-              }
-
-              if (!uploadedData.secretsHash.startsWith('0x')) {
-                throw new Error("secretsHash in uploaded data does not have 0x prefix");
-              }
-
-              console.log("✅ Verified secrets with proper 0x-prefixed hash:", uploadedData.secretsHash);
-            }
-
-            console.log("✅ Uploaded data verification successful");
-            toast.info("Uploaded Character Data to Akave", {
-              description: "Initiating transaction to create agent..."
-            })
-          } catch (verifyError) {
-            console.error("❌ Uploaded data verification failed:", verifyError);
-            toast.error(`Failed to verify uploaded data: ${verifyError instanceof Error ? verifyError.message : String(verifyError)}`);
-            setIsUploading(false);
-            setShowConfirmModal(false);
-            return;
-          } finally {
-            setIsUploading(false);
-          }
+          setIsUploading(false);
         } catch (error) {
           console.error('Error in Akave upload process:', error);
           toast.error('Error uploading character data. Please try again.');
@@ -1102,8 +1060,6 @@ function CreateAgentContent() {
 
         console.log("Simulating contract call...");
         console.log("ARGS")
-
-
 
         const args = [avatarUrl, subname, characterConfigUrl, deviceInfo.deviceAddress, parseEther(perApiCallFee), isPublic];
         const { request } = await publicClient.simulateContract({

@@ -250,7 +250,7 @@ export default function AppDashboard() {
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                           <span className="text-xs text-gray-400">Amount</span>
                           <span className="text-sm font-medium text-white">
-                            {tx.amount} $FRANKY
+                            {tx.amount} $FIL
                           </span>
                         </div>
                       </div>
@@ -286,7 +286,7 @@ export default function AppDashboard() {
 
           {/* Top Token Holders - Updated without percentages */}
           <div>
-            <h2 className="text-2xl font-bold text-white mb-4">Top $FRANKY Holders</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">Top $FIL Holders</h2>
 
             <div className="bg-black/50 backdrop-blur-sm border border-[#00FF88]/20 rounded-xl p-4">
               {tokenHolders.map((holder, idx) => (
@@ -307,7 +307,7 @@ export default function AppDashboard() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm font-medium text-[#00FF88]">{holder.amount} $FRANKY</span>
+                      <span className="text-sm font-medium text-[#00FF88]">{holder.amount} $FIL</span>
                     </div>
                   </div>
                 </motion.div>

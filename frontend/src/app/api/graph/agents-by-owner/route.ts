@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
         }
 
         const AGENTS_BY_OWNER_QUERY = `
-      query {
-        agents {
+      query($ownerId: ID!) {
+        agents(where: { owner: $ownerId }) {
           id
           deviceAddress {
             id
@@ -31,6 +31,9 @@ export async function GET(request: NextRequest) {
           isPublic
           createdAt
           updatedAt
+          owner {
+            id
+          }
         }
       }
     `;
@@ -38,7 +41,7 @@ export async function GET(request: NextRequest) {
         const { data } = await graphClient.query({
             query: gql(AGENTS_BY_OWNER_QUERY),
             variables: {
-                ownerId: ownerAddress
+                ownerId: ownerAddress.toLowerCase()
             }
         });
 
