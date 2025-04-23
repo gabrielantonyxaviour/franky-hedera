@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
         const walletAddress = searchParams.get('address');
 
         if (!walletAddress) {
-            return new Response('{"status":"wallt address error"', {
+            return new Response('{"status":"wallet address error"', {
                 headers: { 'Content-Type': 'application/json' }
             });
         }
@@ -52,11 +52,16 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        return NextResponse.json([data.devices[0]]);
+        return NextResponse.json([data.devices[0]], {
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0'
+            }
+        });
     } catch (error) {
-        console.error('Error fetching devices by owner:', error);
+        console.error('Error fetching devices by wallet:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch devices by owner' },
+            { error: 'Failed to fetch devices by wallet' },
             { status: 500 }
         );
     }

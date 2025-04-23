@@ -29,7 +29,12 @@ export async function GET() {
       query: gql(AVAILABLE_DEVICES_QUERY),
     });
     console.log('Available devices:', data.devices);
-    return NextResponse.json(data.devices);
+    return NextResponse.json(data.devices, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0'
+      }
+    });
   } catch (error) {
     console.error('Error fetching available devices:', error);
     return NextResponse.json(
