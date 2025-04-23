@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(data.agents[0], {
             headers: {
                 'Content-Type': 'application/json',
-                'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=59'
+                'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0'
             }
         });
     } catch (error) {
