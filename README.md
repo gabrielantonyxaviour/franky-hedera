@@ -55,15 +55,3 @@ An LLM runs locally in the mobile phone and the Agent Framework implemented for 
 ### Randamu
 - Verifiable randomness for device wallet generation
 - Secure initialization of devices during setup
-
-## Getting Started
-
-[Installation and usage instructions would go here]
-
-## Contributing
-
-[Contributing guidelines would go here]
-
-## License
-
-[License information would go here]
