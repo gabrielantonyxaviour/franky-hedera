@@ -1,33 +1,34 @@
 type agent @entity (immutable: true){
   id: ID! # agentAddress
+  tokenId: BigInt!
   deviceAddress: device!
   owner: user! # address
-  avatar: String
-  subname: String
-  perApiCallFee: BigInt
-  characterConfig: String
-  isPublic: Boolean
-  keyHash: Bytes # for API key
-  createdAt: BigInt
-  updatedAt: BigInt
+  subdomain: String!
+  perApiCallFee: BigInt!
+  characterConfig: Bytes!
+  isPublic: Boolean!
+  keyHash: Bytes! # for API key
+  createdAt: BigInt!
+  updatedAt: BigInt!
 }
 
 type device @entity (immutable: true) {
   id: ID! # deviceAddress
   owner: user! # address
-  deviceMetadata: String
-  ngrokLink: String
-  hostingFee: BigInt
+  deviceMetadata: String!
+  hostingFee: BigInt!
   agents: [agent!]! @derivedFrom(field: "deviceAddress")
-  createdAt: BigInt
-  updatedAt: BigInt
+  createdAt: BigInt!
+  updatedAt: BigInt!
 }
 
 type user @entity (immutable: true) {
   id: ID! # owner address
   agents: [agent!]! @derivedFrom(field: "owner")
   devices: [device!]! @derivedFrom(field: "owner")
-  serverWalletAddress: Bytes
-  createdAt: BigInt
-  updatedAt: BigInt
+  serverWalletAddress: Bytes!
+  encryptedPrivateKey: Bytes!
+  privateKeyHash: Bytes!
+  createdAt: BigInt!
+  updatedAt: BigInt!
 }

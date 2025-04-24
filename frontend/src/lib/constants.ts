@@ -338,9 +338,9 @@ export const FRANKY_ABI = [
         "type": "address"
       },
       {
-        "internalType": "bytes32",
-        "name": "privateKeyHash",
-        "type": "bytes32"
+        "internalType": "address",
+        "name": "serverWalletAddress",
+        "type": "address"
       }
     ],
     "name": "canDecryptServerWallet",
@@ -816,14 +816,9 @@ export const FRANKY_ABI = [
         "internalType": "address",
         "name": "caller",
         "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "deviceAddress",
-        "type": "address"
       }
     ],
-    "name": "isRegisteredDeviceOrOwner",
+    "name": "isRegisteredDevice",
     "outputs": [
       {
         "internalType": "bool",
@@ -1078,6 +1073,6 @@ export const FRANKY_ABI = [
   }
 ]
 
-export const FRANY_INDEXER_API = 'https://8287-124-123-105-119.ngrok-free.app/subgraphs/name/graph-indexer'
+export const FRANY_INDEXER_API = 'https://5184-124-123-105-119.ngrok-free.app/subgraphs/name/graph-indexer'
 
 export const FRANKY_AGENTS_BUCKET = 'franky-agents'

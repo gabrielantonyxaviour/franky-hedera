@@ -3,7 +3,7 @@ import {
   ApiKeyRegenerated as ApiKeyRegeneratedEvent,
   DeviceRegistered as DeviceRegisteredEvent,
   ServerWalletConfigured as ServerWalletConfiguredEvent,
-  Initialized as InitializedEvent,
+  FrankyAgentsNftCreated as FrankyAgentsNftCreatedEvent
 } from "../generated/Franky/Franky"
 
 import { agent as Agent, device as Device, user as User } from "../generated/schema"
@@ -17,11 +17,11 @@ export function handleAgentCreated(event: AgentCreatedEvent): void {
     let agentId = event.params.agentAddress.toHexString()
     let agent = new Agent(agentId)
     agent.deviceAddress = event.params.deviceAddress.toHexString()
+    agent.tokenId = event.params.agentTokenId
     agent.owner = userId
-    agent.avatar = event.params.avatar
-    agent.subname = event.params.subname
+    agent.subdomain = event.params.subdomain
     agent.perApiCallFee = event.params.perApiCallFee
-    agent.characterConfig = event.params.characterConfig
+    agent.characterConfig = event.params.characterConfig[0]
     agent.isPublic = event.params.isPublic
     agent.createdAt = event.block.timestamp
     agent.updatedAt = event.block.timestamp
@@ -53,7 +53,6 @@ export function handleDeviceRegistered(event: DeviceRegisteredEvent): void {
   let device = new Device(deviceId)
   device.owner = userId
   device.deviceMetadata = event.params.deviceMetadata
-  device.ngrokLink = event.params.ngrokLink
   device.hostingFee = event.params.hostingFee
   device.createdAt = event.block.timestamp
   device.updatedAt = event.block.timestamp
@@ -61,14 +60,16 @@ export function handleDeviceRegistered(event: DeviceRegisteredEvent): void {
 }
 
 export function handleServerWalletConfigured(event: ServerWalletConfiguredEvent): void {
-  let userId = event.params.embeddedWalletAddress.toHexString()
+  let userId = event.params.walletAddress.toHexString()
   let user = User.load(userId)
   if (!user) {
     user = new User(userId)
     user.createdAt = event.block.timestamp
   }
   user.serverWalletAddress = event.params.serverWalletAddress
+  user.encryptedPrivateKey = event.params.encryptedPrivateKey
+  user.privateKeyHash = event.params.privateKeyHash
   user.updatedAt = event.block.timestamp
   user.save()
 }
-export function handleInitialized(event: InitializedEvent): void { }
+export function handleFrankyAgentsNftCreated(event: FrankyAgentsNftCreatedEvent): void { }

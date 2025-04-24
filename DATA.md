@@ -7,6 +7,9 @@ Franky | 0x82B3c846861fFe9Cd300Ac85C8a4BB8483199B4b
 
 # Getters
 
+1. Get Server Wallet
+2. Decrypt Server Wallet to pay for HIP 991 in the client side
+
 ## UI
 
 1. All available Devices
@@ -23,9 +26,13 @@ Franky | 0x82B3c846861fFe9Cd300Ac85C8a4BB8483199B4b
 
 # Setters
 
+1. Configure Server Wallet
+2. Register Device
+3. Create Agent
+
 ## UI
 
-
+1. 
 
 ## Server Side
 

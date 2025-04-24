@@ -7,12 +7,22 @@
         "type": "address"
       },
       {
-        "internalType": "uint32",
-        "name": "_protocolFeeInBps",
-        "type": "uint32"
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "symbol",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "memo",
+        "type": "string"
       }
     ],
-    "stateMutability": "nonpayable",
+    "stateMutability": "payable",
     "type": "constructor"
   },
   {
@@ -41,6 +51,12 @@
     "inputs": [
       {
         "indexed": true,
+        "internalType": "uint256",
+        "name": "agentTokenId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
         "internalType": "address",
         "name": "agentAddress",
         "type": "address"
@@ -54,13 +70,7 @@
       {
         "indexed": false,
         "internalType": "string",
-        "name": "avatar",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "subname",
+        "name": "subdomain",
         "type": "string"
       },
       {
@@ -77,9 +87,9 @@
       },
       {
         "indexed": false,
-        "internalType": "string",
+        "internalType": "bytes[]",
         "name": "characterConfig",
-        "type": "string"
+        "type": "bytes[]"
       },
       {
         "indexed": false,
@@ -114,6 +124,25 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      }
+    ],
+    "name": "CallResponseEvent",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "address",
         "name": "deviceAddress",
@@ -133,12 +162,6 @@
       },
       {
         "indexed": false,
-        "internalType": "string",
-        "name": "ngrokLink",
-        "type": "string"
-      },
-      {
-        "indexed": false,
         "internalType": "uint256",
         "name": "hostingFee",
         "type": "uint256"
@@ -151,13 +174,13 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": true,
+        "indexed": false,
         "internalType": "address",
-        "name": "frankyENSRegistrar",
+        "name": "nftAddress",
         "type": "address"
       }
     ],
-    "name": "Initialized",
+    "name": "FrankyAgentsNftCreated",
     "type": "event"
   },
   {
@@ -166,7 +189,7 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "embeddedWalletAddress",
+        "name": "walletAddress",
         "type": "address"
       },
       {
@@ -174,10 +197,26 @@
         "internalType": "address",
         "name": "serverWalletAddress",
         "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "encryptedPrivateKey",
+        "type": "bytes"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "privateKeyHash",
+        "type": "bytes32"
       }
     ],
     "name": "ServerWalletConfigured",
     "type": "event"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "fallback"
   },
   {
     "inputs": [
@@ -190,8 +229,13 @@
     "name": "agents",
     "outputs": [
       {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
         "internalType": "address",
-        "name": "agentAddress",
+        "name": "smartAccountAddress",
         "type": "address"
       },
       {
@@ -201,12 +245,7 @@
       },
       {
         "internalType": "string",
-        "name": "subname",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "characterConfig",
+        "name": "subdomain",
         "type": "string"
       },
       {
@@ -293,7 +332,31 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "embeddedWalletAddress",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "serverWalletAddress",
+        "type": "address"
+      }
+    ],
+    "name": "canDecryptServerWallet",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "walletAddress",
         "type": "address"
       }
     ],
@@ -309,11 +372,47 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "claimHBAR",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
-        "name": "serverWalletAddress",
+        "name": "",
         "type": "address"
+      }
+    ],
+    "name": "claimmables",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "walletAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes",
+        "name": "encryptedPrivateKey",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "privateKeyHash",
+        "type": "bytes32"
       }
     ],
     "name": "configureServerWallet",
@@ -325,18 +424,13 @@
     "inputs": [
       {
         "internalType": "string",
-        "name": "avatar",
+        "name": "subdomain",
         "type": "string"
       },
       {
-        "internalType": "string",
-        "name": "subname",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
+        "internalType": "bytes[]",
         "name": "characterConfig",
-        "type": "string"
+        "type": "bytes[]"
       },
       {
         "internalType": "address",
@@ -356,7 +450,7 @@
     ],
     "name": "createAgent",
     "outputs": [],
-    "stateMutability": "nonpayable",
+    "stateMutability": "payable",
     "type": "function"
   },
   {
@@ -418,13 +512,13 @@
         "type": "string"
       },
       {
-        "internalType": "string",
-        "name": "ngrokLink",
-        "type": "string"
+        "internalType": "address",
+        "name": "deviceAddress",
+        "type": "address"
       },
       {
         "internalType": "address",
-        "name": "deviceAddress",
+        "name": "owner",
         "type": "address"
       },
       {
@@ -460,25 +554,6 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "name": "embeddedToServerWallets",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [],
     "name": "frankyAgentAccountImplemetation",
     "outputs": [
@@ -493,7 +568,7 @@
   },
   {
     "inputs": [],
-    "name": "frankyENSRegistrar",
+    "name": "frankyAgentsNftAddress",
     "outputs": [
       {
         "internalType": "address",
@@ -517,8 +592,13 @@
       {
         "components": [
           {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
             "internalType": "address",
-            "name": "agentAddress",
+            "name": "smartAccountAddress",
             "type": "address"
           },
           {
@@ -528,13 +608,13 @@
           },
           {
             "internalType": "string",
-            "name": "subname",
+            "name": "subdomain",
             "type": "string"
           },
           {
-            "internalType": "string",
+            "internalType": "bytes[]",
             "name": "characterConfig",
-            "type": "string"
+            "type": "bytes[]"
           },
           {
             "internalType": "address",
@@ -561,6 +641,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "getBalance",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -578,13 +671,13 @@
             "type": "string"
           },
           {
-            "internalType": "string",
-            "name": "ngrokLink",
-            "type": "string"
+            "internalType": "address",
+            "name": "deviceAddress",
+            "type": "address"
           },
           {
             "internalType": "address",
-            "name": "deviceAddress",
+            "name": "owner",
             "type": "address"
           },
           {
@@ -651,25 +744,6 @@
   {
     "inputs": [
       {
-        "internalType": "bytes32",
-        "name": "salt",
-        "type": "bytes32"
-      }
-    ],
-    "name": "getSmartAccountAddress",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "address",
         "name": "agentAddress",
         "type": "address"
@@ -690,7 +764,7 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "owner",
+        "name": "_owner",
         "type": "address"
       },
       {
@@ -735,13 +809,32 @@
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      }
+    ],
     "name": "isRegisteredDevice",
     "outputs": [
       {
         "internalType": "bool",
         "name": "",
         "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -766,19 +859,6 @@
         "internalType": "bool",
         "name": "",
         "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "protocolFeeInBps",
-    "outputs": [
-      {
-        "internalType": "uint32",
-        "name": "",
-        "type": "uint32"
       }
     ],
     "stateMutability": "view",
@@ -812,6 +892,35 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes",
+        "name": "encodedFunctionSelector",
+        "type": "bytes"
+      }
+    ],
+    "name": "redirectForToken",
+    "outputs": [
+      {
+        "internalType": "int256",
+        "name": "responseCode",
+        "type": "int256"
+      },
+      {
+        "internalType": "bytes",
+        "name": "response",
+        "type": "bytes"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "agentAddress",
         "type": "address"
       }
@@ -826,11 +935,6 @@
       {
         "internalType": "string",
         "name": "deviceMetadata",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "ngrokLink",
         "type": "string"
       },
       {
@@ -858,5 +962,111 @@
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "serverWalletsMapping",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "walletAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes",
+        "name": "encryptedPrivateKey",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "privateKeyHash",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "transferFrom",
+    "outputs": [
+      {
+        "internalType": "int64",
+        "name": "responseCode",
+        "type": "int64"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "serialNumber",
+        "type": "uint256"
+      }
+    ],
+    "name": "transferFromNFT",
+    "outputs": [
+      {
+        "internalType": "int64",
+        "name": "responseCode",
+        "type": "int64"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "receive"
   }
 ]
