@@ -244,49 +244,201 @@ create_hedera_wallet() {
       rm "$DEVICE_DETAILS_FILE"
     fi
   fi
+
+  # Ask the user if they want to create a real Hedera account or just generate keys
+  log_status "You can either create a real Hedera testnet account (requires testnet credentials) or just generate keys locally."
+  read -p "Create a real Hedera testnet account? (y/n): " create_real_account
   
-  # Create a new wallet using a Node.js script
-  node -e "
-    const { PrivateKey, AccountCreateTransaction, Hbar, Client } = require('@hashgraph/sdk');
-    const fs = require('fs');
+  if [[ $create_real_account == "y" || $create_real_account == "Y" ]]; then
+    # Get operator account ID and key from user
+    log_status "To create a Hedera testnet account, you need an existing account with funds."
+    log_status "You can create one at https://portal.hedera.com/register"
+    log_status "Please enter your Hedera testnet operator credentials:"
     
-    async function createWallet() {
+    read -p "Operator Account ID (e.g., 0.0.12345): " OPERATOR_ID
+    
+    # Validate operator ID format
+    while [[ ! "$OPERATOR_ID" =~ ^0\.0\.[0-9]+$ ]]; do
+      log_error "Invalid Account ID format. Should be like 0.0.12345"
+      read -p "Operator Account ID: " OPERATOR_ID
+    done
+    
+    log_status "Please enter your Hedera Testnet Private Key (input will be hidden):"
+    read -s OPERATOR_KEY
+    
+    # Validate that something was entered
+    while [[ -z "$OPERATOR_KEY" ]]
+    do
+      echo ""
+      log_error "Private key cannot be empty."
+      log_status "Please enter your Hedera Testnet Private Key:"
+      read -s OPERATOR_KEY
+    done
+    
+    echo "" # Add a newline after hidden input
+    
+    # Create a new wallet using a Node.js script with Hedera SDK
+    log_status "Creating a new Hedera testnet account..."
+    log_warning "This may take a moment as we interact with the Hedera testnet..."
+    
+    # Create a temporary file to store the operator information
+    TEMP_OPERATOR_FILE=".temp_operator.json"
+    echo "{\"operatorId\":\"$OPERATOR_ID\",\"operatorKey\":\"$OPERATOR_KEY\"}" > $TEMP_OPERATOR_FILE
+    
+    node -e "
+      const { PrivateKey, AccountCreateTransaction, Hbar, Client, AccountBalanceQuery } = require('@hashgraph/sdk');
+      const fs = require('fs');
+      
+      async function createWallet() {
+        try {
+          // Read operator credentials from temp file
+          const operatorData = JSON.parse(fs.readFileSync('$TEMP_OPERATOR_FILE', 'utf8'));
+          const operatorId = operatorData.operatorId;
+          const operatorKey = operatorData.operatorKey;
+          
+          // Delete the temp file immediately
+          try {
+            fs.unlinkSync('$TEMP_OPERATOR_FILE');
+          } catch (err) {
+            console.log('Note: Could not delete temp file, will try later');
+          }
+          
+          console.log('Setting up Hedera client with operator ID:', operatorId);
+          
+          // Create client for testnet
+          const client = Client.forTestnet();
+          
+          // Generate new ECDSA key pair
+          const newPrivateKey = PrivateKey.generateECDSA();
+          const newPublicKey = newPrivateKey.publicKey;
+          
+          console.log('Created new ECDSA key pair successfully');
+          
+          // Set the operator with properly formatted key
+          try {
+            // Remove 0x prefix if present
+            const formattedOperatorKey = operatorKey.startsWith('0x') ? operatorKey.substring(2) : operatorKey;
+            const privateKeyObj = PrivateKey.fromStringECDSA(formattedOperatorKey);
+            client.setOperator(operatorId, privateKeyObj);
+            console.log('Set operator using parsed ECDSA private key');
+          } catch (error) {
+            console.error('Failed to parse operator key:', error.message);
+            throw new Error('Invalid operator credentials: ' + error.message);
+          }
+          
+          console.log('Connected to Hedera testnet');
+          console.log('Creating new account with public key', newPublicKey.toString());
+          
+          // Create a new account with a smaller initial balance
+          const createAccountTx = new AccountCreateTransaction()
+            .setKey(newPublicKey)
+            .setInitialBalance(new Hbar(10));
+            
+          // Execute the transaction
+          const txResponse = await createAccountTx.execute(client);
+          
+          // Request the receipt
+          const receipt = await txResponse.getReceipt(client);
+          
+          // Get the account ID from the receipt
+          const accountId = receipt.accountId;
+          
+          console.log('New account created with ID:', accountId.toString());
+          
+          // Verify account balance
+          const accountBalance = await new AccountBalanceQuery()
+            .setAccountId(accountId)
+            .execute(client);
+          
+          console.log('Account balance:', accountBalance.hbars.toString());
+          
+          // Write the keys to the device details file
+          const details = [
+            '=== DEVICE WALLET DETAILS ===',
+            \`Private Key: \${newPrivateKey.toStringRaw()}\`, // Store raw string without 0x prefix
+            \`Public Key: \${newPublicKey.toStringRaw()}\`,   // Store raw string without 0x prefix
+            \`Account ID: \${accountId.toString()}\`,
+            '============================='
+          ];
+          
+          fs.writeFileSync('$DEVICE_DETAILS_FILE', details.join('\\n') + '\\n');
+          console.log('Wallet details saved to $DEVICE_DETAILS_FILE');
+          console.log('SUCCESS');
+          
+          // Clean up after successful creation
+          client.close();
+        } catch (error) {
+          console.error('ERROR creating Hedera account:', error.message);
+          
+          // If account creation fails, create a file with just keys and a placeholder account ID
+          try {
+            console.log('Falling back to local key generation...');
+            const fallbackPrivateKey = PrivateKey.generateECDSA();
+            const fallbackPublicKey = fallbackPrivateKey.publicKey;
+            
+            // Set a placeholder account ID
+            const placeholderId = '0.0.' + Math.floor(Math.random() * 1000000);
+            
+            // Write the keys to the device details file
+            const details = [
+              '=== DEVICE WALLET DETAILS (LOCAL ONLY) ===',
+              \`Private Key: \${fallbackPrivateKey.toStringRaw()}\`, // Store raw string without 0x prefix
+              \`Public Key: \${fallbackPublicKey.toStringRaw()}\`,   // Store raw string without 0x prefix
+              \`Account ID: \${placeholderId}\`,
+              '========================================'
+            ];
+            
+            fs.writeFileSync('$DEVICE_DETAILS_FILE', details.join('\\n') + '\\n');
+            console.log('Fallback local wallet details saved to $DEVICE_DETAILS_FILE');
+            console.log('WARNING: Created local keys with placeholder account ID');
+          } catch (fallbackError) {
+            console.error('Failed to create fallback keys:', fallbackError.message);
+          }
+          
+          process.exit(1);
+        }
+      }
+      
+      createWallet();
+    "
+    
+    # Ensure temp file is deleted in case script didn't delete it
+    if [ -f "$TEMP_OPERATOR_FILE" ]; then
+      rm "$TEMP_OPERATOR_FILE"
+    fi
+    
+  else
+    # Just generate keys locally
+    log_status "Generating local keys with a placeholder account ID..."
+    
+    node -e "
+      const { PrivateKey } = require('@hashgraph/sdk');
+      const fs = require('fs');
+      
       try {
-        // Create a new key pair
         const privateKey = PrivateKey.generateECDSA();
         const publicKey = privateKey.publicKey;
         
         console.log('Created new ECDSA key pair successfully');
         
-        // Write the keys to the device details file
+        // Write the keys to the device details file using raw string format
         const details = [
-          '=== DEVICE WALLET DETAILS ===',
-          \`Private Key: \${privateKey.toStringDer()}\`,
-          \`Public Key: \${publicKey.toStringDer()}\`,
-          '============================='
+          '=== DEVICE WALLET DETAILS (LOCAL ONLY) ===',
+          \`Private Key: \${privateKey.toStringRaw()}\`, // Store raw string without 0x prefix
+          \`Public Key: \${publicKey.toStringRaw()}\`,   // Store raw string without 0x prefix
+          \`Account ID: 0.0.\${Math.floor(Math.random() * 1000000)}\`,
+          '========================================'
         ];
         
         fs.writeFileSync('$DEVICE_DETAILS_FILE', details.join('\\n') + '\\n');
-        console.log('Wallet details saved to $DEVICE_DETAILS_FILE');
-        
-        // Note: In a production environment, we would create a Hedera account here
-        // For this example, we're just generating the keys
-        
-        // Set a placeholder account ID (in production, this would be created on Hedera)
-        // This is just a placeholder - in a real implementation, this would be a Hedera account ID
-        const placeholderId = '0.0.' + Math.floor(Math.random() * 1000000);
-        
-        // Append account ID to the file
-        fs.appendFileSync('$DEVICE_DETAILS_FILE', \`Account ID: \${placeholderId}\\n\`);
+        console.log('Local wallet details saved to $DEVICE_DETAILS_FILE');
         console.log('SUCCESS');
       } catch (error) {
-        console.error('ERROR:', error.message);
+        console.error('ERROR generating keys:', error.message);
         process.exit(1);
       }
-    }
-    
-    createWallet();
-  "
+    "
+  fi
   
   # Check if wallet creation was successful
   if [ $? -ne 0 ]; then
@@ -299,7 +451,19 @@ create_hedera_wallet() {
   PRIVATE_KEY=$(grep "Private Key:" "$DEVICE_DETAILS_FILE" | cut -d' ' -f3)
   PUBLIC_KEY=$(grep "Public Key:" "$DEVICE_DETAILS_FILE" | cut -d' ' -f3)
   
-  log_success "Created new Hedera wallet with Account ID: $ACCOUNT_ID"
+  if [[ $create_real_account == "y" || $create_real_account == "Y" ]]; then
+    # Check if the account ID follows the proper format, which indicates a real account was created
+    if [[ "$ACCOUNT_ID" =~ ^0\.0\.[0-9]+$ ]]; then
+      log_success "Created new Hedera testnet account with ID: $ACCOUNT_ID"
+      log_success "Account has been funded with 10 HBAR"
+    else
+      log_warning "Created keys with placeholder Account ID: $ACCOUNT_ID"
+      log_warning "Your device will work, but some blockchain interactions may be limited"
+    fi
+  else
+    log_warning "Created keys with placeholder Account ID: $ACCOUNT_ID"
+    log_warning "Your device will work, but some blockchain interactions may be limited"
+  fi
 }
 
 # Function to gather device metadata
@@ -377,73 +541,46 @@ update_metadata_with_address() {
   # Create a Node.js script to update metadata
   node -e "
     const fs = require('fs');
+    const { PrivateKey } = require('@hashgraph/sdk');
     const crypto = require('crypto');
     
     /**
-     * Generates a deterministic private key from the device ID and other info
-     * @param {string} deviceInfo - Information about the device to use as a seed
-     * @returns {Buffer} - A 32-byte private key
-     */
-    function generatePrivateKey(deviceInfo) {
-      // Create a deterministic seed by hashing the device info
-      return crypto.createHash('sha256').update(deviceInfo).digest();
-    }
-    
-    /**
-     * Creates a bytes32 representation of the device info (similar to keccak256 in Ethereum)
+     * Creates a bytes32 representation of the device info using keccak256
      * @param {string} deviceInfo - Device information string
      * @returns {string} - bytes32 representation as hex string with 0x prefix
      */
     function createBytes32(deviceInfo) {
-      // In Ethereum this would be keccak256, but for simplicity 
-      // we'll use sha256 since we're not on an Ethereum chain
-      const hash = crypto.createHash('sha256').update(deviceInfo).digest('hex');
+      // Use SHA3 (keccak256) for Ethereum compatibility
+      const hash = crypto.createHash('sha3-256').update(deviceInfo).digest('hex');
       return '0x' + hash;
     }
     
     /**
-     * Signs a message (bytes32) with a private key using a simplified ECDSA approach
-     * This is a simplified version of Ethereum's signing
-     * @param {Buffer} privateKey - The private key to sign with
+     * Signs a message using ECDSA with the Hedera private key
+     * @param {string} privateKeyStr - The ECDSA private key string
      * @param {string} bytes32 - The bytes32 message to sign
      * @returns {string} - Signature as hex string with 0x prefix
      */
-    function signBytes32(privateKey, bytes32) {
+    function signBytes32WithECDSA(privateKeyStr, bytes32) {
       try {
+        // Create PrivateKey object from the string
+        const privateKey = PrivateKey.fromStringECDSA(privateKeyStr);
+        
         // Convert bytes32 to buffer (remove 0x prefix if present)
         const messageBuffer = Buffer.from(bytes32.startsWith('0x') ? bytes32.slice(2) : bytes32, 'hex');
         
-        // Use the built-in crypto module to sign (this differs from Ethereum signing but is similar)
-        // We're creating a simple sign operation with the private key
-        const sign = crypto.createSign('SHA256');
-        sign.update(messageBuffer);
+        // Sign the message using ECDSA
+        const signature = privateKey.sign(messageBuffer);
         
-        try {
-          // Try to sign with the private key (may require formatting)
-          const signature = sign.sign({
-            key: privateKey,
-            dsaEncoding: 'ieee-p1363' // This would be different for Ethereum, but works for our demo
-          }, 'hex');
-          
-          // Add a recovery byte placeholder (v) at the end (in Ethereum this would be 27 or 28)
-          const recoveryByte = '01'; // Simplified recovery byte
-          
-          return '0x' + signature + recoveryByte;
-        } catch (e) {
-          // If signing fails with the private key directly, we'll create a simulated signature
-          // This is just for demo purposes - in a real implementation, proper ECDSA would be used
-          const simulatedSignature = crypto.createHmac('sha256', privateKey)
-            .update(messageBuffer)
-            .digest('hex');
-          
-          // Pad to look like a 65-byte signature (r, s, v) with recovery byte
-          const paddedSig = simulatedSignature.padEnd(128, '0') + '01';
-          return '0x' + paddedSig;
-        }
+        // Convert signature to hex string
+        const r = signature.r.toString('hex').padStart(64, '0');
+        const s = signature.s.toString('hex').padStart(64, '0');
+        const v = signature.recoveryId ? '01' : '00';
+        
+        return '0x' + r + s + v;
       } catch (error) {
         console.error('Signing error:', error);
-        // Return a fallback signature for demo purposes
-        return '0x' + '1'.repeat(128) + '01';
+        throw error;
       }
     }
     
@@ -452,17 +589,17 @@ update_metadata_with_address() {
         // Read the metadata
         const metadata = JSON.parse(fs.readFileSync('$METADATA_FILE', 'utf8'));
         
-        // Read account ID from the device details file
+        // Read account ID and private key from the device details file
         const deviceDetailsContent = fs.readFileSync('$DEVICE_DETAILS_FILE', 'utf8');
         const accountIdMatch = deviceDetailsContent.match(/Account ID: (.*)/);
         const privateKeyMatch = deviceDetailsContent.match(/Private Key: (.*)/);
         
-        if (!accountIdMatch) {
-          throw new Error('Could not find account ID in device details file');
+        if (!accountIdMatch || !privateKeyMatch) {
+          throw new Error('Could not find account ID or private key in device details file');
         }
         
         const accountId = accountIdMatch[1];
-        const privateKeyStr = privateKeyMatch ? privateKeyMatch[1] : null;
+        const privateKeyStr = privateKeyMatch[1];
         
         // Update metadata with the wallet address (account ID)
         metadata.walletAddress = accountId;
@@ -482,14 +619,8 @@ update_metadata_with_address() {
         const bytes32Data = createBytes32(deviceInfoStr);
         metadata.bytes32Data = bytes32Data;
         
-        // Generate or derive a private key for signing
-        // In a real implementation, this would use the actual device private key
-        const privateKeyBuffer = privateKeyStr 
-          ? Buffer.from(privateKeyStr) 
-          : generatePrivateKey(deviceInfoStr);
-        
-        // Sign the bytes32 data
-        const signature = signBytes32(privateKeyBuffer, bytes32Data);
+        // Sign the bytes32 data using the device's ECDSA private key
+        const signature = signBytes32WithECDSA(privateKeyStr, bytes32Data);
         metadata.signature = signature;
         
         // Save updated metadata back to the file
