@@ -1,0 +1,244 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Frontend Development Rules & Best Practices
+
+## 🗂 Project Structure & Configuration
+
+### 📁 Directory Structure
+- Use `src/` folder in your Next.js app
+- All files and directories in **lowercase with dashes**  
+  _e.g._ `slide-button.tsx`, `auth-wizard/`
+- Structure files into:
+  - Exported component
+  - Subcomponents
+  - Helpers
+  - Static content
+  - Types
+- Use **App Router** (latest Next.js version)
+
+### 📄 File Naming
+- Use `.ts` and `.tsx` extensions
+- Naming conventions:
+  - Components: `component-name.tsx`
+  - Utilities: `utility-name.ts`
+  - Types: `types.ts` or `component-name.types.ts`
+
+---
+
+## 🛠 TypeScript Configuration
+
+```ts
+// Prefer interfaces over types
+interface ButtonProps {
+  isLoading: boolean;
+  hasError: boolean;
+  onClick: () => void;
+}
+
+// Use functional components
+const Button: React.FC<ButtonProps> = ({ isLoading, hasError, onClick }) => {
+  // Component logic
+};
+```
+
+- Avoid `enum`s, use maps instead:
+
+```ts
+const STATUS_MAP = {
+  PENDING: 'pending',
+  COMPLETED: 'completed',
+  FAILED: 'failed'
+} as const;
+```
+
+---
+
+## 💅 Code Style
+
+- Use functional and declarative programming patterns
+- Prefer **early returns** for readability
+- Use descriptive variable names with auxiliary verbs  
+  _e.g._ `isLoading`, `hasError`, `hasSubmitted`
+- Prefix event handlers with `handle`  
+  _e.g._ `handleClick`, `handleKeyDown`
+- Always use `const` arrow functions
+
+---
+
+## 🧩 Component Structure
+
+```tsx
+// component-name.tsx
+export const ComponentName: React.FC<Props> = ({ prop1, prop2 }) => {
+  // 1. Hooks
+  // 2. Event handlers
+  // 3. Helper functions
+  // 4. Effects (if necessary)
+  // 5. Return JSX
+};
+
+// Subcomponents
+const SubComponent: React.FC<SubProps> = ({ ... }) => { ... };
+
+// Helpers
+const helperFunction = () => { ... };
+
+// Types
+interface Props { ... }
+interface SubProps { ... }
+```
+
+---
+
+## 🧠 State Management
+
+- Use **Zustand** for global state
+- Prefer **React Server Components** (RSC) where possible
+- Minimize use of `use client`, `useEffect`, and `useState`
+- Use **nuqs** for URL search param state
+
+```ts
+// store.ts
+import { create } from 'zustand';
+
+interface StoreState {
+  count: number;
+  increment: () => void;
+  decrement: () => void;
+}
+
+export const useStore = create<StoreState>((set) => ({
+  count: 0,
+  increment: () => set((state) => ({ count: state.count + 1 })),
+  decrement: () => set((state) => ({ count: state.count - 1 })),
+}));
+```
+
+---
+
+## 🎨 UI & Styling
+
+### Frameworks
+- **Primary**: Tailwind CSS, Shadcn UI, Radix UI
+- **Secondary**: Aceternity UI (where appropriate)
+- Design for **mobile-first**
+
+### Styling Rules
+- Use **Tailwind classes only**
+- Avoid inline styles and `<style>` tags
+- Prefer `class:` variant over ternaries
+- Group related classes for readability
+
+```tsx
+// ✅ Good
+<button className="rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600">
+  Click me
+</button>
+
+// 🚫 Avoid
+<button style={{ backgroundColor: 'blue', color: 'white' }}>
+  Click me
+</button>
+```
+
+---
+
+## 🚀 Performance Optimization
+
+### Next.js Specific
+- Favor **Server Components** by default
+- Use `use client` **only when needed**
+- Wrap client components in `<Suspense>` with fallback
+- Use dynamic import for non-critical components
+
+```tsx
+const HeavyComponent = dynamic(() => import('./heavy-component'), {
+  loading: () => <LoadingSpinner />,
+  ssr: false
+});
+
+<Suspense fallback={<LoadingSpinner />}>
+  <ClientComponent />
+</Suspense>
+```
+
+### Image Optimization
+- Use **WebP** format
+- Always include `width` and `height`
+- Enable **lazy loading**
+- Use Next.js `<Image />` component
+
+```tsx
+import Image from 'next/image';
+
+<Image
+  src="/image.webp"
+  alt="Description"
+  width={800}
+  height={600}
+  loading="lazy"
+/>
+```
+
+---
+
+## ♿ Accessibility
+
+- Include **ARIA attributes**
+- Implement **keyboard navigation**
+- Use **semantic HTML elements**
+
+```tsx
+<button
+  onClick={handleClick}
+  onKeyDown={handleKeyDown}
+  tabIndex={0}
+  aria-label="Submit form"
+  className="focus:outline-none focus:ring-2 focus:ring-blue-500"
+>
+  Submit
+</button>
+```
+
+---
+
+## 🧪 Error Handling & Loading States
+
+```tsx
+const DataComponent: React.FC = () => {
+  const { data, isLoading, error } = useQuery(...);
+
+  if (isLoading) return <LoadingSpinner />;
+  if (error) return <ErrorMessage error={error} />;
+  if (!data) return null;
+
+  return <DataView data={data} />;
+};
+```
+
+---
+
+## 📌 Key Principles
+
+- **DRY** (Don't Repeat Yourself)
+- Early returns for readability
+- Modularization over duplication
+- Declarative JSX
+- Type safety throughout
+- Mobile-first approach
+- Performance-focused architecture
+
+---
+
+## 🧰 Tools & Libraries Stack
+
+- **Framework**: Next.js (App Router)
+- **Language**: TypeScript
+- **State Management**: Zustand
+- **UI Components**: Shadcn UI, Radix UI, Aceternity UI
+- **Styling**: Tailwind CSS
+- **URL State**: nuqs
+- **Data Fetching**: Follow Next.js best practices for RSC
