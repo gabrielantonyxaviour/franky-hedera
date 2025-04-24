@@ -10,7 +10,29 @@ import { MCPServer } from "../src/utils/mcp-server";
 import { MCPOpenAIClient } from "../src/utils/mcp-openai";
 import HederaAgentKit from "../src/agent";
 import { createHederaTools } from "../src";
-import { PrivateKey } from "@hashgraph/sdk";
+import { PrivateKey, Client, AccountId } from "@hashgraph/sdk";
+// Import Lit Protocol and ethers for wallet decryption
+import { ethers } from "ethers";
+import { decryptServerWallet } from "../../frontend/src/utils/lit";
+// Import contract constants
+import { FRANKY_ADDRESS, FRANKY_ABI } from "../../frontend/src/lib/constants";
+// Import utilities
+import { createPublicClient, http } from "viem";
+import { hederaTestnet } from "viem/chains";
+// Import HIP-991 agent functionality
+import { 
+  initializeAgent, 
+  destroyAgent, 
+  sendUserMessage, 
+  getMessage, 
+  getAgentByUserId, 
+  hasActiveAgent,
+  HIP991Agent,
+  TopicMessage
+} from "../src/utils/hip991-agent";
+import { v4 as uuidv4 } from "uuid";
+// Import node-fetch for making HTTP requests
+import fetch from 'node-fetch';
 
 dotenv.config();
 
@@ -20,7 +42,22 @@ interface AppState {
   openAIClient?: MCPOpenAIClient;
   activeCharacter?: Character | null;
   ollamaAvailable: boolean;
+  serverClient?: Client; // Hedera client for the server
 }
+
+// Interface for server wallet data
+interface ServerWallet {
+  owner: string;
+  walletAddress: string;
+  encryptedPrivateKey: string;
+  privateKeyHash: string;
+}
+
+// Initialize client for contract interaction
+const publicClient = createPublicClient({
+  chain: hederaTestnet,
+  transport: http()
+});
 
 const state: AppState = {
   ollamaAvailable: false
@@ -34,7 +71,8 @@ function validateEnvironment(): void {
     "HEDERA_ACCOUNT_ID", 
     "HEDERA_PRIVATE_KEY",
     "OLLAMA_BASE_URL", 
-    "OLLAMA_MODEL"
+    "OLLAMA_MODEL",
+    "TEMP_AUTH_PRIVATE_KEY"
   ];
 
   requiredVars.forEach((varName) => {
@@ -88,6 +126,11 @@ async function initializeMCP() {
     );
     logger.debug('MCP Init', 'HederaAgentKit initialized');
 
+    // Initialize the server Hedera client
+    const serverAccountId = AccountId.fromString(process.env.HEDERA_ACCOUNT_ID!);
+    const serverClient = Client.forTestnet().setOperator(serverAccountId, privateKey);
+    logger.debug('MCP Init', 'Hedera client initialized for server');
+
     // Create the LangChain-compatible tools
     logger.info('MCP Init', 'Creating Hedera tools');
     const tools = createHederaTools(hederaKit);
@@ -108,7 +151,7 @@ async function initializeMCP() {
     );
     logger.info('MCP Init', 'MCP OpenAI client created');
 
-    return { mcpServer, openAIClient };
+    return { mcpServer, openAIClient, serverClient };
   } catch (error) {
     logger.error('MCP Init', 'Failed to initialize MCP', error);
     throw error;
@@ -440,6 +483,191 @@ async function processInput(userInput: string): Promise<string> {
   }
 }
 
+// Retrieves and decrypts the server wallet private key
+async function getServerWalletPrivateKey(accountId: string): Promise<{ privateKey: string | null; error: string | null }> {
+  try {
+    logger.info('Server Wallet', `Fetching server wallet for account: ${accountId}`);
+    
+    // 1. Retrieve the encrypted server wallet data from the blockchain
+    const serverWalletData = await publicClient.readContract({
+      address: FRANKY_ADDRESS as `0x${string}`,
+      abi: FRANKY_ABI,
+      functionName: "serverWalletsMapping",
+      args: [accountId]
+    });
+    
+    // Cast the result to match our ServerWallet interface
+    const serverWallet = serverWalletData as unknown as {
+      owner: string;
+      walletAddress: string;
+      encryptedPrivateKey: string;
+      privateKeyHash: string;
+    };
+    
+    logger.debug('Server Wallet', 'Server wallet data retrieved', {
+      walletAddress: serverWallet.walletAddress
+    });
+    
+    // Check if the wallet exists
+    if (!serverWallet.walletAddress || serverWallet.walletAddress === '0x0000000000000000000000000000000000000000') {
+      logger.warn('Server Wallet', 'No server wallet configured for this account');
+      return { privateKey: null, error: "No server wallet configured for this account" };
+    }
+    
+    // 2. Create an ethers wallet for authentication
+    // Note: In a real implementation, you would need to get this private key securely
+    // For this demo, we're assuming it's available in the environment
+    if (!process.env.TEMP_AUTH_PRIVATE_KEY) {
+      logger.error('Server Wallet', 'Missing TEMP_AUTH_PRIVATE_KEY environment variable');
+      return { privateKey: null, error: "Auth key not available" };
+    }
+    
+    const ethersWallet = new ethers.Wallet(process.env.TEMP_AUTH_PRIVATE_KEY);
+    logger.debug('Server Wallet', 'Created authentication wallet', {
+      address: ethersWallet.address
+    });
+    
+    // 3. Decrypt the server wallet private key using Lit Protocol
+    const decryptionResult = await decryptServerWallet(
+      ethersWallet,
+      serverWallet.walletAddress,
+      serverWallet.encryptedPrivateKey,
+      serverWallet.privateKeyHash
+    );
+    
+    if (decryptionResult.error) {
+      logger.error('Server Wallet', 'Failed to decrypt server wallet', {
+        error: decryptionResult.error
+      });
+      return { privateKey: null, error: `Decryption failed: ${decryptionResult.error}` };
+    }
+    
+    logger.info('Server Wallet', 'Successfully decrypted server wallet private key');
+    return { privateKey: decryptionResult.decryptedData, error: null };
+  } catch (error) {
+    logger.error('Server Wallet', 'Error retrieving or decrypting server wallet', error);
+    return { 
+      privateKey: null, 
+      error: `Error retrieving or decrypting server wallet: ${error instanceof Error ? error.message : String(error)}` 
+    };
+  }
+}
+
+// Create a Hedera client for the user with the given private key
+function createUserClient(accountId: string, privateKey: string): Client {
+  try {
+    const userAccountId = AccountId.fromString(accountId);
+    const userPrivateKey = PrivateKey.fromStringECDSA(privateKey);
+    return Client.forTestnet().setOperator(userAccountId, userPrivateKey);
+  } catch (error) {
+    logger.error('HIP991', 'Error creating user client', error);
+    throw new Error(`Error creating user client: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+// Add a helper function to fetch agent details and character data
+async function fetchAgentAndCharacterData(agentAddress: string): Promise<{ 
+  agent: any; 
+  character: Character | null;
+  feeInHbar: number;
+  error?: string;
+}> {
+  try {
+    logger.info('Agent Init', `Fetching agent details for address: ${agentAddress}`);
+    
+    // Fetch agent details from the API
+    const agentResponse = await fetch(`https://frankyagent.xyz/api/graph/agent?address=${agentAddress}`);
+    
+    if (!agentResponse.ok) {
+      const errorText = await agentResponse.text();
+      logger.error('Agent Init', `Failed to fetch agent details: ${errorText}`);
+      return { 
+        agent: null, 
+        character: null, 
+        feeInHbar: 0.5,
+        error: `Failed to fetch agent details: ${agentResponse.status} ${errorText}` 
+      };
+    }
+    
+    const agentData = await agentResponse.json();
+    logger.info('Agent Init', 'Agent details fetched successfully');
+    
+    // Extract the character config URL from the agent data
+    // characterConfig is an array where the first element is expected to be the URL in bytes format
+    const characterConfigBytes = agentData.characterConfig ? agentData.characterConfig[0] : null;
+    
+    if (!characterConfigBytes) {
+      logger.error('Agent Init', 'No character config found in agent data');
+      return { 
+        agent: agentData, 
+        character: null, 
+        feeInHbar: 0.5,
+        error: 'No character config found in agent data' 
+      };
+    }
+    
+    // Convert bytes to string URL (if it's already a string, this won't harm)
+    let characterConfigUrl = '';
+    if (typeof characterConfigBytes === 'string') {
+      // If it's a hex string starting with 0x, convert it to text
+      if (characterConfigBytes.startsWith('0x')) {
+        // Convert hex string to buffer and then to UTF-8 string
+        const buffer = Buffer.from(characterConfigBytes.slice(2), 'hex');
+        characterConfigUrl = buffer.toString('utf8');
+      } else {
+        characterConfigUrl = characterConfigBytes;
+      }
+    } else {
+      logger.error('Agent Init', 'Character config is not in expected format');
+      return { 
+        agent: agentData, 
+        character: null, 
+        feeInHbar: 0.5,
+        error: 'Character config is not in expected format' 
+      };
+    }
+    
+    logger.info('Agent Init', `Fetching character data from: ${characterConfigUrl}`);
+    
+    // Fetch character data from Pinata URL
+    const characterResponse = await fetch(characterConfigUrl);
+    
+    if (!characterResponse.ok) {
+      const errorText = await characterResponse.text();
+      logger.error('Agent Init', `Failed to fetch character data: ${errorText}`);
+      return { 
+        agent: agentData, 
+        character: null, 
+        feeInHbar: 0.5,
+        error: `Failed to fetch character data: ${characterResponse.status} ${errorText}` 
+      };
+    }
+    
+    const characterData = await characterResponse.json();
+    logger.info('Agent Init', 'Character data fetched successfully');
+    
+    // Extract the character from the characterData
+    const character = characterData.character || characterData;
+    
+    // Convert the perApiCallFee from wei to HBAR
+    // Assuming the fee is stored in wei and 1 HBAR = 100,000,000 wei
+    const feeInWei = agentData.perApiCallFee ? Number(agentData.perApiCallFee) : 50000000; // Default to 0.5 HBAR in wei
+    const feeInHbar = feeInWei / 100000000; // Convert wei to HBAR
+    
+    logger.info('Agent Init', `Agent fee set to ${feeInHbar} HBAR`);
+    
+    return { agent: agentData, character, feeInHbar };
+  } catch (error) {
+    logger.error('Agent Init', 'Error fetching agent or character data', error);
+    return { 
+      agent: null, 
+      character: null, 
+      feeInHbar: 0.5,
+      error: `Error fetching agent or character data: ${error instanceof Error ? error.message : String(error)}` 
+    };
+  }
+}
+
 // Start the server
 async function startServer() {
   try {
@@ -447,9 +675,10 @@ async function startServer() {
     validateEnvironment();
     
     // Initialize MCP
-    const { mcpServer, openAIClient } = await initializeMCP();
+    const { mcpServer, openAIClient, serverClient } = await initializeMCP();
     state.mcpServer = mcpServer;
     state.openAIClient = openAIClient;
+    state.serverClient = serverClient;
     
     // Check Ollama and model availability
     logger.info('API', 'Checking Ollama model availability');
@@ -475,7 +704,7 @@ async function startServer() {
     app.use(bodyParser.json());
     
     // Status endpoint
-    app.get('/status', function(req: Request, res: Response) {
+    app.get('/status', (req: Request, res: Response) => {
       res.json({
         status: 'online',
         ollamaAvailable: state.ollamaAvailable,
@@ -484,54 +713,237 @@ async function startServer() {
       });
     });
     
-    // Character selection endpoint
-    app.post('/character', function(req: Request, res: Response) {
-      const { characterId, characterName } = req.body;
-      const characterIdentifier = characterId || characterName;
+    // Initialize agent with character endpoint
+    app.post('/initialize', (req: Request, res: Response) => {
+      // Get the account ID from headers
+      const accountId = req.headers['account-id'] as string;
       
-      if (!characterIdentifier) {
-        return res.status(400).json({ error: 'Character ID or name is required' });
+      if (!accountId) {
+        return res.status(400).json({ error: 'account-id header is required' });
       }
       
-      initializeCharacter(characterIdentifier).then(character => {
-        if (character) {
-          state.activeCharacter = character;
-          res.json({ 
-            status: 'success', 
-            character: {
-              id: character.id,
-              name: character.name
-            },
-            message: `Character "${character.name}" loaded successfully!`,
-            greeting: character.first_mes
+      // Get the agent address from headers instead of character ID from body
+      const agentAddress = req.headers['agent-address'] as string;
+      
+      if (!agentAddress) {
+        return res.status(400).json({ error: 'agent-address header is required' });
+      }
+      
+      // First get the server wallet private key to authenticate the user
+      getServerWalletPrivateKey(accountId).then(async ({ privateKey, error: walletError }) => {
+        if (walletError) {
+          logger.error('API', 'Error getting server wallet', { accountId, error: walletError });
+          return res.status(401).json({ error: `Server wallet access error: ${walletError}` });
+        }
+        
+        if (!privateKey) {
+          logger.error('API', 'No private key returned', { accountId });
+          return res.status(404).json({ error: 'Server wallet not found or not accessible' });
+        }
+        
+        logger.info('API', 'Successfully retrieved server wallet private key', { accountId });
+        
+        try {
+          // Fetch agent details and character data
+          const { agent, character, feeInHbar, error: fetchError } = await fetchAgentAndCharacterData(agentAddress);
+          
+          if (fetchError || !character) {
+            return res.status(404).json({ error: fetchError || 'Failed to retrieve character data' });
+          }
+          
+          // Create user client using the decrypted private key
+          const userClient = createUserClient(accountId, privateKey);
+          const userAccountId = AccountId.fromString(accountId);
+          
+          // Create the HIP-991 agent for this user and character
+          const hip991Agent = await initializeAgent(
+            state.serverClient!,                   // Server client
+            AccountId.fromString(process.env.HEDERA_ACCOUNT_ID!), // Server account ID
+            PrivateKey.fromStringECDSA(process.env.HEDERA_PRIVATE_KEY!), // Server key
+            userAccountId,                         // User account ID
+            userClient.operatorPublicKey,          // User public key
+            character,                             // Character
+            feeInHbar                              // Dynamic fee from agent configuration
+          );
+          
+          res.json({
+            status: 'success',
+            message: `Agent initialized with character ${character.name}`,
+            agent: {
+              agentAddress,
+              characterName: character.name,
+              inboundTopicId: hip991Agent.inboundTopicId,
+              outboundTopicId: hip991Agent.outboundTopicId,
+              greeting: character.first_mes,
+              feePerMessage: feeInHbar
+            }
           });
-        } else {
-          res.status(404).json({ error: 'Character not found or could not be loaded' });
+        } catch (error) {
+          logger.error('API', 'Error initializing agent', error);
+          res.status(500).json({ 
+            error: `Error initializing agent: ${error instanceof Error ? error.message : String(error)}` 
+          });
         }
       }).catch(error => {
-        logger.error('API', 'Error initializing character', error);
-        res.status(500).json({ error: 'Error initializing character' });
+        logger.error('API', 'Unexpected error in server wallet retrieval', error);
+        res.status(500).json({ 
+          error: `Unexpected error retrieving server wallet: ${error instanceof Error ? error.message : String(error)}` 
+        });
       });
     });
     
-    // Chat endpoint
-    app.post('/chat', function(req: Request, res: Response) {
+    // Chat endpoint using HIP-991 topics
+    app.post('/chat', (req: Request, res: Response) => {
       const { message } = req.body;
       
       if (!message) {
         return res.status(400).json({ error: 'Message is required' });
       }
       
-      processInput(message).then(response => {
-        res.json({ response });
+      // Get the account ID from headers
+      const accountId = req.headers['account-id'] as string;
+      
+      if (!accountId) {
+        return res.status(400).json({ error: 'account-id header is required' });
+      }
+      
+      // Check if this user has an active agent
+      if (!hasActiveAgent(accountId)) {
+        return res.status(400).json({ 
+          error: 'No active agent initialized. Please initialize an agent first using the /initialize endpoint.' 
+        });
+      }
+      
+      // First get the server wallet private key
+      getServerWalletPrivateKey(accountId).then(async ({ privateKey, error }) => {
+        if (error) {
+          logger.error('API', 'Error getting server wallet', { accountId, error });
+          return res.status(401).json({ error: `Server wallet access error: ${error}` });
+        }
+        
+        if (!privateKey) {
+          logger.error('API', 'No private key returned', { accountId });
+          return res.status(404).json({ error: 'Server wallet not found or not accessible' });
+        }
+        
+        logger.info('API', 'Successfully retrieved server wallet private key', { accountId });
+        
+        try {
+          // Create user client using the decrypted private key
+          const userClient = createUserClient(accountId, privateKey);
+          
+          // Get the agent for this user
+          const agent = getAgentByUserId(accountId);
+          if (!agent) {
+            return res.status(400).json({ 
+              error: 'No active agent found. Please initialize an agent first using the /initialize endpoint.' 
+            });
+          }
+          
+          // Send the message to the agent's inbound topic
+          const { messageId, responseId, responsePromise } = await sendUserMessage(
+            userClient,
+            agent,
+            message
+          );
+          
+          // Return immediately with the message IDs
+          res.json({
+            status: 'success',
+            message: 'Message sent successfully',
+            messageId,
+            responseId,
+            outboundTopicId: agent.outboundTopicId,
+            characterName: agent.character.name
+          });
+          
+          // The response will be processed asynchronously by the agent
+          // The user can retrieve it with the /viewresponse endpoint
+        } catch (error) {
+          logger.error('API', 'Error sending message', error);
+          res.status(500).json({ 
+            error: `Error sending message: ${error instanceof Error ? error.message : String(error)}` 
+          });
+        }
       }).catch(error => {
-        logger.error('API', 'Error processing chat request', error);
-        res.status(500).json({ error: 'Error processing your request' });
+        logger.error('API', 'Unexpected error in server wallet retrieval', error);
+        res.status(500).json({ 
+          error: `Unexpected error retrieving server wallet: ${error instanceof Error ? error.message : String(error)}` 
+        });
+      });
+    });
+    
+    // Get response endpoint
+    app.get('/viewresponse/:messageId', (req: Request, res: Response) => {
+      const { messageId } = req.params;
+      
+      if (!messageId) {
+        return res.status(400).json({ error: 'Message ID is required' });
+      }
+      
+      // Get the account ID from headers
+      const accountId = req.headers['account-id'] as string;
+      
+      if (!accountId) {
+        return res.status(400).json({ error: 'account-id header is required' });
+      }
+      
+      // Check if this user has an active agent
+      if (!hasActiveAgent(accountId)) {
+        return res.status(400).json({ 
+          error: 'No active agent initialized. Please initialize an agent first.' 
+        });
+      }
+      
+      // Get the message from the cache
+      const message = getMessage(messageId);
+      
+      if (!message) {
+        return res.status(404).json({ error: 'Message not found' });
+      }
+      
+      res.json({
+        status: 'success',
+        message
+      });
+    });
+    
+    // Destruct/cleanup agent endpoint
+    app.post('/destruct', (req: Request, res: Response) => {
+      // Get the account ID from headers
+      const accountId = req.headers['account-id'] as string;
+      
+      if (!accountId) {
+        return res.status(400).json({ error: 'account-id header is required' });
+      }
+      
+      // Check if this user has an active agent
+      if (!hasActiveAgent(accountId)) {
+        return res.status(400).json({ 
+          error: 'No active agent to destruct.' 
+        });
+      }
+      
+      // Destroy the agent
+      destroyAgent(state.serverClient!, accountId).then(success => {
+        if (success) {
+          res.json({
+            status: 'success',
+            message: 'Agent destroyed successfully'
+          });
+        } else {
+          res.status(500).json({ error: 'Failed to destroy agent' });
+        }
+      }).catch(error => {
+        logger.error('API', 'Error destroying agent', error);
+        res.status(500).json({ 
+          error: `Error destroying agent: ${error instanceof Error ? error.message : String(error)}` 
+        });
       });
     });
     
     // List available characters
-    app.get('/characters', function(req: Request, res: Response) {
+    app.get('/characters', (req: Request, res: Response) => {
       try {
         const characters = listCharactersWithInfo();
         res.json({ characters });
@@ -539,6 +951,58 @@ async function startServer() {
         logger.error('API', 'Error listing characters', error);
         res.status(500).json({ error: 'Error listing characters' });
       }
+    });
+    
+    // Check server wallet status
+    app.get('/wallet-status', (req: Request, res: Response) => {
+      // Get the account ID from headers
+      const accountId = req.headers['account-id'] as string;
+      
+      if (!accountId) {
+        return res.status(400).json({ error: 'account-id header is required' });
+      }
+      
+      // Check the server wallet status
+      publicClient.readContract({
+        address: FRANKY_ADDRESS as `0x${string}`,
+        abi: FRANKY_ABI,
+        functionName: "serverWalletsMapping",
+        args: [accountId]
+      }).then((serverWalletData) => {
+        // Cast the result to match our ServerWallet interface
+        const serverWallet = serverWalletData as unknown as {
+          owner: string;
+          walletAddress: string;
+          encryptedPrivateKey: string;
+          privateKeyHash: string;
+        };
+        
+        const isConfigured = serverWallet.walletAddress && 
+                             serverWallet.walletAddress !== '0x0000000000000000000000000000000000000000';
+        
+        // Check if user has an active agent
+        const hasAgent = hasActiveAgent(accountId);
+        const agent = getAgentByUserId(accountId);
+        
+        res.json({
+          accountId,
+          serverWalletConfigured: isConfigured,
+          serverWalletAddress: isConfigured ? serverWallet.walletAddress : null,
+          hasEncryptedKey: isConfigured && serverWallet.encryptedPrivateKey ? true : false,
+          hasActiveAgent: hasAgent,
+          agentInfo: hasAgent && agent ? {
+            characterName: agent.character.name,
+            characterId: agent.character.id,
+            inboundTopicId: agent.inboundTopicId,
+            outboundTopicId: agent.outboundTopicId
+          } : null
+        });
+      }).catch((error) => {
+        logger.error('API', 'Error checking server wallet status', error);
+        res.status(500).json({ 
+          error: `Error checking server wallet status: ${error instanceof Error ? error.message : String(error)}`
+        });
+      });
     });
     
     // Start the server
