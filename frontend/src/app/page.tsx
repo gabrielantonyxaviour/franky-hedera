@@ -144,7 +144,7 @@ export default function Home() {
               Green AI Agents
             </h1>
             <p className="text-xl md:text-2xl mb-10 text-[#AAAAAA] max-w-3xl mx-auto">
-              Recycle your old mobile devices into AI agents and earn $FIL.
+              Recycle your old mobile devices into AI agents and earn $HBAR.
             </p>
 
             <div className="flex flex-col md:flex-row justify-center gap-6 md:gap-8">
@@ -174,7 +174,7 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
               <OptionCard
                 title="Convert Your Device"
-                description="Turn your old mobile device into an AI agent hosting service and earn $FIL tokens."
+                description="Turn your old mobile device into an AI agent hosting service and earn $HBAR tokens."
                 icon={
                   <svg
                     width="64"

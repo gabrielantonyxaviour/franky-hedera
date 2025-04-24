@@ -250,7 +250,7 @@ export default function DevicesPage() {
                       <div className="mt-3">
                         <span className={labelStyle}>Hosting Fee</span>
                         <p className="text-white/80 text-sm">
-                          {parseInt(device.hostingFee) > 0 ? `${formatEther(BigInt(device.hostingFee))} $FIL` : 'Free'}
+                          {parseInt(device.hostingFee) > 0 ? `${formatEther(BigInt(device.hostingFee))} $HBAR` : 'Free'}
                         </p>
                       </div>
 

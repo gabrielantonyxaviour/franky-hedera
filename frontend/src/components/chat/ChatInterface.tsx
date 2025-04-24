@@ -86,7 +86,7 @@ const DeployDeviceInfo = () => {
   return (
     <div className="mt-4 space-y-4">
       <p className="text-[#AAAAAA] mb-4">
-        Here's how you can deploy your mobile device to earn $FIL by hosting AI agents:
+        Here's how you can deploy your mobile device to earn $HBAR by hosting AI agents:
       </p>
 
       <InstructionStep

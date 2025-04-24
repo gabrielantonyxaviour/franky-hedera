@@ -329,7 +329,7 @@ export default function SignIn({ setOpen }: {
                         Green AI Agents
                     </h1>
                     <p className="text-xl md:text-2xl mb-10 text-[#AAAAAA] max-w-3xl mx-auto">
-                        Recycle your old mobile devices into AI agents and earn $FIL.
+                        Recycle your old mobile devices into AI agents and earn $HBAR.
                     </p>
                 </motion.div>
             )}

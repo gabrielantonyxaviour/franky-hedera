@@ -280,7 +280,7 @@ const DeviceVerification = () => {
             {/* Integrated hosting fee input section */}
             <div className="p-4 rounded-lg bg-emerald-900/20 border border-emerald-400/30 mb-4">
               <label htmlFor="hostingFee" className="block text-emerald-300 text-sm font-medium mb-2">
-                Hosting Fee ($FIL)
+                Hosting Fee ($HBAR)
               </label>
               <div className="relative">
                 <input
@@ -293,7 +293,7 @@ const DeviceVerification = () => {
                   autoFocus
                 />
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <span className="text-emerald-400">$FIL</span>
+                  <span className="text-emerald-400">$HBAR</span>
                 </div>
               </div>
 

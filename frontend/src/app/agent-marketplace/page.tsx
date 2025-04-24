@@ -141,7 +141,7 @@ const AgentCard = ({ keyVal, agent, onClick }: { keyVal: string, agent: Agent, o
       <div className="space-y-4 flex-grow">
         <div className="flex items-center text-[#CCCCCC]">
           <FiDollarSign className="mr-2 text-[#00FF88]" />
-          <span>Fee per API Call: <span className="text-[#00FF88] font-medium">{agent.perApiCallFee} $FIL</span></span>
+          <span>Fee per API Call: <span className="text-[#00FF88] font-medium">{agent.perApiCallFee} $HBAR</span></span>
         </div>
 
         <div className="flex items-center text-[#CCCCCC]">
@@ -385,7 +385,7 @@ const PreviewModal = ({
             <div className="mb-6 space-y-3">
               <div className="flex items-center text-[#CCCCCC]">
                 <FiDollarSign className="mr-2 text-[#00FF88]" />
-                <span>Fee per API Call: <span className="text-[#00FF88] font-medium">{agent.perApiCallFee} $FIL</span></span>
+                <span>Fee per API Call: <span className="text-[#00FF88] font-medium">{agent.perApiCallFee} $HBAR</span></span>
               </div>
 
               <div className="flex items-center text-[#CCCCCC]">
@@ -558,7 +558,7 @@ export default function AgentMarketplacePage() {
               Each agent has unique capabilities and can be used for a small fee.
             </p>
             <p className="text-lg mb-12 text-emerald-400 max-w-4xl mx-auto">
-              Pay per API call in $FIL tokens to interact with these agents.
+              Pay per API call in $HBAR tokens to interact with these agents.
             </p>
           </motion.div>
         </div>

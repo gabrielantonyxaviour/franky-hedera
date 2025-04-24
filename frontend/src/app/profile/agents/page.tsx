@@ -266,7 +266,7 @@ export default function AgentsPage() {
                       <div className="grid grid-cols-2 gap-4 mt-3">
                         <div>
                           <span className={labelStyle}>Per API Call Fee</span>
-                          <p className="text-white/80 text-sm">{agent.perApiCallFee} $FIL</p>
+                          <p className="text-white/80 text-sm">{agent.perApiCallFee} $HBAR</p>
                         </div>
                         <div>
                           <span className={labelStyle}>Visibility</span>

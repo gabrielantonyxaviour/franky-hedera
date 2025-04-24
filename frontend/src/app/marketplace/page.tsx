@@ -353,7 +353,7 @@ export default function MarketplacePage() {
               These devices have been registered on-chain and are ready to run your agents.
             </p>
             <p className="text-lg mb-12 text-emerald-400 max-w-4xl mx-auto">
-              Each device shows its hosting fee in $FIL tokens - this is what you'll pay to deploy your agent to the device.
+              Each device shows its hosting fee in $HBAR tokens - this is what you'll pay to deploy your agent to the device.
             </p>
           </motion.div>
         </div>
