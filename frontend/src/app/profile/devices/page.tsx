@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { usePrivy } from '@privy-io/react-auth'
 import { formatEther } from 'viem'
+import { useWalletInterface } from '@/hooks/use-wallet-interface'
 
 interface Device {
   id: number
@@ -31,7 +31,6 @@ const valueStyle = "text-white text-lg font-medium"
 const emptyStateStyle = "text-white/60 italic text-center mt-12"
 
 export default function DevicesPage() {
-  const { user } = usePrivy()
   const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -40,22 +39,21 @@ export default function DevicesPage() {
     functionSelector: string;
     allSelectors: { selector: string, from: string }[];
   } | null>(null)
-
+  const { accountId } = useWalletInterface()
   // Fix hydration issues by waiting for component to mount
   useEffect(() => {
     setMounted(true)
   }, [])
 
   useEffect(() => {
-    if (mounted && user && user.wallet) {
+    if (mounted && accountId) {
       setLoading(true)
-      fetchDevices(user.wallet.address)
+      fetchDevices(accountId)
     }
-  }, [user, mounted])
+  }, [accountId, mounted])
 
   const fetchDevices = async (walletAddress: string) => {
-    if (!user) return
-    if (!user.wallet) return
+    if (!accountId) return
     setLoading(true)
     setError(null)
     setDebugInfo(null)
@@ -146,25 +144,25 @@ export default function DevicesPage() {
           </motion.div>
         </div>
 
-        {!user?.wallet && (
+        {accountId && (
           <div className="text-center py-20 text-white/70">
             <p className="text-xl">Please connect your wallet to view your devices</p>
           </div>
         )}
 
-        {user?.wallet && loading && (
+        {accountId && loading && (
           <div className="text-center py-20 text-white/70">
             <div className="w-12 h-12 border-4 border-[#00FF88]/20 border-t-[#00FF88] rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-xl">Loading your devices...</p>
           </div>
         )}
 
-        {user?.wallet && !loading && error && (
+        {accountId && !loading && error && (
           <div className="text-center py-20 text-red-400">
             <p className="text-xl">Error loading devices</p>
             <p className="text-sm mt-2">{error}</p>
             <button
-              onClick={() => fetchDevices(user?.wallet?.address || '')}
+              onClick={() => fetchDevices(accountId || '')}
               className="mt-4 px-4 py-2 bg-[#00FF88]/20 text-[#00FF88] rounded-lg hover:bg-[#00FF88]/30 transition-colors"
             >
               Try Again
@@ -172,7 +170,7 @@ export default function DevicesPage() {
           </div>
         )}
 
-        {user?.wallet && !loading && !error && (
+        {accountId && !loading && !error && (
           <div className="max-w-3xl mx-auto">
             {/* Devices List */}
             <motion.div

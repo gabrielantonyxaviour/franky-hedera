@@ -6,8 +6,8 @@ import Link from 'next/link'
 import Header from '@/components/ui/Header'
 import { FiCpu, FiHash, FiDollarSign, FiUser, FiUserCheck, FiX, FiCopy, FiCheck } from 'react-icons/fi'
 import { getApiKey } from '@/utils/apiKey'
-import { usePrivy, useSignMessage } from '@privy-io/react-auth'
 import { formatEther, Hex } from 'viem'
+import { useWalletInterface } from '@/hooks/use-wallet-interface'
 
 // Define agent interface
 interface Agent {
@@ -202,11 +202,9 @@ const PreviewModal = ({
   const [keyError, setKeyError] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
-  const { user } = usePrivy();
-  const { signMessage } = useSignMessage()
-
+  const { accountId } = useWalletInterface()
   const handlePurchase = async () => {
-    if (!agent || !user || !user.wallet) return;
+    if (!agent || !accountId) return;
 
     try {
       setIsPurchasing(true);
@@ -215,13 +213,14 @@ const PreviewModal = ({
         console.log('Generating API key for agent:', agent.agentAddress);
 
         // Generate API key using the agent address and wallet address
-        const key = await getApiKey(
-          agent.agentAddress,
-          user.wallet.address as Hex,
-          signMessage
-        );
+        // TODO: Sign Message flow setup
+        // const key = await getApiKey(
+        //   agent.agentAddress,
+        //   accountId as Hex,
+        //   signMessage
+        // );
 
-        setApiKey(key);
+        // setApiKey(key);
         setKeyError(null);
       } catch (error: any) {
         console.error('Error generating API key:', error);
@@ -445,9 +444,9 @@ const PreviewModal = ({
                   </p>
                   <button
                     onClick={handlePurchase}
-                    disabled={!user?.wallet || isPurchasing}
+                    disabled={accountId != null || isPurchasing}
                     className={`py-2 px-6 rounded-lg text-center 
-                      ${(!user?.wallet)
+                      ${(accountId)
                         ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                         : 'bg-[#00FF88]/20 text-[#00FF88] hover:bg-[#00FF88]/30'
                       } transition-colors flex items-center justify-center`}
@@ -462,7 +461,7 @@ const PreviewModal = ({
                     )}
                   </button>
 
-                  {!user?.wallet && (
+                  {accountId && (
                     <p className="text-sm text-yellow-400 mt-2">
                       Your wallet must be connected to generate an API key.
                     </p>

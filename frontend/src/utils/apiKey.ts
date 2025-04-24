@@ -1,7 +1,6 @@
 import { createPublicClient, Hex, hexToBytes, http } from 'viem';
 import { base58 } from '@scure/base';
 import { base, baseSepolia, filecoinCalibration } from 'viem/chains';
-import { SignMessageModalUIOptions } from '@privy-io/react-auth';
 import { FRANKY_ABI } from '@/lib/constants';
 
 const FRANKY_ADDRESS = '0x486989cd189ED5DB6f519712eA794Cee42d75b29';
@@ -40,7 +39,7 @@ export async function getApiKey(
     signMessage: (input: {
         message: string;
     }, options?: {
-        uiOptions?: SignMessageModalUIOptions;
+        uiOptions?: any;
         address?: string;
     }) => Promise<{
         signature: string;

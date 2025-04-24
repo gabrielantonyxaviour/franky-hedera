@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
-import { usePrivy } from '@privy-io/react-auth'
 import { formatEther } from 'viem'
+import { useWalletInterface } from '@/hooks/use-wallet-interface'
 
 // Define interface types for our data
 interface Agent {
@@ -41,34 +41,32 @@ const valueStyle = "text-white text-lg font-medium"
 const emptyStateStyle = "text-white/60 italic text-center mt-12"
 
 export default function AgentsPage() {
-  const { user } = usePrivy()
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
-
+  const { accountId } = useWalletInterface()
   // Fix hydration issues by waiting for component to mount
   useEffect(() => {
     setMounted(true)
   }, [])
 
   useEffect(() => {
-    if (mounted && user && user.wallet) {
+    if (mounted && accountId) {
       setLoading(true)
       fetchAgents()
     }
-  }, [user, mounted])
+  }, [accountId, mounted])
 
   const fetchAgents = async () => {
-    if (!user) return
-    if (!user.wallet) return
+    if (!accountId) return
 
     setLoading(true)
     setError(null)
 
     try {
-      const agentsRequest = await fetch("/api/graph/agents-by-owner?address=" + user.wallet.address)
+      const agentsRequest = await fetch("/api/graph/agents-by-owner?address=" + accountId.toLocaleLowerCase())
       if (!agentsRequest.ok) {
         setLoading(false)
         setError("Failed to fetch agents")
@@ -152,20 +150,20 @@ export default function AgentsPage() {
           </motion.div>
         </div>
 
-        {!user && (
+        {!accountId && (
           <div className="text-center py-20 text-white/70">
             <p className="text-xl">Please connect your wallet to view your agents</p>
           </div>
         )}
 
-        {user && loading && (
+        {accountId && loading && (
           <div className="text-center py-20 text-white/70">
             <div className="w-12 h-12 border-4 border-[#00FF88]/20 border-t-[#00FF88] rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-xl">Loading your agents...</p>
           </div>
         )}
 
-        {user && !loading && error && (
+        {accountId && !loading && error && (
           <div className="text-center py-20 text-red-400">
             <p className="text-xl">Error loading agents</p>
             <p className="text-sm mt-2">{error}</p>
@@ -178,7 +176,7 @@ export default function AgentsPage() {
           </div>
         )}
 
-        {user && !loading && !error && (
+        {accountId && !loading && !error && (
           <div className="max-w-3xl mx-auto">
             <motion.div
               className="space-y-4"

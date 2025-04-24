@@ -18,26 +18,53 @@ const currentNetworkConfig = appConfig.networks.testnet;
 const hederaNetwork = currentNetworkConfig.network;
 const hederaClient = Client.forName(hederaNetwork);
 
-// Adapted from walletconnect dapp example:
-// https://github.com/hashgraph/hedera-wallet-connect/blob/main/src/examples/typescript/dapp/main.ts#L87C1-L101C4
-const metadata: SignClientTypes.Metadata = {
+// Create getter functions instead of module-level variables that access window
+const getMetadata = (): SignClientTypes.Metadata => ({
     name: "Hedera CRA Template",
     description: "Hedera CRA Template",
-    url: window.location.origin,
-    icons: [window.location.origin + "/logo192.png"],
-}
-const dappConnector = new DAppConnector(
-    metadata,
-    LedgerId.fromString(hederaNetwork),
-    walletConnectProjectId,
-    Object.values(HederaJsonRpcMethod),
-    [HederaSessionEvent.ChainChanged, HederaSessionEvent.AccountsChanged],
-    [HederaChainId.Testnet],
-);
+    url: typeof window !== 'undefined' ? window.location.origin : '',
+    icons: [typeof window !== 'undefined' ? window.location.origin + "/logo192.png" : ''],
+});
+
+// Lazy initialization of DAppConnector
+let dappConnectorInstance: DAppConnector | null = null;
+
+const getDappConnector = () => {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    return new DAppConnector(
+        getMetadata(),
+        LedgerId.fromString(hederaNetwork),
+        walletConnectProjectId,
+        Object.values(HederaJsonRpcMethod),
+        [HederaSessionEvent.ChainChanged, HederaSessionEvent.AccountsChanged],
+        [HederaChainId.Testnet],
+    );
+};
+
+// Get singleton instance of DAppConnector
+const getDappConnectorInstance = () => {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    if (!dappConnectorInstance) {
+        dappConnectorInstance = getDappConnector();
+    }
+
+    return dappConnectorInstance;
+};
 
 // ensure walletconnect is initialized only once
 let walletConnectInitPromise: Promise<void> | undefined = undefined;
 const initializeWalletConnect = async () => {
+    const dappConnector = getDappConnectorInstance();
+    if (!dappConnector) {
+        throw new Error("DAppConnector not available");
+    }
+
     if (walletConnectInitPromise === undefined) {
         walletConnectInitPromise = dappConnector.init();
     }
@@ -46,14 +73,20 @@ const initializeWalletConnect = async () => {
 
 export const openWalletConnectModal = async () => {
     await initializeWalletConnect();
-    await dappConnector.openModal().then((x) => {
+    const dappConnector = getDappConnectorInstance();
+    if (!dappConnector) {
+        throw new Error("DAppConnector not available");
+    }
+
+    await dappConnector.openModal().then(() => {
         refreshEvent.emit("sync");
     });
 };
 
 class WalletConnectWallet implements WalletInterface {
     private getSigner() {
-        if (dappConnector.signers.length === 0) {
+        const dappConnector = getDappConnectorInstance();
+        if (!dappConnector || dappConnector.signers.length === 0) {
             throw new Error('No signers found!');
         }
         return dappConnector.signers[0];
@@ -123,12 +156,17 @@ class WalletConnectWallet implements WalletInterface {
         // after getting the contract call results, use ethers and abi.decode to decode the call_result
         return txResult ? txResult.transactionId : null;
     }
+
     disconnect() {
-        dappConnector.disconnectAll().then(() => {
-            refreshEvent.emit("sync");
-        });
+        const dappConnector = getDappConnectorInstance();
+        if (dappConnector) {
+            dappConnector.disconnectAll().then(() => {
+                refreshEvent.emit("sync");
+            });
+        }
     }
 };
+
 export const walletConnectWallet = new WalletConnectWallet();
 
 // this component will sync the walletconnect state with the context
@@ -138,6 +176,11 @@ export const WalletConnectClient = () => {
 
     // sync the walletconnect state with the context
     const syncWithWalletConnectContext = useCallback(() => {
+        const dappConnector = getDappConnectorInstance();
+        if (!dappConnector) {
+            return;
+        }
+
         const accountId = dappConnector.signers[0]?.getAccountId()?.toString();
         if (accountId) {
             setAccountId(accountId);
@@ -152,13 +195,16 @@ export const WalletConnectClient = () => {
         // Sync after walletconnect finishes initializing
         refreshEvent.addListener("sync", syncWithWalletConnectContext);
 
-        initializeWalletConnect().then(() => {
-            syncWithWalletConnectContext();
-        });
+        if (typeof window !== 'undefined') {
+            initializeWalletConnect().then(() => {
+                syncWithWalletConnectContext();
+            }).catch(console.error);
+        }
 
         return () => {
             refreshEvent.removeListener("sync", syncWithWalletConnectContext);
         }
     }, [syncWithWalletConnectContext]);
+
     return null;
 };

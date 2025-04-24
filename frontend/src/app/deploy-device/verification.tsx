@@ -1,0 +1,407 @@
+'use client'
+import { useWalletInterface } from "@/hooks/use-wallet-interface"
+import { useSearchParams } from "next/navigation"
+import { useEffect, useState } from "react"
+import { motion } from 'framer-motion'
+import { FiCheck } from "react-icons/fi"
+import GlowButton from "@/components/ui/GlowButton"
+import { toast } from "sonner"
+import { ContractFunctionParameterBuilder } from "@/utils/param-builder"
+import { parseEther } from "viem"
+import { ContractId } from "@hashgraph/sdk"
+import { FRANKY_CONTRACT_ID } from "@/lib/constants"
+import { publicClient } from "@/lib/utils"
+
+export const DeviceVerification = () => {
+    const [showDeviceModal, setShowDeviceModal] = useState(false)
+    const [hostingFee, setHostingFee] = useState<string>("0")
+    const [isRegistering, setIsRegistering] = useState(false)
+    const [deviceDetails, setDeviceDetails] = useState<{
+        deviceModel: string;
+        ram: string;
+        storage: string;
+        cpu: string;
+        ngrokLink: string;
+        walletAddress: string;
+        bytes32Data: string;
+        signature?: string;
+    } | null>(null)
+    const [transactionHash, setTransactionHash] = useState<`0x${string}` | undefined>(undefined)
+    const [transactionError, setTransactionError] = useState<string | null>(null)
+    const searchParams = useSearchParams();
+    const { accountId, walletInterface } = useWalletInterface()
+
+    useEffect(() => {
+        if (!searchParams) return
+        const deviceModel = searchParams.get('deviceModel')
+        const ram = searchParams.get('ram')
+        const storage = searchParams.get('storage')
+        const cpu = searchParams.get('cpu')
+        const ngrokLink = searchParams.get('ngrokLink')
+        const walletAddress = searchParams.get('walletAddress')
+        const bytes32Data = searchParams.get('bytes32Data')
+        const signature = searchParams.get('signature')
+        console.log({
+            deviceModel,
+            ram,
+            storage,
+            cpu,
+            ngrokLink,
+            walletAddress,
+            bytes32Data,
+            signature: signature || undefined
+        })
+        // Check if all required parameters are present
+        if (deviceModel && ram && storage && ngrokLink && walletAddress && bytes32Data) {
+            // Store device details for display in the modal
+            setDeviceDetails({
+                deviceModel,
+                ram,
+                storage,
+                cpu: "",
+                ngrokLink,
+                walletAddress,
+                bytes32Data,
+                signature: signature || undefined
+            })
+
+            // Don't automatically show modal - wait for wallet connection
+            console.log('Device parameters detected in URL')
+        } else {
+            console.log('Some device parameters are missing from the URL')
+        }
+    }, [searchParams])
+
+    // Handle hosting fee input change
+    const handleHostingFeeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value
+        // Allow numeric values including decimals
+        if (/^\d*\.?\d*$/.test(value)) {
+            setHostingFee(value)
+        }
+    }
+
+    // Render the 5th step
+    return (
+        <section className="py-10 px-6">
+            {/* Device Verification Modal */}
+            {deviceDetails && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 overflow-auto">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="relative max-w-md w-full rounded-xl border border-[#00FF88] border-opacity-50 bg-black/90 backdrop-blur-sm p-5 max-h-[90vh] overflow-y-auto"
+                    >
+                        {/* Close button - moved to top-right corner of the header for better usability */}
+                        <button
+                            onClick={() => {
+                                // Close the modal
+                                setShowDeviceModal(false);
+
+                                // Remove URL parameters by replacing current URL with base URL
+                                if (typeof window !== 'undefined') {
+                                    const baseUrl = window.location.pathname;
+                                    window.history.replaceState({}, document.title, baseUrl);
+
+                                    // Also reset device details state
+                                    setDeviceDetails(null);
+                                }
+                            }}
+                            className="absolute top-3 right-3 text-gray-400 hover:text-white h-7 w-7 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/70 transition-colors"
+                            aria-label="Close modal"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+
+                        <h3 className="text-xl font-bold bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent mb-3 pr-8">
+                            Verify Device
+                        </h3>
+
+                        {/* Connected wallet info card - Showing this first as it's most relevant for verification */}
+                        <div className="p-3 rounded-lg bg-[#00FF88]/10 border border-[#00FF88]/30 mb-4">
+                            <div className="flex items-center mb-1">
+                                <div className="flex justify-center items-center h-6 w-6 rounded-full bg-[#00FF88]/20 mr-2">
+                                    <FiCheck className="text-[#00FF88] text-sm" />
+                                </div>
+                                <span className="text-[#00FF88] text-sm font-medium">Wallet Status</span>
+                                <span className="ml-auto text-xs bg-[#00FF88]/20 px-2 py-0.5 rounded-full text-[#00FF88]">
+                                    {accountId ? 'Connected' : 'Not Connected'}
+                                </span>
+                            </div>
+                            <div className="text-xs text-gray-400 ml-8">
+                                <p className="flex justify-between">
+                                    <span className="text-gray-300">Address:</span>
+                                    <span className="text-[#00FF88]">
+                                        {accountId ? `${accountId.substring(0, 6)}...${accountId.substring(accountId.length - 4)}` : 'Not connected'}
+                                    </span>
+                                </p>
+
+                            </div>
+                        </div>
+
+                        {/* Integrated hosting fee input section */}
+                        <div className="p-4 rounded-lg bg-emerald-900/20 border border-emerald-400/30 mb-4">
+                            <label htmlFor="hostingFee" className="block text-emerald-300 text-sm font-medium mb-2">
+                                Hosting Fee ($HBAR)
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    id="hostingFee"
+                                    value={hostingFee}
+                                    onChange={handleHostingFeeChange}
+                                    className="w-full p-3 text-lg font-medium rounded-lg bg-black/50 border border-emerald-400/30 text-white focus:outline-none focus:border-emerald-400/80 transition-colors"
+                                    placeholder="Enter amount"
+                                    autoFocus
+                                />
+                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                    <span className="text-emerald-400">$HBAR</span>
+                                </div>
+                            </div>
+
+                            <p className="mt-2 text-xs text-gray-400">
+                                Payment you'll receive when someone deploys an agent to your device.
+                            </p>
+                        </div>
+
+                        {/* Device details in a compact accordion/tabs style */}
+                        <div className="space-y-2 mb-4">
+                            <details className="group rounded-lg bg-black/50 border border-gray-800 overflow-hidden">
+                                <summary className="flex cursor-pointer list-none items-center justify-between p-2 font-medium">
+                                    <div className="flex items-center">
+                                        <span className="text-emerald-400 mr-2">📱</span>
+                                        <span>Device Specs</span>
+                                    </div>
+                                    <span className="transition group-open:rotate-180">
+                                        <svg fill="none" height="16" width="16" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path d="M6 9l6 6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                                        </svg>
+                                    </span>
+                                </summary>
+                                <div className="p-2 pt-0 text-xs space-y-1">
+                                    <div className="flex justify-between py-1 border-t border-gray-700">
+                                        <span className="text-gray-400">Model</span>
+                                        <span className="text-[#00FF88]">{deviceDetails.deviceModel}</span>
+                                    </div>
+                                    <div className="flex justify-between py-1 border-t border-gray-700">
+                                        <span className="text-gray-400">RAM</span>
+                                        <span className="text-[#00FF88]">{deviceDetails.ram}</span>
+                                    </div>
+                                    <div className="flex justify-between py-1 border-t border-gray-700">
+                                        <span className="text-gray-400">Storage</span>
+                                        <span className="text-[#00FF88]">{deviceDetails.storage}</span>
+                                    </div>
+                                    <div className="flex justify-between py-1 border-t border-gray-700">
+                                        <span className="text-gray-400">CPU</span>
+                                        <span className="text-[#00FF88]">{deviceDetails.cpu}</span>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <details className="group rounded-lg bg-black/50 border border-gray-800 overflow-hidden">
+                                <summary className="flex cursor-pointer list-none items-center justify-between p-2 font-medium">
+                                    <div className="flex items-center">
+                                        <span className="text-emerald-400 mr-2">🔗</span>
+                                        <span>Connection Details</span>
+                                    </div>
+                                    <span className="transition group-open:rotate-180">
+                                        <svg fill="none" height="16" width="16" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path d="M6 9l6 6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                                        </svg>
+                                    </span>
+                                </summary>
+                                <div className="p-2 pt-0 text-xs space-y-1">
+                                    <div className="flex justify-between py-1 border-t border-gray-700">
+                                        <span className="text-gray-400">Device Address</span>
+                                        <span className="text-[#00FF88] text-xs break-all">{deviceDetails.walletAddress.toLowerCase().substring(0, 8)}...{deviceDetails.walletAddress.toLowerCase().substring(deviceDetails.walletAddress.toLowerCase().length - 8)}</span>
+                                    </div>
+                                    <div className="flex justify-between py-1 border-t border-gray-700">
+                                        <span className="text-gray-400">Link</span>
+                                        <a href={deviceDetails.ngrokLink} target="_blank" rel="noopener noreferrer"
+                                            className="text-[#00FF88] text-xs underline hover:text-emerald-400 break-all max-w-[200px] truncate">
+                                            {deviceDetails.ngrokLink}
+                                        </a>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <details className="group rounded-lg bg-black/50 border border-gray-800 overflow-hidden">
+                                <summary className="flex cursor-pointer list-none items-center justify-between p-2 font-medium">
+                                    <div className="flex items-center">
+                                        <span className="text-emerald-400 mr-2">🔐</span>
+                                        <span>Verification Data</span>
+                                    </div>
+                                    <span className="transition group-open:rotate-180">
+                                        <svg fill="none" height="16" width="16" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path d="M6 9l6 6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                                        </svg>
+                                    </span>
+                                </summary>
+                                <div className="p-2 pt-0 text-xs space-y-1">
+                                    <div className="py-1 border-t border-gray-700">
+                                        <div className="flex justify-between mb-1">
+                                            <span className="text-gray-400">Verification Data</span>
+                                        </div>
+                                        <div className="text-xs text-gray-400 break-all bg-black/30 p-2 rounded">
+                                            {deviceDetails.bytes32Data}
+                                        </div>
+                                    </div>
+
+                                    {deviceDetails.signature && (
+                                        <div className="py-1 border-t border-gray-700">
+                                            <div className="flex justify-between mb-1">
+                                                <span className="text-gray-400">Signature</span>
+                                                <span className="text-xs text-emerald-400 px-2 py-0.5 rounded bg-emerald-900/30">Verified</span>
+                                            </div>
+                                            <div className="text-xs text-gray-400 break-all bg-black/30 p-2 rounded">
+                                                {deviceDetails.signature}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </details>
+                        </div>
+
+                        {transactionHash && transactionHash.length > 0 ? (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="p-3 rounded-lg bg-emerald-900/30 border border-emerald-400/30 text-center"
+                            >
+                                <FiCheck className="text-[#00FF88] mx-auto text-xl mb-1" />
+                                <p className="text-[#00FF88] font-medium text-sm">Device verification successful!</p>
+
+                                {deviceDetails && (
+                                    <div className="mt-2 text-sm text-emerald-300">
+                                        <p className="font-bold">Device Address: <span className="text-white text-xs break-all">{deviceDetails.walletAddress.toLowerCase()}</span></p>
+                                        <p className="text-xs mt-1 text-yellow-300 font-medium">Your device is now registered and ready to host agents</p>
+                                    </div>
+                                )}
+
+                                <div className="mt-2 text-xs text-emerald-300">
+                                    <p>Transaction confirmed on-chain</p>
+                                    <a
+                                        href={`https://hashscan.io/testnet/tx/${transactionHash}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[#00FF88] underline hover:text-emerald-200 text-xs mt-1 inline-block"
+                                    >
+                                        View
+                                    </a>
+                                </div>
+                            </motion.div>
+                        ) : (
+                            <div className="flex flex-col">
+                                {transactionError ? (
+                                    <div className="p-3 mb-3 rounded-lg bg-red-900/30 border border-red-400/30 text-center text-red-300 text-xs">
+                                        <p>{transactionError}</p>
+                                    </div>
+                                ) : <GlowButton
+                                    onClick={async () => {
+                                        if (isRegistering) return
+                                        setIsRegistering(true)
+                                        try {
+                                            if (accountId) {
+                                                console.log("User wallet detected:", accountId);
+                                                const deviceMetadata = {
+                                                    deviceModel: deviceDetails.deviceModel,
+                                                    ram: deviceDetails.ram,
+                                                    storage: deviceDetails.storage,
+                                                    cpu: deviceDetails.cpu,
+                                                    owner: accountId.toLocaleLowerCase(),
+                                                    deviceAddress: deviceDetails.walletAddress.toLowerCase(),
+                                                    ngrokUrl: deviceDetails.ngrokLink
+                                                };
+                                                console.log("Device metadata prepared:", deviceMetadata);
+
+                                                toast.info("Uploading device metadata", {
+                                                    description: "This will take a few seconds. Please wait...",
+                                                });
+
+                                                const uploadResponse = await fetch('/api/pinata/json', {
+                                                    body: JSON.stringify({
+                                                        json: deviceMetadata
+                                                    }),
+                                                    method: "POST"
+                                                })
+
+                                                const { url: metadataUrl } = await uploadResponse.json()
+
+                                                toast.info("Registering device on-chain", {
+                                                    description: "Confirm the transaction...",
+                                                });
+
+                                                const params = new ContractFunctionParameterBuilder()
+                                                    .addParam({
+                                                        type: "string",
+                                                        name: "deviceMetadata",
+                                                        value: metadataUrl
+                                                    })
+                                                    .addParam({
+                                                        type: "uint256",
+                                                        name: "hostingFee",
+                                                        value: parseEther(hostingFee)
+                                                    })
+                                                    .addParam({
+                                                        type: "address",
+                                                        name: "deviceAddress",
+                                                        value: deviceDetails.walletAddress.toLowerCase()
+                                                    })
+                                                    .addParam({
+                                                        type: "bytes32",
+                                                        name: "verificationHash",
+                                                        value: deviceDetails.bytes32Data,
+                                                    })
+                                                    .addParam({
+                                                        type: "bytes",
+                                                        name: "signature",
+                                                        value: deviceDetails.signature
+                                                    })
+
+                                                console.log("Sending transaction...");
+                                                const response = await walletInterface.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), 'registerDevice', params, 500_000)
+
+                                                console.log("Transaction Response")
+                                                console.log(response)
+                                                toast.promise(publicClient.waitForTransactionReceipt({
+                                                    hash: response,
+                                                }), {
+                                                    loading: "Waiting for confirmation...",
+                                                    success: (data) => {
+                                                        console.log("Transaction confirmed, receipt:", data);
+                                                        return `Transaction confirmed! `;
+                                                    },
+                                                    action: {
+                                                        label: "View Tx",
+                                                        onClick: () => {
+                                                            window.open(`https://hashscan.io/testnet/transaction/${response}`, "_blank");
+                                                        }
+                                                    }
+                                                });
+
+                                                setTransactionHash(response);
+                                            } else {
+                                                console.log("User wallet not detected.");
+                                            }
+                                        } catch (e) {
+                                            setTransactionError(JSON.stringify(e))
+                                        }
+
+                                    }}
+                                    className="text-sm mx-auto cursor-pointer"
+                                >
+                                    <div className="flex space-x-2 items-center">
+                                        {isRegistering && <div className='black-spinner' />}
+                                        <p className='text-[#00FF88]'>{isRegistering ? "Registering..." : "Register Device"}</p>
+                                    </div>
+                                </GlowButton>}
+                            </div>
+                        )}
+                    </motion.div>
+                </div>
+            )}
+        </section>
+    )
+}

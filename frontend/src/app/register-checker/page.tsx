@@ -3,18 +3,17 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import Header from '@/components/ui/Header'
-import { usePrivy } from '@privy-io/react-auth'
 import { Server, Shield, Clock } from 'lucide-react'
 import GlowButton from '@/components/ui/GlowButton'
+import { useWalletInterface } from '@/hooks/use-wallet-interface'
 
 export default function RegisterChecker() {
-  const { user } = usePrivy()
   const [isRegistering, setIsRegistering] = useState(false)
   const [registrationComplete, setRegistrationComplete] = useState(false)
   const [serverUrl, setServerUrl] = useState('')
-
+  const { accountId } = useWalletInterface()
   const handleRegister = async () => {
-    if (!user || !serverUrl) return;
+    if (!accountId || !serverUrl) return;
     setIsRegistering(true);
 
     try {
@@ -24,7 +23,7 @@ export default function RegisterChecker() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          walletAddress: user.wallet?.address,
+          walletAddress: accountId,
           serverUrl: serverUrl
         }),
       });
@@ -86,7 +85,7 @@ export default function RegisterChecker() {
               <div className="pt-4">
                 <GlowButton
                   onClick={handleRegister}
-                  disabled={!user || isRegistering || !serverUrl}
+                  disabled={!accountId || isRegistering || !serverUrl}
                   className="w-full"
                 >
                   {isRegistering ? 'Registering...' : 'Register Checker Node'}

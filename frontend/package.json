@@ -21,7 +21,6 @@
     "@lit-protocol/contracts": "^0.0.90",
     "@lit-protocol/encryption": "^7.0.10-alpha.0",
     "@lit-protocol/lit-node-client": "^7.0.10-alpha.0",
-    "@privy-io/react-auth": "^2.10.0",
     "@react-three/drei": "^10.0.3",
     "@react-three/fiber": "^9.0.4",
     "@reown/appkit": "^1.7.0",

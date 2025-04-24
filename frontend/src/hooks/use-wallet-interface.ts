@@ -1,3 +1,4 @@
+'use client'
 import { useContext } from "react"
 import { MetamaskContext } from "../context/metamask";
 import { WalletConnectContext } from "../context/walletconnect";
