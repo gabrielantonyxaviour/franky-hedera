@@ -163,11 +163,8 @@ const DeviceVerification = () => {
   const searchParams = useSearchParams();
   const { accountId, walletInterface } = useWalletInterface()
 
-  // Parse URL parameters on mount (client-side only)
   useEffect(() => {
-
-    // Extract URL parameters that contain device info
-
+    if (!searchParams) return
     const deviceModel = searchParams.get('deviceModel')
     const ram = searchParams.get('ram')
     const storage = searchParams.get('storage')
@@ -205,7 +202,7 @@ const DeviceVerification = () => {
     } else {
       console.log('Some device parameters are missing from the URL')
     }
-  }, [])
+  }, [searchParams])
 
   // Handle hosting fee input change
   const handleHostingFeeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -542,7 +539,7 @@ const DeviceVerification = () => {
   )
 }
 
-const DeployDevice = () => {
+export default function DeployDevice() {
   return (
     <>
       <Background />
@@ -605,5 +602,3 @@ const DeployDevice = () => {
     </>
   )
 }
-
-export default DeployDevice;
