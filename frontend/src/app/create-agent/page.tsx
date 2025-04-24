@@ -649,7 +649,7 @@ function SuccessModal({
     router.push("/");
   };
 
-  const explorerUrl = transactionHash ? `https://filecoin-testnet.blockscout.com/tx/${transactionHash}` : "";
+  const explorerUrl = transactionHash ? `https://hashscan.io/testnet/tx/${transactionHash}` : "";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
@@ -1059,7 +1059,7 @@ function CreateAgentContent() {
           action: {
             label: "View Tx",
             onClick: () => {
-              window.open(`https://filecoin-testnet.blockscout.com/tx/${hash}`, "_blank");
+              window.open(`https://hashscan.io/testnet/tx/${hash}`, "_blank");
             }
           }
         });

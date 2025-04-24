@@ -2,17 +2,17 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { motion } from 'framer-motion'
-import Header from '@/components/ui/Header'
-import { FiCopy, FiCheck, FiSmartphone, FiTerminal, FiDownload, FiServer } from 'react-icons/fi'
-import { usePrivy, useSendTransaction } from '@privy-io/react-auth'
+import { FiCopy, FiCheck, FiSmartphone, } from 'react-icons/fi'
 import { Zap } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import GlowButton from '@/components/ui/GlowButton'
 import { publicClient } from '@/lib/utils'
-import { FRANKY_ABI, FRANKY_ADDRESS, FRANKY_DEVICES_BUCKET } from '@/lib/constants'
-import { AKAVE_API_URL } from '@/lib/akave'
-import { encodeFunctionData, parseEther } from 'viem'
+import { FRANKY_CONTRACT_ID } from '@/lib/constants'
+import { parseEther } from 'viem'
 import { toast } from 'sonner'
+import { useWalletInterface } from '@/hooks/use-wallet-interface'
+import { ContractFunctionParameterBuilder } from '@/utils/param-builder'
+import { ContractId } from '@hashgraph/sdk'
 
 // CodeBlock component for displaying commands with copy functionality
 const CodeBlock = ({ code }: { code: string }) => {
@@ -147,7 +147,6 @@ const Background = () => {
 const DeviceVerification = () => {
   const [showDeviceModal, setShowDeviceModal] = useState(false)
   const [hostingFee, setHostingFee] = useState<string>("0")
-  const { sendTransaction } = useSendTransaction();
   const [isRegistering, setIsRegistering] = useState(false)
   const [deviceDetails, setDeviceDetails] = useState<{
     deviceModel: string;
@@ -162,7 +161,7 @@ const DeviceVerification = () => {
   const [transactionHash, setTransactionHash] = useState<`0x${string}` | undefined>(undefined)
   const [transactionError, setTransactionError] = useState<string | null>(null)
   const searchParams = useSearchParams();
-  const { user } = usePrivy()
+  const { accountId, walletInterface } = useWalletInterface()
 
   // Parse URL parameters on mount (client-side only)
   useEffect(() => {
@@ -263,14 +262,14 @@ const DeviceVerification = () => {
                 </div>
                 <span className="text-[#00FF88] text-sm font-medium">Wallet Status</span>
                 <span className="ml-auto text-xs bg-[#00FF88]/20 px-2 py-0.5 rounded-full text-[#00FF88]">
-                  {user ? 'Connected' : 'Not Connected'}
+                  {accountId ? 'Connected' : 'Not Connected'}
                 </span>
               </div>
               <div className="text-xs text-gray-400 ml-8">
                 <p className="flex justify-between">
                   <span className="text-gray-300">Address:</span>
                   <span className="text-[#00FF88]">
-                    {user ? `${user.wallet?.address.substring(0, 6)}...${user.wallet?.address.substring(user.wallet.address.length - 4)}` : 'Not connected'}
+                    {accountId ? `${accountId.substring(0, 6)}...${accountId.substring(accountId.length - 4)}` : 'Not connected'}
                   </span>
                 </p>
 
@@ -419,7 +418,7 @@ const DeviceVerification = () => {
                 <div className="mt-2 text-xs text-emerald-300">
                   <p>Transaction confirmed on-chain</p>
                   <a
-                    href={`https://filecoin-testnet.blockscout.com/tx/${transactionHash}`}
+                    href={`https://hashscan.io/testnet/tx/${transactionHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#00FF88] underline hover:text-emerald-200 text-xs mt-1 inline-block"
@@ -440,15 +439,16 @@ const DeviceVerification = () => {
                     if (isRegistering) return
                     setIsRegistering(true)
                     try {
-                      if (user && user.wallet) {
-                        console.log("User wallet detected:", user.wallet.address);
+                      if (accountId) {
+                        console.log("User wallet detected:", accountId);
                         const deviceMetadata = {
                           deviceModel: deviceDetails.deviceModel,
                           ram: deviceDetails.ram,
                           storage: deviceDetails.storage,
                           cpu: deviceDetails.cpu,
-                          owner: user.wallet.address,
-                          deviceAddress: deviceDetails.walletAddress.toLowerCase()
+                          owner: accountId.toLocaleLowerCase(),
+                          deviceAddress: deviceDetails.walletAddress.toLowerCase(),
+                          ngrokUrl: deviceDetails.ngrokLink
                         };
                         console.log("Device metadata prepared:", deviceMetadata);
 
@@ -456,82 +456,53 @@ const DeviceVerification = () => {
                           description: "This will take a few seconds. Please wait...",
                         });
 
-                        let fileName = '';
-                        try {
-                          console.log("Checking if metadata already exists...");
-                          const dataRequest = await fetch(`/api/akave/get-json?file-name=${deviceDetails.walletAddress.toLowerCase()}&bucket-name=${FRANKY_DEVICES_BUCKET}`);
-                          if (!dataRequest.ok) {
-                            throw new Error('Failed to fetch data');
-                          }
-                          const data = await dataRequest.json();
-                          if (!data) throw new Error("Metadata not found");
-                          fileName = deviceDetails.walletAddress.toLowerCase();
-                          console.log("Metadata already exists with fileName:", fileName);
-                        } catch (e) {
-                          console.log("Metadata not found, uploading new metadata...");
-                          fetch('/api/akave/upload-json-with-filename', {
-                            method: 'POST',
-                            headers: {
-                              'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                              jsonData: deviceMetadata,
-                              bucketName: FRANKY_DEVICES_BUCKET,
-                              userAddress: deviceDetails.walletAddress.toLowerCase()
-                            })
-                          });
+                        const uploadResponse = await fetch('/api/pinata/json', {
+                          body: JSON.stringify({
+                            json: deviceMetadata
+                          }),
+                          method: "POST"
+                        })
 
-                          fileName = deviceDetails.walletAddress.toLowerCase()
-                          console.log("Metadata uploaded with fileName:", fileName);
-                        }
-
-                        const akaveUrl = `${AKAVE_API_URL}/buckets/${FRANKY_DEVICES_BUCKET}/files/${fileName}.json/download`;
-                        console.log("Akave URL generated:", akaveUrl);
+                        const { url: metadataUrl } = await uploadResponse.json()
 
                         toast.info("Registering device on-chain", {
                           description: "Confirm the transaction...",
                         });
 
-                        console.log("Simulating contract call...");
-                        const { request } = await publicClient.simulateContract({
-                          address: FRANKY_ADDRESS,
-                          abi: FRANKY_ABI,
-                          functionName: 'registerDevice',
-                          args: [akaveUrl, deviceDetails.ngrokLink, parseEther(hostingFee), deviceDetails.walletAddress.toLowerCase(), deviceDetails.bytes32Data, deviceDetails.signature]
-                        });
-                        console.log("Simulation successful, request data:", request);
-                        console.log("Preparing transaction...");
-                        const callData = encodeFunctionData({
-                          abi: FRANKY_ABI,
-                          functionName: 'registerDevice',
-                          args: [
-                            akaveUrl, deviceDetails.ngrokLink, parseEther(hostingFee), deviceDetails.walletAddress.toLowerCase(), deviceDetails.bytes32Data, deviceDetails.signature
-                          ],
-                        });
-                        console.log("Encoded call data:", callData);
-
-                        const nonce = await publicClient.getTransactionCount({
-                          address: user.wallet.address as `0x${string}`,
-                          blockTag: 'pending'
-                        });
-                        console.log("Nonce fetched:", nonce);
+                        const params = new ContractFunctionParameterBuilder()
+                          .addParam({
+                            type: "string",
+                            name: "deviceMetadata",
+                            value: metadataUrl
+                          })
+                          .addParam({
+                            type: "uint256",
+                            name: "hostingFee",
+                            value: parseEther(hostingFee)
+                          })
+                          .addParam({
+                            type: "address",
+                            name: "deviceAddress",
+                            value: deviceDetails.walletAddress.toLowerCase()
+                          })
+                          .addParam({
+                            type: "bytes32",
+                            name: "verificationHash",
+                            value: deviceDetails.bytes32Data,
+                          })
+                          .addParam({
+                            type: "bytes",
+                            name: "signature",
+                            value: deviceDetails.signature
+                          })
 
                         console.log("Sending transaction...");
-                        const { hash } = await sendTransaction({
-                          to: FRANKY_ADDRESS,
-                          data: callData,
-                          gasLimit: request.gas ?? 50000000, // Higher default for complex operations
-                          gasPrice: request.gasPrice ?? 2500, // Base fee in attoFIL
-                          maxFeePerGas: request.maxFeePerGas ?? 15000, // Max fee in attoFIL
-                          maxPriorityFeePerGas: request.maxPriorityFeePerGas ?? 10000,
-                          nonce: nonce ?? 1,
-                        }, {
-                          address: user.wallet.address as `0x${string}`,
-                        });
-                        console.log("Transaction sent, hash:", hash);
+                        const response = await walletInterface.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), 'registerDevice', params, 500_000)
 
+                        console.log("Transaction Response")
+                        console.log(response)
                         toast.promise(publicClient.waitForTransactionReceipt({
-                          hash,
+                          hash: response,
                         }), {
                           loading: "Waiting for confirmation...",
                           success: (data) => {
@@ -541,12 +512,12 @@ const DeviceVerification = () => {
                           action: {
                             label: "View Tx",
                             onClick: () => {
-                              window.open(`https://filecoin-testnet.blockscout.com/tx/${hash}`, "_blank");
+                              window.open(`https://hashscan.io/testnet/transaction/${response}`, "_blank");
                             }
                           }
                         });
 
-                        setTransactionHash(hash);
+                        setTransactionHash(response);
                       } else {
                         console.log("User wallet not detected.");
                       }

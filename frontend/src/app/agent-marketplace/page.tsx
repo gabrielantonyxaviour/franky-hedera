@@ -165,7 +165,7 @@ const AgentCard = ({ keyVal, agent, onClick }: { keyVal: string, agent: Agent, o
         <div className="flex items-center justify-between mt-1">
           <span className="text-xs text-gray-400">Registration Tx</span>
           <a
-            href={`https://filecoin-testnet.blockscout.com/address/` + agent.agentAddress}
+            href={`https://hashscan.io/testnet/address/` + agent.agentAddress}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-[#00FF88] hover:underline"
@@ -472,7 +472,7 @@ const PreviewModal = ({
 
               {/* <div className="mt-8 text-center">
                 <a
-                  href={`https://filecoin-testnet.blockscout.com/tx/` + agent.txHash}
+                  href={`https://hashscan.io/testnet/tx/` + agent.txHash}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[#00FF88] hover:underline"

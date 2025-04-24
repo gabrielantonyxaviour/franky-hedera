@@ -247,7 +247,7 @@ const DeviceCard = ({ keyVal, device, onClick }: { keyVal: string, device: Devic
         <div className="flex items-center justify-between mt-1">
           <span className="text-xs text-gray-400">Registration Tx</span>
           <a
-            href={`https://filecoin-testnet.blockscout.com/address/${device.walletAddress}`}
+            href={`https://hashscan.io/testnet/address/${device.walletAddress}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-[#00FF88] hover:underline"

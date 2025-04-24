@@ -1,5 +1,5 @@
-export const FRANKY_ADDRESS = "0x7531e661aA23194DF63aB78F131e9E9b8BF2eb81";
-
+export const FRANKY_ADDRESS = "0x82B3c846861fFe9Cd300Ac85C8a4BB8483199B4b";
+export const FRANKY_CONTRACT_ID = '0.0.5896638';
 export const FRANKY_ABI = [
   {
     "inputs": [
@@ -9,12 +9,22 @@ export const FRANKY_ABI = [
         "type": "address"
       },
       {
-        "internalType": "uint32",
-        "name": "_protocolFeeInBps",
-        "type": "uint32"
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "symbol",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "memo",
+        "type": "string"
       }
     ],
-    "stateMutability": "nonpayable",
+    "stateMutability": "payable",
     "type": "constructor"
   },
   {
@@ -43,6 +53,12 @@ export const FRANKY_ABI = [
     "inputs": [
       {
         "indexed": true,
+        "internalType": "uint256",
+        "name": "agentTokenId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
         "internalType": "address",
         "name": "agentAddress",
         "type": "address"
@@ -56,13 +72,7 @@ export const FRANKY_ABI = [
       {
         "indexed": false,
         "internalType": "string",
-        "name": "avatar",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "subname",
+        "name": "subdomain",
         "type": "string"
       },
       {
@@ -79,9 +89,9 @@ export const FRANKY_ABI = [
       },
       {
         "indexed": false,
-        "internalType": "string",
+        "internalType": "bytes[]",
         "name": "characterConfig",
-        "type": "string"
+        "type": "bytes[]"
       },
       {
         "indexed": false,
@@ -116,6 +126,25 @@ export const FRANKY_ABI = [
     "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      }
+    ],
+    "name": "CallResponseEvent",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "address",
         "name": "deviceAddress",
@@ -135,12 +164,6 @@ export const FRANKY_ABI = [
       },
       {
         "indexed": false,
-        "internalType": "string",
-        "name": "ngrokLink",
-        "type": "string"
-      },
-      {
-        "indexed": false,
         "internalType": "uint256",
         "name": "hostingFee",
         "type": "uint256"
@@ -153,13 +176,13 @@ export const FRANKY_ABI = [
     "anonymous": false,
     "inputs": [
       {
-        "indexed": true,
+        "indexed": false,
         "internalType": "address",
-        "name": "frankyENSRegistrar",
+        "name": "nftAddress",
         "type": "address"
       }
     ],
-    "name": "Initialized",
+    "name": "FrankyAgentsNftCreated",
     "type": "event"
   },
   {
@@ -168,7 +191,7 @@ export const FRANKY_ABI = [
       {
         "indexed": true,
         "internalType": "address",
-        "name": "embeddedWalletAddress",
+        "name": "walletAddress",
         "type": "address"
       },
       {
@@ -182,6 +205,10 @@ export const FRANKY_ABI = [
     "type": "event"
   },
   {
+    "stateMutability": "payable",
+    "type": "fallback"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -192,8 +219,13 @@ export const FRANKY_ABI = [
     "name": "agents",
     "outputs": [
       {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
         "internalType": "address",
-        "name": "agentAddress",
+        "name": "smartAccountAddress",
         "type": "address"
       },
       {
@@ -203,12 +235,7 @@ export const FRANKY_ABI = [
       },
       {
         "internalType": "string",
-        "name": "subname",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "characterConfig",
+        "name": "subdomain",
         "type": "string"
       },
       {
@@ -295,7 +322,7 @@ export const FRANKY_ABI = [
     "inputs": [
       {
         "internalType": "address",
-        "name": "embeddedWalletAddress",
+        "name": "walletAddress",
         "type": "address"
       }
     ],
@@ -327,18 +354,13 @@ export const FRANKY_ABI = [
     "inputs": [
       {
         "internalType": "string",
-        "name": "avatar",
+        "name": "subdomain",
         "type": "string"
       },
       {
-        "internalType": "string",
-        "name": "subname",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
+        "internalType": "bytes[]",
         "name": "characterConfig",
-        "type": "string"
+        "type": "bytes[]"
       },
       {
         "internalType": "address",
@@ -420,13 +442,13 @@ export const FRANKY_ABI = [
         "type": "string"
       },
       {
-        "internalType": "string",
-        "name": "ngrokLink",
-        "type": "string"
+        "internalType": "address",
+        "name": "deviceAddress",
+        "type": "address"
       },
       {
         "internalType": "address",
-        "name": "deviceAddress",
+        "name": "owner",
         "type": "address"
       },
       {
@@ -462,25 +484,6 @@ export const FRANKY_ABI = [
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "name": "embeddedToServerWallets",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [],
     "name": "frankyAgentAccountImplemetation",
     "outputs": [
@@ -495,7 +498,7 @@ export const FRANKY_ABI = [
   },
   {
     "inputs": [],
-    "name": "frankyENSRegistrar",
+    "name": "frankyAgentsNftAddress",
     "outputs": [
       {
         "internalType": "address",
@@ -519,8 +522,13 @@ export const FRANKY_ABI = [
       {
         "components": [
           {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
             "internalType": "address",
-            "name": "agentAddress",
+            "name": "smartAccountAddress",
             "type": "address"
           },
           {
@@ -530,13 +538,13 @@ export const FRANKY_ABI = [
           },
           {
             "internalType": "string",
-            "name": "subname",
+            "name": "subdomain",
             "type": "string"
           },
           {
-            "internalType": "string",
+            "internalType": "bytes[]",
             "name": "characterConfig",
-            "type": "string"
+            "type": "bytes[]"
           },
           {
             "internalType": "address",
@@ -563,6 +571,19 @@ export const FRANKY_ABI = [
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "getBalance",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -580,13 +601,13 @@ export const FRANKY_ABI = [
             "type": "string"
           },
           {
-            "internalType": "string",
-            "name": "ngrokLink",
-            "type": "string"
+            "internalType": "address",
+            "name": "deviceAddress",
+            "type": "address"
           },
           {
             "internalType": "address",
-            "name": "deviceAddress",
+            "name": "owner",
             "type": "address"
           },
           {
@@ -653,25 +674,6 @@ export const FRANKY_ABI = [
   {
     "inputs": [
       {
-        "internalType": "bytes32",
-        "name": "salt",
-        "type": "bytes32"
-      }
-    ],
-    "name": "getSmartAccountAddress",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "address",
         "name": "agentAddress",
         "type": "address"
@@ -692,7 +694,7 @@ export const FRANKY_ABI = [
     "inputs": [
       {
         "internalType": "address",
-        "name": "owner",
+        "name": "_owner",
         "type": "address"
       },
       {
@@ -737,13 +739,32 @@ export const FRANKY_ABI = [
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "isRegisteredDevice",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "deviceAddress",
+        "type": "address"
+      }
+    ],
+    "name": "isRegisteredDeviceOrOwner",
     "outputs": [
       {
         "internalType": "bool",
         "name": "",
         "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -768,19 +789,6 @@ export const FRANKY_ABI = [
         "internalType": "bool",
         "name": "",
         "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "protocolFeeInBps",
-    "outputs": [
-      {
-        "internalType": "uint32",
-        "name": "",
-        "type": "uint32"
       }
     ],
     "stateMutability": "view",
@@ -814,6 +822,35 @@ export const FRANKY_ABI = [
     "inputs": [
       {
         "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes",
+        "name": "encodedFunctionSelector",
+        "type": "bytes"
+      }
+    ],
+    "name": "redirectForToken",
+    "outputs": [
+      {
+        "internalType": "int256",
+        "name": "responseCode",
+        "type": "int256"
+      },
+      {
+        "internalType": "bytes",
+        "name": "response",
+        "type": "bytes"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "agentAddress",
         "type": "address"
       }
@@ -828,11 +865,6 @@ export const FRANKY_ABI = [
       {
         "internalType": "string",
         "name": "deviceMetadata",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "ngrokLink",
         "type": "string"
       },
       {
@@ -860,11 +892,105 @@ export const FRANKY_ABI = [
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "serverWalletsMapping",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "transferFrom",
+    "outputs": [
+      {
+        "internalType": "int64",
+        "name": "responseCode",
+        "type": "int64"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "serialNumber",
+        "type": "uint256"
+      }
+    ],
+    "name": "transferFromNFT",
+    "outputs": [
+      {
+        "internalType": "int64",
+        "name": "responseCode",
+        "type": "int64"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "withdrawHBAR",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "receive"
   }
 ]
 
 export const FRANY_INDEXER_API = 'https://8287-124-123-105-119.ngrok-free.app/subgraphs/name/graph-indexer'
-
-export const FRANKY_SERVER_WALLET_BUCKET = 'franky-agents-xyz-server-wallets'
-export const FRANKY_AGENTS_BUCKET = 'franky-agents-xyz-character'
-export const FRANKY_DEVICES_BUCKET = 'franky-agents-xyz-devices'
