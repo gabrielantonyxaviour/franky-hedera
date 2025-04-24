@@ -994,3 +994,5 @@ export const FRANKY_ABI = [
 ]
 
 export const FRANY_INDEXER_API = 'https://8287-124-123-105-119.ngrok-free.app/subgraphs/name/graph-indexer'
+
+export const FRANKY_AGENTS_BUCKET = 'franky-agents'

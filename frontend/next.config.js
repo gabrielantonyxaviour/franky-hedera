@@ -9,10 +9,8 @@ const nextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true,
-},
-  experimental: {
-    esmExternals: 'loose', // This can help with ESM compatibility issues
   },
+  transpilePackages: ['@walletconnect', 'pino'],
   webpack: (config, { isServer }) => {
     // Fixes npm packages that depend on `fs` module
     if (!isServer) {
@@ -31,17 +29,22 @@ const nextConfig = {
         os: require.resolve('os-browserify'),
         path: require.resolve('path-browserify'),
       };
-      
-      // Use mock for pino
+
+      // Use minimal pino stub
       config.resolve.alias = {
         ...config.resolve.alias,
-        'pino': require.resolve('./src/lib/pino-mock.js'),
-        'pino-pretty': require.resolve('./src/lib/pino-mock.js')
+        'pino': require.resolve('./src/lib/pino-stub.js'),
+        'pino-pretty': require.resolve('./src/lib/pino-stub.js')
       };
     }
     
     // Required for REOWN AppKit to work properly
-    config.externals.push('pino-pretty', 'lokijs', 'encoding');
+    config.externals = [
+      ...(config.externals || []),
+      'pino-pretty',
+      'lokijs',
+      'encoding'
+    ].filter(Boolean);
     
     return config;
   },

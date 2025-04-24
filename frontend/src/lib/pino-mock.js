@@ -14,20 +14,8 @@ const noopLogger = {
   child: () => noopLogger
 }
 
-function pino() {
-  return noopLogger
-}
-
-// Add all the exports that pino might have
-pino.destination = () => ({ write: noop })
-pino.transport = () => null
-pino.multistream = () => null
-pino.final = () => noopLogger
-pino.stdSerializers = {}
-pino.stdTimeFunctions = {}
-pino.symbols = {}
-pino.version = '0.0.0'
-pino.levels = {
+// Create the levels object that will be both a named export and attached to the default export
+const levels = {
   values: {
     trace: 10,
     debug: 20,
@@ -46,5 +34,24 @@ pino.levels = {
   }
 }
 
-// Export the mock
-module.exports = pino 
+// Create the main pino function
+const pino = () => noopLogger
+
+// Add all the standard pino properties
+Object.assign(pino, {
+  destination: () => ({ write: noop }),
+  transport: () => null,
+  multistream: () => null,
+  final: () => noopLogger,
+  stdSerializers: {},
+  stdTimeFunctions: {},
+  symbols: {},
+  version: '0.0.0',
+  levels
+})
+
+// Named exports
+export { levels }
+
+// Default export
+export default pino 
