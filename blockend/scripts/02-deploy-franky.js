@@ -17,13 +17,18 @@ async function main() {
   const network = hre.network.name;
   console.log(`Deploying to ${network}...`);
 
-  const accountImplementation = "0x699dF6635F536E77231E484c6450aFFf726EeA02"
-  const protocolBps = 1000;
+  const accountImplementation = "0x93C85d1A88272115A8E8Ed36816326981fb0BEFF";
 
   const Franky = await ethers.getContractFactory("Franky");
   const franky = await Franky.deploy(
     accountImplementation,
-    protocolBps
+    "Franky Agents",
+    "$FRANKY",
+    "Franky Agents Collection",
+    {
+      gasLimit: 3_450_000,
+      value: ethers.parseEther("15"),
+    }
   );
 
   await franky.waitForDeployment();

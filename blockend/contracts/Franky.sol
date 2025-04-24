@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "./hedera/HederaTokenService.sol";
 import "./hedera/KeyHelper.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 import {IFrankyAgentAccountImplementation} from "./interfaces/IFrankyAgentAccountImplementation.sol";
 
 contract Franky is HederaTokenService, KeyHelper {
@@ -31,6 +32,7 @@ contract Franky is HederaTokenService, KeyHelper {
 
     address public frankyAgentAccountImplemetation;
     address public frankyAgentsNftAddress;
+    address public owner;
 
     mapping(address => Device) public devices;
 
@@ -46,8 +48,12 @@ contract Franky is HederaTokenService, KeyHelper {
 
     mapping(address => address) public serverWalletsMapping;
 
-    constructor(address _frankyAgentAccountImplemetation) {
-        frankyAgentAccountImplemetation = _frankyAgentAccountImplemetation;
+    constructor(
+        address _frankyAgentAccountImplemetation,
+        string memory name,
+        string memory symbol,
+        string memory memo
+    ) payable {
         IHederaTokenService.RoyaltyFee[]
             memory royaltyFees = new IHederaTokenService.RoyaltyFee[](1);
         royaltyFees[0] = IHederaTokenService.RoyaltyFee({
@@ -61,9 +67,9 @@ contract Franky is HederaTokenService, KeyHelper {
         IHederaTokenService.FixedFee[]
             memory fixedFees = new IHederaTokenService.FixedFee[](0);
         IHederaTokenService.HederaToken memory token;
-        token.name = "Franky Agents";
-        token.symbol = "$FRANKY";
-        token.memo = "Franky Agents Collection";
+        token.name = name;
+        token.symbol = symbol;
+        token.memo = memo;
         token.treasury = address(this);
         IHederaTokenService.TokenKey[]
             memory keys = new IHederaTokenService.TokenKey[](1);
@@ -77,11 +83,10 @@ contract Franky is HederaTokenService, KeyHelper {
             int responseCode,
             address createdToken
         ) = createNonFungibleTokenWithCustomFees(token, fixedFees, royaltyFees);
-        require(
-            responseCode == HederaResponseCodes.SUCCESS,
-            "Failed to create NFT"
-        );
+        require(responseCode == HederaResponseCodes.SUCCESS, "FAILED");
         frankyAgentsNftAddress = createdToken;
+        frankyAgentAccountImplemetation = _frankyAgentAccountImplemetation;
+        owner = msg.sender;
         emit FrankyAgentsNftCreated(createdToken);
     }
 
@@ -304,7 +309,7 @@ contract Franky is HederaTokenService, KeyHelper {
 
     function _deployAgentAccount(
         string memory subname,
-        address owner,
+        address _owner,
         bytes32 salt
     ) internal returns (address instance) {
         instance = Clones.cloneDeterministic(
@@ -313,7 +318,7 @@ contract Franky is HederaTokenService, KeyHelper {
         );
         IFrankyAgentAccountImplementation(instance).initialize(
             subname,
-            owner,
+            _owner,
             address(this)
         );
         return instance;
@@ -347,5 +352,21 @@ contract Franky is HederaTokenService, KeyHelper {
                     blockhash(block.number - 1)
                 )
             );
+    }
+
+    receive() external payable {}
+
+    fallback() external payable {}
+
+    function getBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+
+    function withdrawHBAR() external {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No HBAR to withdraw");
+
+        (bool success, ) = owner.call{value: balance}("");
+        require(success, "Failed to withdraw HBAR");
     }
 }
