@@ -87,9 +87,9 @@
       },
       {
         "indexed": false,
-        "internalType": "bytes[]",
+        "internalType": "string",
         "name": "characterConfig",
-        "type": "bytes[]"
+        "type": "string"
       },
       {
         "indexed": false,
@@ -200,9 +200,9 @@
       },
       {
         "indexed": false,
-        "internalType": "bytes",
+        "internalType": "string",
         "name": "encryptedPrivateKey",
-        "type": "bytes"
+        "type": "string"
       },
       {
         "indexed": false,
@@ -246,6 +246,11 @@
       {
         "internalType": "string",
         "name": "subdomain",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "characterConfig",
         "type": "string"
       },
       {
@@ -405,9 +410,9 @@
         "type": "address"
       },
       {
-        "internalType": "bytes",
+        "internalType": "string",
         "name": "encryptedPrivateKey",
-        "type": "bytes"
+        "type": "string"
       },
       {
         "internalType": "bytes32",
@@ -428,9 +433,9 @@
         "type": "string"
       },
       {
-        "internalType": "bytes[]",
+        "internalType": "string",
         "name": "characterConfig",
-        "type": "bytes[]"
+        "type": "string"
       },
       {
         "internalType": "address",
@@ -612,9 +617,9 @@
             "type": "string"
           },
           {
-            "internalType": "bytes[]",
+            "internalType": "string",
             "name": "characterConfig",
-            "type": "bytes[]"
+            "type": "string"
           },
           {
             "internalType": "address",
@@ -984,9 +989,9 @@
         "type": "address"
       },
       {
-        "internalType": "bytes",
+        "internalType": "string",
         "name": "encryptedPrivateKey",
-        "type": "bytes"
+        "type": "string"
       },
       {
         "internalType": "bytes32",

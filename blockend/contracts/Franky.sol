@@ -22,7 +22,7 @@ contract Franky is HederaTokenService, KeyHelper {
         address smartAccountAddress;
         address deviceAddress;
         string subdomain;
-        bytes[] characterConfig;
+        string characterConfig;
         address owner;
         uint256 perApiCallFee;
         uint8 status;
@@ -31,7 +31,7 @@ contract Franky is HederaTokenService, KeyHelper {
     struct ServerWallet {
         address owner;
         address walletAddress;
-        bytes encryptedPrivateKey;
+        string encryptedPrivateKey;
         bytes32 privateKeyHash;
     }
 
@@ -109,7 +109,7 @@ contract Franky is HederaTokenService, KeyHelper {
         string subdomain,
         address owner,
         uint256 perApiCallFee,
-        bytes[] characterConfig,
+        string characterConfig,
         bool isPublic
     );
     event ApiKeyRegenerated(address indexed agentAddress, bytes32 keyHash);
@@ -122,13 +122,13 @@ contract Franky is HederaTokenService, KeyHelper {
     event ServerWalletConfigured(
         address indexed walletAddress,
         address indexed serverWalletAddress,
-        bytes encryptedPrivateKey,
+        string encryptedPrivateKey,
         bytes32 privateKeyHash
     );
 
     function configureServerWallet(
         address walletAddress,
-        bytes memory encryptedPrivateKey,
+        string memory encryptedPrivateKey,
         bytes32 privateKeyHash
     ) external {
         require(
@@ -183,7 +183,7 @@ contract Franky is HederaTokenService, KeyHelper {
 
     function createAgent(
         string calldata subdomain,
-        bytes[] memory characterConfig,
+        string memory characterConfig,
         address deviceAddress,
         uint256 perApiCallFee,
         bool isPublic
@@ -197,12 +197,14 @@ contract Franky is HederaTokenService, KeyHelper {
         address agentAddress = _deployAgentAccount(
             subdomain,
             msg.sender,
-            keccak256(characterConfig[0])
+            keccak256(bytes(characterConfig))
         );
+        bytes[] memory bytesArray = new bytes[](1);
+        bytesArray[0] = bytes(characterConfig);
         (int responseCode, int64 newTotalSupply, ) = mintToken(
             frankyAgentsNftAddress,
             0,
-            characterConfig
+            bytesArray
         );
         uint256 tokenId = uint256(uint64(newTotalSupply)) - 1;
         require(

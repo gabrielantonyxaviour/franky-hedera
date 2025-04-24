@@ -21,7 +21,7 @@ export function handleAgentCreated(event: AgentCreatedEvent): void {
     agent.owner = userId
     agent.subdomain = event.params.subdomain
     agent.perApiCallFee = event.params.perApiCallFee
-    agent.characterConfig = event.params.characterConfig[0]
+    agent.characterConfig = event.params.characterConfig
     agent.isPublic = event.params.isPublic
     agent.createdAt = event.block.timestamp
     agent.updatedAt = event.block.timestamp

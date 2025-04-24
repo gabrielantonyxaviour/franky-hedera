@@ -8,9 +8,9 @@ dataSources:
     name: Franky
     network: testnet
     source:
-      address: "0xD3CDA6145223bF80F7bF39c4f9ab21e40837a023"
+      address: "0xa2bbf7d20bb7e45969826599b0348f691f3ecafd"
       abi: Franky
-      startBlock: 18694709
+      startBlock: 18736371
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
@@ -27,12 +27,12 @@ dataSources:
       eventHandlers:
         - event: FrankyAgentsNftCreated(address)
           handler: handleFrankyAgentsNftCreated
-        - event: AgentCreated(indexed uint256,indexed address,indexed address,string,address,uint256,bytes[],bool)
+        - event: AgentCreated(indexed uint256,indexed address,indexed address,string,address,uint256,string,bool)
           handler: handleAgentCreated
         - event: ApiKeyRegenerated(indexed address,bytes32)
           handler: handleApiKeyRegenerated
         - event: DeviceRegistered(indexed address,indexed address,string,uint256)
           handler: handleDeviceRegistered
-        - event: ServerWalletConfigured(indexed address,indexed address,bytes,bytes32)
+        - event: ServerWalletConfigured(indexed address,indexed address,string,bytes32)
           handler: handleServerWalletConfigured
       file: ./src/franky.ts

@@ -7,7 +7,7 @@ import { useWalletInterface } from '@/hooks/use-wallet-interface';
 import { useEffect, useRef, useState } from "react";
 import { LogOut, User, UserCircle } from "lucide-react";
 import { faucetWalletClient, publicClient, shortenAddress } from "@/lib/utils";
-import { formatEther, Hex, parseEther, stringToBytes, zeroAddress } from "viem";
+import { formatEther, Hex, parseEther, stringToBytes, stringToHex, zeroAddress } from "viem";
 import { FRANKY_ABI, FRANKY_ADDRESS, FRANKY_CONTRACT_ID } from "@/lib/constants";
 import { toast } from "sonner"
 import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
@@ -101,16 +101,17 @@ export default function Header() {
         const { ciphertext, dataToEncryptHash } = await encryptServerWallet(serverWalletAddress, privateKey)
         let keypair = {
           address: serverWalletAddress,
-          encryptedPrivateKey: stringToBytes(ciphertext),
+          encryptedPrivateKey: ciphertext,
           privateKeyHash: dataToEncryptHash,
         }
+        console.log(keypair)
         const params = new ContractFunctionParameterBuilder().addParam({
           type: "address",
           name: "walletAddress",
           value: keypair.address
         })
           .addParam({
-            type: "bytes",
+            type: "string",
             name: "encryptedPrivateKey",
             value: keypair.encryptedPrivateKey
           })
@@ -119,7 +120,7 @@ export default function Header() {
             name: "privateKeyHash",
             value: keypair.privateKeyHash
           })
-        const hash = await walletInterface?.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), "createAgent", params, 400_000)
+        const hash = await walletInterface?.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), "configureServerWallet", params, 400_000)
         console.log("Transaction sent, hash:", hash);
 
         toast.promise(publicClient.waitForTransactionReceipt({

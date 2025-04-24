@@ -5,7 +5,7 @@ type agent @entity (immutable: true){
   owner: user! # address
   subdomain: String!
   perApiCallFee: BigInt!
-  characterConfig: Bytes!
+  characterConfig: String!
   isPublic: Boolean!
   keyHash: Bytes! # for API key
   createdAt: BigInt!
@@ -27,7 +27,7 @@ type user @entity (immutable: true) {
   agents: [agent!]! @derivedFrom(field: "owner")
   devices: [device!]! @derivedFrom(field: "owner")
   serverWalletAddress: Bytes!
-  encryptedPrivateKey: Bytes!
+  encryptedPrivateKey: String!
   privateKeyHash: Bytes!
   createdAt: BigInt!
   updatedAt: BigInt!

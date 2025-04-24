@@ -1,6 +1,6 @@
-export const FRANKY_ADDRESS = "0xD3CDA6145223bF80F7bF39c4f9ab21e40837a023";
-export const FRANKY_CONTRACT_ID = '0.0.5898281';
-export const FRANKY_ABI = [
+export const FRANKY_ADDRESS = "0xa2bbf7d20bb7e45969826599b0348f691f3ecafd";
+export const FRANKY_CONTRACT_ID = '0.0.5902827';
+export const FRANKY_ABI =  [
   {
     "inputs": [
       {
@@ -89,9 +89,9 @@ export const FRANKY_ABI = [
       },
       {
         "indexed": false,
-        "internalType": "bytes[]",
+        "internalType": "string",
         "name": "characterConfig",
-        "type": "bytes[]"
+        "type": "string"
       },
       {
         "indexed": false,
@@ -202,9 +202,9 @@ export const FRANKY_ABI = [
       },
       {
         "indexed": false,
-        "internalType": "bytes",
+        "internalType": "string",
         "name": "encryptedPrivateKey",
-        "type": "bytes"
+        "type": "string"
       },
       {
         "indexed": false,
@@ -248,6 +248,11 @@ export const FRANKY_ABI = [
       {
         "internalType": "string",
         "name": "subdomain",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "characterConfig",
         "type": "string"
       },
       {
@@ -407,9 +412,9 @@ export const FRANKY_ABI = [
         "type": "address"
       },
       {
-        "internalType": "bytes",
+        "internalType": "string",
         "name": "encryptedPrivateKey",
-        "type": "bytes"
+        "type": "string"
       },
       {
         "internalType": "bytes32",
@@ -430,9 +435,9 @@ export const FRANKY_ABI = [
         "type": "string"
       },
       {
-        "internalType": "bytes[]",
+        "internalType": "string",
         "name": "characterConfig",
-        "type": "bytes[]"
+        "type": "string"
       },
       {
         "internalType": "address",
@@ -614,9 +619,9 @@ export const FRANKY_ABI = [
             "type": "string"
           },
           {
-            "internalType": "bytes[]",
+            "internalType": "string",
             "name": "characterConfig",
-            "type": "bytes[]"
+            "type": "string"
           },
           {
             "internalType": "address",
@@ -986,9 +991,9 @@ export const FRANKY_ABI = [
         "type": "address"
       },
       {
-        "internalType": "bytes",
+        "internalType": "string",
         "name": "encryptedPrivateKey",
-        "type": "bytes"
+        "type": "string"
       },
       {
         "internalType": "bytes32",
@@ -1074,5 +1079,3 @@ export const FRANKY_ABI = [
 ]
 
 export const FRANY_INDEXER_API = process.env.NEXT_PUBLIC_INDEXER_URL || 'https://5184-124-123-105-119.ngrok-free.app/subgraphs/name/graph-indexer'
-
-export const FRANKY_AGENTS_BUCKET = 'franky-agents'
