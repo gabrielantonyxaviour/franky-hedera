@@ -1,0 +1,17 @@
+[2025-04-22T21:34:42.099Z] Starting Hedera test script...
+[2025-04-22T21:34:42.101Z] Environment variables:
+[2025-04-22T21:34:42.102Z] HEDERA_ACCOUNT_ID: undefined
+[2025-04-22T21:34:42.102Z] HEDERA_NETWORK: undefined
+[2025-04-22T21:34:42.103Z] HEDERA_PRIVATE_KEY exists: false
+[2025-04-22T21:34:42.103Z] Setup error: TypeError: Cannot read properties of undefined (reading 'startsWith')
+[2025-04-22T21:34:42.104Z] Stack trace: TypeError: Cannot read properties of undefined (reading 'startsWith')
+    at AccountId.fromString (C:\Users\MSI\Desktop\franky-7\node_modules\@hashgraph\sdk\lib\account\AccountId.cjs:65:14)
+    at Object.<anonymous> (C:\Users\MSI\Desktop\franky-7\frontend\src\scripts\testHederaFetch.js:31:31)
+    at Module._compile (node:internal/modules/cjs/loader:1565:14)
+    at Object..js (node:internal/modules/cjs/loader:1708:10)
+    at Module.load (node:internal/modules/cjs/loader:1318:32)
+    at Function._load (node:internal/modules/cjs/loader:1128:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:219:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
+    at node:internal/main/run_main_module:36:49

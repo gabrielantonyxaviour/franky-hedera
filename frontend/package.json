@@ -58,6 +58,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-icons": "^5.5.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "sonic-boom": "^4.2.0",
     "sonner": "^2.0.3",
     "tailwind-merge": "^3.2.0",

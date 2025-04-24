@@ -1,0 +1,22 @@
+{
+  "name": "hedera-agent-mcp",
+  "version": "1.0.0",
+  "description": "OpenAI agent interacting with MCP server for Hedera blockchain tools",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "mcp": "node mcp-server.js",
+    "api": "node api-server.js"
+  },
+  "dependencies": {
+    "@hashgraph/sdk": "^2.63.0",
+    "axios": "^1.8.4",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.18.2",
+    "openai": "^4.43.0",
+    "uuid": "^11.1.0"
+  }
+}
+ 

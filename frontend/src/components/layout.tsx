@@ -1,8 +1,6 @@
 'use client';
 
-import { usePrivy } from "@privy-io/react-auth";
 import Image from "next/image";
-import SignIn from "./sign-in";
 import Header from "./ui/Header";
 
 const HeroAnimation = () => {
@@ -50,20 +48,13 @@ export default function Layout({
 }: {
     children: React.ReactNode;
 }) {
-    const { user, ready } = usePrivy()
-
-    return <body className="min-h-screen flex flex-col sen">
-        <div className="min-h-screen flex flex-col">
-            <Header />
-            <HeroAnimation />
-            {!ready ? <div className="w-full h-screen flex flex-col justify-center items-center">
-                <Image src="/loading.gif" alt="loading" width={300} height={300} className="pb-8" />
-            </div> :
-                user != null ? children :
-
-                    <SignIn />
-            }
+    return (
+        <div className="min-h-screen flex flex-col sen">
+            <div className="min-h-screen flex flex-col">
+                <Header />
+                <HeroAnimation />
+                {children}
+            </div>
         </div>
-
-    </body>
+    );
 }
