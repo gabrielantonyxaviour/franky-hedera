@@ -4,9 +4,11 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import { useWalletInterface } from '@/hooks/use-wallet-interface';
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LogOut, User, UserCircle } from "lucide-react";
 import { shortenAddress } from "@/lib/utils";
+import { createPublicClient, formatEther, Hex, http, parseEther } from "viem";
+import { hederaTestnet } from "viem/chains";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
@@ -29,6 +31,26 @@ export default function Header() {
       setShowLogout(false);
     }, 500);
   };
+
+  useEffect(() => {
+    (async function () {
+      if (accountId) {
+        console.log("Fetching balance")
+        const publicClient = createPublicClient({
+          chain: hederaTestnet,
+          transport: http()
+        })
+        const fetchedBalance = await publicClient.getBalance({
+          address: accountId as Hex
+        })
+        console.log("Fetched balance")
+        console.log(fetchedBalance)
+        setBalance(formatEther(fetchedBalance))
+        setIsLoading(false)
+      }
+    })()
+
+  }, [accountId])
 
   return (
     <>
@@ -67,7 +89,7 @@ export default function Header() {
               ) : balance ? (
                 <div className="flex items-center gap-2">
                   <Image
-                    src="/fil.png"
+                    src="/hedera.png"
                     alt="Token Logo"
                     width={20}
                     height={20}
@@ -77,7 +99,7 @@ export default function Header() {
                     {balance.toLocaleLowerCase()}
                   </span>
                   <span className="text-[#00FF88]/70">
-                    {`tFIL`}
+                    {`HBAR`}
                   </span>
                   {/* <span className="text-[#00FF88]/50 text-sm">
                     ${(parseFloat(balance) * 2.5).toFixed(2)}

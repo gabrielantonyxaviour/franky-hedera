@@ -135,7 +135,7 @@ export default function Home() {
   return (
     <section className="flex-1 flex items-center justify-center px-4 relative">
       <div className="container mx-auto text-center">
-        {!getStarted ? (
+        {!getStarted && !isChatOpen ? (
           <div>
             <p className="text-lg md:text-xl mb-3 text-[#AAAAAA] max-w-3xl mx-auto">
               Introducing
@@ -156,7 +156,7 @@ export default function Home() {
               </GlowButton>
             </div>
           </div>
-        ) : (
+        ) : !isChatOpen ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -271,21 +271,10 @@ export default function Home() {
               >
                 ←  Go Back
               </motion.button>
-              <motion.button
-                className="py-2 px-6 text-[#00FF88] hover:text-white border border-[#00FF88]/30 rounded-lg transition-colors duration-300"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsChatOpen(true)}
-              >
-                Launch Chat
-              </motion.button>
             </div>
           </motion.div>
-        )}
+        ) : <ChatInterface isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />}
       </div>
-      
-      {/* Chat Interface Modal */}
-      <ChatInterface isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </section>
   );
 }

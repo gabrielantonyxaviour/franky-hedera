@@ -88,15 +88,15 @@ const DeployDeviceInfo = () => {
       <p className="text-[#AAAAAA] mb-4">
         Here's how you can deploy your mobile device to earn $FIL by hosting AI agents:
       </p>
-      
-      <InstructionStep 
-        number={1} 
-        title="Setup your Phone" 
+
+      <InstructionStep
+        number={1}
+        title="Setup your Phone"
         icon={<FiSmartphone size={20} />}
       >
         <p>Watch this video tutorial to set up your phone with Termux, an Android terminal emulator that allows you to run Linux commands:</p>
         <div className="mt-3 relative w-full" style={{ paddingBottom: '56.25%' }}>
-          <iframe 
+          <iframe
             className="absolute inset-0 w-full h-full rounded-lg border border-[#00FF88]/30"
             src="https://www.youtube.com/embed/s3TXc-jiQ40?si=xq88k3gI5n1OUJHk"
             title="Setup Termux for Franky"
@@ -105,10 +105,10 @@ const DeployDeviceInfo = () => {
           ></iframe>
         </div>
       </InstructionStep>
-      
-      <InstructionStep 
-        number={2} 
-        title="Run Franky" 
+
+      <InstructionStep
+        number={2}
+        title="Run Franky"
         icon={<FiTerminal size={20} />}
       >
         <p>Use the following curl command to download, install and run Franky:</p>
@@ -119,10 +119,10 @@ const DeployDeviceInfo = () => {
   )
 }
 
-export default function ChatInterface({ 
-  isOpen, 
-  onClose 
-}: { 
+export default function ChatInterface({
+  isOpen,
+  onClose
+}: {
   isOpen: boolean
   onClose: () => void
 }) {
@@ -130,7 +130,7 @@ export default function ChatInterface({
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  
+
   // Scroll to bottom whenever messages change
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -141,20 +141,20 @@ export default function ChatInterface({
   // Function to check if message is asking about deploying a device
   const isAskingAboutDeployingDevice = (message: string) => {
     const deployKeywords = [
-      'deploy device', 'how to deploy', 'setup device', 'deploy a device', 
+      'deploy device', 'how to deploy', 'setup device', 'deploy a device',
       'register device', 'deploy my phone', 'deploy my device', 'how can i deploy',
       'how do i deploy', 'deploy my android', 'deploy my iphone', 'deploy mobile'
     ]
-    
+
     const lowerMessage = message.toLowerCase()
     return deployKeywords.some(keyword => lowerMessage.includes(keyword))
   }
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
-    
+
     const isDeployQuestion = isAskingAboutDeployingDevice(input)
-    
+
     // Add user message
     const userMessage: Message = {
       id: uuidv4(),
@@ -162,11 +162,11 @@ export default function ChatInterface({
       role: 'user',
       timestamp: new Date()
     }
-    
+
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setIsLoading(true)
-    
+
     try {
       if (isDeployQuestion) {
         // For deploy device questions, create a custom response
@@ -178,7 +178,7 @@ export default function ChatInterface({
             timestamp: new Date(),
             showDeployDeviceInfo: true
           }
-          
+
           setMessages(prev => [...prev, assistantMessage])
           setIsLoading(false)
         }, 1000)
@@ -191,13 +191,13 @@ export default function ChatInterface({
           },
           body: JSON.stringify({ message: input })
         })
-        
+
         if (!response.ok) {
           throw new Error('Failed to get response from agent')
         }
-        
+
         const data = await response.json()
-        
+
         // Add assistant response
         const assistantMessage: Message = {
           id: uuidv4(),
@@ -205,12 +205,12 @@ export default function ChatInterface({
           role: 'assistant',
           timestamp: new Date()
         }
-        
+
         setMessages(prev => [...prev, assistantMessage])
       }
     } catch (error) {
       console.error('Error communicating with agent:', error)
-      
+
       // Add error message
       const errorMessage: Message = {
         id: uuidv4(),
@@ -218,7 +218,7 @@ export default function ChatInterface({
         role: 'assistant',
         timestamp: new Date()
       }
-      
+
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
@@ -235,71 +235,27 @@ export default function ChatInterface({
   const clearConversation = () => {
     setMessages([])
   }
-  
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          className="fixed inset-0 z-50 bg-[#0a0a0a] flex flex-col items-center justify-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          {/* Background elements to match home screen */}
-          <div className="absolute inset-0 -z-10 overflow-hidden">
-            <div className="absolute inset-0 grid-bg opacity-30"></div>
-            {/* Hexagon grid pattern */}
-            <svg
-              className="absolute inset-0 w-full h-full opacity-10"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <defs>
-                <pattern
-                  id="hexagons"
-                  width="50"
-                  height="43.4"
-                  patternUnits="userSpaceOnUse"
-                  patternTransform="scale(2)"
-                >
-                  <path
-                    d="M25 0 L50 14.4 L50 38.6 L25 53 L0 38.6 L0 14.4 Z"
-                    fill="none"
-                    stroke="#00FF88"
-                    strokeWidth="1"
-                  />
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#hexagons)" />
-            </svg>
 
-            {/* Static glow */}
-            <div
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full"
-              style={{
-                background:
-                  "radial-gradient(circle at center, rgba(0,255,136,0.2) 0%, transparent 70%)",
-              }}
-            />
-          </div>
-          
-          {/* Close button */}
-          <button 
-            onClick={onClose}
-            className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 z-50"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-          
-          {/* Chat container */}
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="w-full"
+    >
+      {isOpen && (
+        <><div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full"
+          style={{
+            background:
+              "radial-gradient(circle at center, rgba(0,255,136,0.2) 0%, transparent 70%)",
+          }}
+        />
+
           <div className="flex flex-col w-full max-w-3xl h-full px-4 pt-20 pb-8 mx-auto">
             {messages.length === 0 ? (
               <div className="flex flex-col flex-1 items-center justify-center">
                 <h1 className="text-4xl font-semibold text-white mb-12">What can I help with?</h1>
-                
-                {/* Input container for empty state */}
                 <div className="w-full max-w-[800px]">
                   <div className="relative shadow-[0_0_10px_rgba(0,255,136,0.15)] rounded-2xl">
                     <textarea
@@ -338,8 +294,8 @@ export default function ChatInterface({
                 {/* Messages display */}
                 <div className="flex-1 overflow-y-auto pb-4">
                   {messages.map((message) => (
-                    <div 
-                      key={message.id} 
+                    <div
+                      key={message.id}
                       className="mb-6"
                     >
                       <div className="flex">
@@ -362,7 +318,7 @@ export default function ChatInterface({
                             <div className="prose text-[#AAAAAA]">
                               {message.content}
                             </div>
-                            
+
                             {/* Display deploy device information if this message should show it */}
                             {message.showDeployDeviceInfo && (
                               <DeployDeviceInfo />
@@ -372,7 +328,7 @@ export default function ChatInterface({
                       </div>
                     </div>
                   ))}
-                  
+
                   {isLoading && (
                     <div className="mb-6">
                       <div className="flex">
@@ -406,10 +362,10 @@ export default function ChatInterface({
                       </div>
                     </div>
                   )}
-                  
+
                   <div ref={messagesEndRef} />
                 </div>
-                
+
                 {/* Chat input when conversation is active */}
                 <div className="w-full max-w-3xl mt-4">
                   <div className="relative shadow-[0_0_10px_rgba(0,255,136,0.15)] rounded-2xl">
@@ -442,12 +398,24 @@ export default function ChatInterface({
                       </button>
                     </div>
                   </div>
+
                 </div>
+
               </>
             )}
           </div>
-        </motion.div>
+          <div className="mt-12 flex flex-col md:flex-row justify-center gap-6">
+            <motion.button
+              className="py-2 px-4 text-[#00FF88] hover:text-white border border-[#00FF88]/30 rounded-lg transition-colors duration-300"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onClose}
+            >
+              ←  Go Back
+            </motion.button>
+          </div>
+        </>
       )}
-    </AnimatePresence>
+    </motion.div>
   )
 } 
