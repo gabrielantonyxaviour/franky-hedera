@@ -542,7 +542,7 @@ const DeviceVerification = () => {
   )
 }
 
-export default function DeployDevice() {
+const DeployDevice = () => {
   return (
     <>
       <Background />
@@ -605,3 +605,5 @@ export default function DeployDevice() {
     </>
   )
 }
+
+export default DeployDevice;
