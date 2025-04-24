@@ -441,7 +441,7 @@ const PreviewModal = ({
               ) : (
                 <div className="mb-6">
                   <p className="mb-4 text-gray-300">
-                    Generate an API key to interact with this agent. Your wallet must be connected to Filecoin Calibration Testnet.
+                    Generate an API key to interact with this agent. Your wallet must be connected toHedera Testnet.
                   </p>
                   <button
                     onClick={handlePurchase}

@@ -1,5 +1,5 @@
-export const FRANKY_ADDRESS = "0x82B3c846861fFe9Cd300Ac85C8a4BB8483199B4b";
-export const FRANKY_CONTRACT_ID = '0.0.5896638';
+export const FRANKY_ADDRESS = "0x9636a17f6318988ee01dbeCeADc8C589C218c4e4";
+export const FRANKY_CONTRACT_ID = '0.0.5898159';
 export const FRANKY_ABI = [
   {
     "inputs": [
@@ -199,6 +199,18 @@ export const FRANKY_ABI = [
         "internalType": "address",
         "name": "serverWalletAddress",
         "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "encryptedPrivateKey",
+        "type": "bytes"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "privateKeyHash",
+        "type": "bytes32"
       }
     ],
     "name": "ServerWalletConfigured",
@@ -322,6 +334,30 @@ export const FRANKY_ABI = [
     "inputs": [
       {
         "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "privateKeyHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "canDecryptServerWallet",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "walletAddress",
         "type": "address"
       }
@@ -338,11 +374,47 @@ export const FRANKY_ABI = [
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "claimHBAR",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
-        "name": "serverWalletAddress",
+        "name": "",
         "type": "address"
+      }
+    ],
+    "name": "claimmables",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "walletAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes",
+        "name": "encryptedPrivateKey",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "privateKeyHash",
+        "type": "bytes32"
       }
     ],
     "name": "configureServerWallet",
@@ -380,7 +452,7 @@ export const FRANKY_ABI = [
     ],
     "name": "createAgent",
     "outputs": [],
-    "stateMutability": "nonpayable",
+    "stateMutability": "payable",
     "type": "function"
   },
   {
@@ -742,6 +814,11 @@ export const FRANKY_ABI = [
     "inputs": [
       {
         "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
         "name": "deviceAddress",
         "type": "address"
       }
@@ -905,8 +982,23 @@ export const FRANKY_ABI = [
     "outputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "owner",
         "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "walletAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes",
+        "name": "encryptedPrivateKey",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "privateKeyHash",
+        "type": "bytes32"
       }
     ],
     "stateMutability": "view",
@@ -977,13 +1069,6 @@ export const FRANKY_ABI = [
         "type": "int64"
       }
     ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "withdrawHBAR",
-    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },

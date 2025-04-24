@@ -22,7 +22,7 @@ export async function encrypt(dataToEncrypt: string, isMainnet: boolean): Promis
             contractAddress: FRANKY_ADDRESS,
             chain: isMainnet ? "base" : "baseSepolia",
             functionName: "isRegisteredDevice",
-            functionParams: [],
+            functionParams: [':deviceAddress'],
             functionAbi: {
                 stateMutability: "view",
                 type: "function",

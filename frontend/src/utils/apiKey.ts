@@ -53,7 +53,7 @@ export async function getApiKey(
 
     // Use the appropriate contract address based on network
     const contractAddress = FRANKY_ADDRESS;
-    console.log(`Using contract address: ${contractAddress} on Filecoin Calibration Testnet`);
+    console.log(`Using contract address: ${contractAddress} onHedera Testnet`);
 
     const client = createPublicClient({
         chain: filecoinCalibration,

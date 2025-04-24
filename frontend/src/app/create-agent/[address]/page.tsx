@@ -1,6 +1,4 @@
 "use client";
-
-import Header from "@/components/ui/Header";
 import { useState, useEffect, Suspense } from "react";
 import { motion } from "framer-motion";
 import {
@@ -13,17 +11,34 @@ import {
   FiCopy,
   FiImage,
 } from "react-icons/fi";
-import { usePrivy, useSendTransaction } from "@privy-io/react-auth";
 import { normalize } from "viem/ens";
-import { createPublicClient, encodeFunctionData, formatEther, http, parseEther } from "viem";
+import { createPublicClient, formatEther, http, parseEther, stringToBytes } from "viem";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { publicClient } from "@/lib/utils";
-import { FRANKY_ABI, FRANKY_ADDRESS, FRANKY_AGENTS_BUCKET } from "@/lib/constants";
+import { FRANKY_CONTRACT_ID } from "@/lib/constants";
 import { mainnet } from "viem/chains";
+import { useWalletInterface } from "@/hooks/use-wallet-interface";
+import { ContractId } from "@hashgraph/sdk";
+import { ContractFunctionParameterBuilder } from "@/utils/param-builder";
 
-const AKAVE_API_URL = "http://3.88.107.110:8000";
-export interface Tool {
+interface Device {
+  id: string
+  deviceModel: string
+  ram: string
+  storage: string
+  cpu: string
+  ngrokLink: string
+  walletAddress: string
+  hostingFee: string
+  agentCount: number
+  status: 'Active' | 'Inactive'
+  lastActive: string
+  txHash: string
+  registeredAt: string
+}
+
+interface Tool {
   id: string;
   name: string;
   description: string;
@@ -43,15 +58,6 @@ interface CharacterData {
   tags: string[];
   talkativeness: number;
   fav: boolean;
-}
-
-// Define device type
-interface DeviceInfo {
-  deviceModel: string;
-  deviceStatus: string;
-  deviceAddress: string;
-  ngrokLink: string;
-  hostingFee: string;
 }
 
 // Available tools
@@ -469,9 +475,7 @@ function ConfirmationModal({
   deviceInfo,
   agentName,
   characterData,
-  isMainnet,
   isPending,
-  walletAddress,
   perApiCallFee,
   isPublic,
   isEncrypting,
@@ -480,7 +484,7 @@ function ConfirmationModal({
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
-  deviceInfo: DeviceInfo | null;
+  deviceInfo: Device | null;
   agentName: string;
   characterData: CharacterData | null;
   isMainnet: boolean;
@@ -560,11 +564,11 @@ function ConfirmationModal({
                 </p>
                 <p className="text-white">
                   <span className="text-gray-400">Address:</span>{" "}
-                  {deviceInfo.deviceAddress}
+                  {deviceInfo.walletAddress}
                 </p>
                 <p className="text-white">
                   <span className="text-gray-400">Hosting Fee:</span>{" "}
-                  {formatEther(BigInt(deviceInfo.hostingFee))} TFIL
+                  {formatEther(BigInt(deviceInfo.hostingFee))} HBAR
                 </p>
               </div>
             </div>
@@ -575,7 +579,7 @@ function ConfirmationModal({
             <div className="bg-black/50 rounded-lg p-3 space-y-2">
               <p className="text-white">
                 <span className="text-gray-400">Per API Call Fee:</span>{" "}
-                {perApiCallFee} TFIL
+                {perApiCallFee} HBAR
               </p>
               <p className="text-white">
                 <span className="text-gray-400">Visibility:</span>{" "}
@@ -583,7 +587,7 @@ function ConfirmationModal({
               </p>
               <p className="text-white">
                 <span className="text-gray-400">Network:</span>{" "}
-                Filecoin Calibration Testnet
+                Hedera Testnet
               </p>
             </div>
           </div>
@@ -735,7 +739,9 @@ function SuccessModal({
 }
 
 // Client component that uses useSearchParams
-function CreateAgentContent() {
+function CreateAgentContent({ deviceAddress }: {
+  deviceAddress: string
+}) {
   const [selectedTools, setSelectedTools] = useState<Tool[]>([]);
   const [agentName, setAgentName] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -746,7 +752,6 @@ function CreateAgentContent() {
   const [isPublic, setIsPublic] = useState(false);
   const [constructedCharacter, setConstructedCharacter] =
     useState<CharacterData | null>(null);
-  const { sendTransaction } = useSendTransaction()
   const [characterData, setCharacterData] = useState<CharacterData>({
     name: "CryptoSage",
     description: "A wise and experienced crypto trading assistant.",
@@ -778,48 +783,31 @@ function CreateAgentContent() {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [hydrated, setHydrated] = useState(false);
-  const [isTestingUpload, setIsTestingUpload] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
-
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [deviceInfo, setDeviceInfo] = useState<Device | null>(null)
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user, login } = usePrivy();
-
-  // Use Privy's user info for wallet address
-  const walletAddress = user?.wallet?.address;
-  const walletIsConnected = !!user?.wallet?.address;
-
-  // Hydration fix - ensure component is mounted before rendering DND components
+  const { accountId, walletInterface } = useWalletInterface()
   useEffect(() => {
     setHydrated(true);
   }, []);
 
-  // Connect wallet function using Privy
-  const handleConnectWallet = async () => {
-    try {
-      console.log("Connecting wallet with Privy...");
-      setIsConnecting(true);
-
-      // Use Privy login
-      await login();
-    } catch (error) {
-      console.error("Error connecting wallet:", error);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  // Get device info from URL params
-  const deviceInfo =
-    searchParams.size > 0
-      ? {
-        deviceModel: searchParams.get("deviceModel") || "",
-        deviceStatus: searchParams.get("deviceStatus") || "",
-        deviceAddress: searchParams.get("deviceAddress") || "",
-        ngrokLink: searchParams.get("ngrokLink") || "",
-        hostingFee: searchParams.get("hostingFee") || "",
+  useEffect(() => {
+    if (!hydrated) return;
+    (async function () {
+      try {
+        const fetchedDeviceRequest = await fetch('/api/graph/devices-by-wallet?address=' + deviceAddress)
+        const devices = await fetchedDeviceRequest.json()
+        if (devices.length == 0) throw Error("Device does not exist")
+        setDeviceInfo(devices[0])
+      } catch (e) {
+        console.log(e)
+        setError('Device does not exist')
       }
-      : null;
+      setLoading(false)
+    })()
+  }, [])
 
   // Handle tool selection
   const handleToolToggle = (toolId: string) => {
@@ -891,12 +879,6 @@ function CreateAgentContent() {
 
   // Update handleCreateAgent to use the validated name
   async function handleCreateAgent() {
-    // Check if wallet is connected first
-    if (!walletIsConnected) {
-      handleConnectWallet();
-      return;
-    }
-
     if (!agentName) {
       toast.error("Please enter a valid agent name");
       return;
@@ -907,7 +889,7 @@ function CreateAgentContent() {
       return;
     }
 
-    if (!deviceInfo?.deviceAddress) {
+    if (!deviceInfo?.walletAddress) {
       toast.error("No device selected. Please select a device from the marketplace.");
       return;
     }
@@ -937,7 +919,7 @@ function CreateAgentContent() {
   // Update handleConfirmCreateAgent to include avatar and secrets
   async function handleConfirmCreateAgent() {
     if (
-      !deviceInfo?.deviceAddress ||
+      !deviceInfo?.walletAddress ||
       !isNameAvailable ||
       !constructedCharacter
     ) {
@@ -965,21 +947,19 @@ function CreateAgentContent() {
         const formData = new FormData();
         const customFileName = `avatar-${Date.now()}.${avatarFile.name.split('.').pop()}`;
         formData.append("file", avatarFile, customFileName);
-        fetch(`/api/akave/upload-form-data?bucket-name=franky-agents-avatar`, {
+        const avatarUrlRequest = await fetch(`/api/pinata/image`, {
           method: "POST",
           body: formData,
         });
-        const avatarUrl = `${AKAVE_API_URL}/buckets/franky-agents-avatar/files/${customFileName}/download`;
+        const { url: avatarUrl } = await avatarUrlRequest.json()
         console.log(avatarUrl)
-        console.log('Uploading character data to Akave with encrypted secrets...');
-        let characterConfigUrl = null;
-        toast.info("Uploading character data to Filecoin...", {
+        console.log('Uploading character data to Pinata with encrypted secrets...');
+        let characterConfigUrl = "";
+        toast.info("Uploading character data to Pinata...", {
           description: "This will take some time..."
         });
-        // Handle secrets encryption and upload process
         try {
-
-          fetch(`/api/akave/upload-character`, {
+          const characterConfigUrlRequest = await fetch(`/api/pinata/json`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -988,22 +968,15 @@ function CreateAgentContent() {
               character: constructedCharacter,
               subname,
               secrets,
+              avatarUrl
             }),
           });
-          characterConfigUrl = `${AKAVE_API_URL}/buckets/${FRANKY_AGENTS_BUCKET}/files/${subname}-frankyagent-xyz.json/download`;
-
-          if (!characterConfigUrl) {
-            console.error('⚠️ Failed to upload character data to Akave');
-            toast.error('Failed to upload character data. Please try again.');
-            setIsUploading(false);
-            setShowConfirmModal(false);
-            return;
-          }
-
-          console.log('✅ Character data with encrypted secrets available at Akave:', characterConfigUrl);
+          const { url } = await characterConfigUrlRequest.json()
+          characterConfigUrl = url
+          console.log('✅ Character data with encrypted secrets available at Pinata: ', characterConfigUrl);
           setIsUploading(false);
         } catch (error) {
-          console.error('Error in Akave upload process:', error);
+          console.error('Error in Pinata upload process:', error);
           toast.error('Error uploading character data. Please try again.');
           setIsUploading(false);
           setShowConfirmModal(false);
@@ -1013,39 +986,33 @@ function CreateAgentContent() {
         console.log("Simulating contract call...");
         console.log("ARGS")
 
-        const args = [avatarUrl, subname, characterConfigUrl, deviceInfo.deviceAddress, parseEther(perApiCallFee), isPublic];
-        const { request } = await publicClient.simulateContract({
-          address: FRANKY_ADDRESS,
-          abi: FRANKY_ABI,
-          functionName: 'createAgent',
-          args
-        });
-        console.log("Simulation successful, request data:", request);
-        console.log("Preparing transaction...");
-        const callData = encodeFunctionData({
-          abi: FRANKY_ABI,
-          functionName: 'createAgent',
-          args: args
-        });
-        console.log("Encoded call data:", callData);
-
-        const nonce = await publicClient.getTransactionCount({
-          address: user?.wallet?.address as `0x${string}`,
-          blockTag: 'pending'
-        });
-        console.log("Nonce fetched:", nonce);
-        console.log("Sending transaction...");
-        const { hash } = await sendTransaction({
-          to: FRANKY_ADDRESS,
-          data: callData,
-          gasLimit: request.gas ?? 100000000, // Higher default for complex operations
-          gasPrice: request.gasPrice ?? 2500, // Base fee in attoFIL
-          maxFeePerGas: request.maxFeePerGas ?? 15000, // Max fee in attoFIL
-          maxPriorityFeePerGas: request.maxPriorityFeePerGas ?? 10000,
-          nonce: nonce ?? 1,
-        }, {
-          address: user?.wallet?.address as `0x${string}`,
-        });
+        const args = [subname, characterConfigUrl, deviceInfo.walletAddress, parseEther(perApiCallFee), isPublic];
+        const params = new ContractFunctionParameterBuilder().addParam({
+          type: "string",
+          name: "subdomain",
+          value: subname
+        })
+          .addParam({
+            type: "bytes[]",
+            name: "characterConfig",
+            value: [stringToBytes(characterConfigUrl)]
+          })
+          .addParam({
+            type: "address",
+            name: "deviceAddress",
+            value: deviceInfo.walletAddress.toLowerCase()
+          })
+          .addParam({
+            type: "uint256",
+            name: "perApiCallFee",
+            value: parseEther(perApiCallFee),
+          })
+          .addParam({
+            type: "bool",
+            name: "isPublic",
+            value: isPublic
+          })
+        const hash = await walletInterface?.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), "createAgent", params, 500_000)
         console.log("Transaction sent, hash:", hash);
 
         toast.promise(publicClient.waitForTransactionReceipt({
@@ -1093,9 +1060,6 @@ function CreateAgentContent() {
     }
   }
 
-  // Check for wallet connection status
-  const isWalletConnected = !!walletAddress;
-
   return (
     <>
       <div className="container mx-auto px-4 pt-32">
@@ -1126,7 +1090,7 @@ function CreateAgentContent() {
               <div className="flex items-center">
                 <FiServer className="text-[#00FF88] mr-2" />
                 <span className="text-gray-300">
-                  Status: {deviceInfo.deviceStatus}
+                  Status: {deviceInfo.agentCount == 0 ? "Available" : "In Use"}
                 </span>
               </div>
               <div className="flex items-center">
@@ -1138,10 +1102,10 @@ function CreateAgentContent() {
               <div className="flex items-center">
                 <span className="text-xs text-gray-400">Device Address: </span>
                 <span className="text-xs text-[#00FF88] ml-2">
-                  {`${deviceInfo.deviceAddress.slice(
+                  {`${deviceInfo.walletAddress.slice(
                     0,
                     6
-                  )}...${deviceInfo.deviceAddress.slice(-4)}`}
+                  )}...${deviceInfo.walletAddress.slice(-4)}`}
                 </span>
               </div>
             </div>
@@ -1200,7 +1164,7 @@ function CreateAgentContent() {
                 htmlFor="per-api-call-fee"
                 className="block mb-2 text-gray-300"
               >
-                Per API Call Fee (TFIL)
+                Per API Call Fee (HBAR)
               </label>
               <input
                 id="per-api-call-fee"
@@ -1228,7 +1192,7 @@ function CreateAgentContent() {
           </div>
         </motion.div>
 
-        {isWalletConnected && (
+        {accountId && (
           <div className="mb-6 p-3 rounded-lg bg-[#00FF88]/10 border border-[#00FF88]/30">
             <div className="flex items-center">
               <div className="flex justify-center items-center h-8 w-8 rounded-full bg-[#00FF88]/20 mr-3">
@@ -1237,11 +1201,11 @@ function CreateAgentContent() {
               <div>
                 <p className="text-[#00FF88] font-medium">Wallet connected</p>
                 <p className="text-xs text-gray-400">
-                  {walletAddress
-                    ? `${walletAddress.substring(
+                  {accountId
+                    ? `${accountId.substring(
                       0,
                       6
-                    )}...${walletAddress.substring(walletAddress.length - 4)}`
+                    )}...${accountId.substring(accountId.length - 4)}`
                     : ""}
                 </p>
               </div>
@@ -1360,17 +1324,7 @@ function CreateAgentContent() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
         >
-          {!isWalletConnected ? (
-            <div className="flex flex-col items-center p-6 border border-[#00FF88]/30 rounded-xl bg-black/50">
-              <button
-                onClick={handleConnectWallet}
-                disabled={isConnecting}
-                className="px-8 py-4 rounded-lg bg-gradient-to-r from-[#00FF88]/20 to-emerald-500/20 border border-[#00FF88] text-[#00FF88] hover:from-[#00FF88]/30 hover:to-emerald-500/30 transition-all duration-300 shadow-lg shadow-emerald-900/30 backdrop-blur-sm min-w-[240px]"
-              >
-                {isConnecting ? "Connecting..." : "Connect Wallet"}
-              </button>
-            </div>
-          ) : (
+          {
             <button
               onClick={handleCreateAgent}
               disabled={
@@ -1401,7 +1355,7 @@ function CreateAgentContent() {
                 "Upload & Create Agent"
               )}
             </button>
-          )}
+          }
 
           {!constructedCharacter && (
             <p className="mt-3 text-sm text-gray-400">
@@ -1425,9 +1379,9 @@ function CreateAgentContent() {
         deviceInfo={deviceInfo}
         agentName={agentName}
         characterData={constructedCharacter}
-        isMainnet={true}
+        isMainnet={false}
         isPending={false}
-        walletAddress={walletAddress}
+        walletAddress={accountId}
         perApiCallFee={perApiCallFee}
         isPublic={isPublic}
         isEncrypting={isEncrypting}
@@ -1460,11 +1414,15 @@ function LoadingFallback() {
 }
 
 // Main page component with Suspense boundary
-export default function CreateAgentPage() {
+export default function CreateAgentPage({ params }: {
+  params: {
+    address: string
+  }
+}) {
   return (
     <main className="min-h-screen pb-20">
       <Suspense fallback={<LoadingFallback />}>
-        <CreateAgentContent />
+        <CreateAgentContent deviceAddress={params.address} />
       </Suspense>
     </main>
   );

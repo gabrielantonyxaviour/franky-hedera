@@ -8,10 +8,7 @@ import { useRouter } from 'next/navigation'
 import { FiCpu, FiHardDrive, FiServer, FiLink, FiSmartphone, FiHash, FiCheck } from 'react-icons/fi'
 import { base } from 'viem/chains'
 import axios from 'axios'
-// Import ethers and utils directly for compatibility
 import { ethers } from 'ethers'
-// Import Privy
-import { usePrivy } from "@privy-io/react-auth";
 import { getAvailableDevices } from '@/lib/graph'
 import { formatEther } from 'viem'
 
@@ -32,73 +29,6 @@ interface Device {
   registeredAt: string
 }
 
-// ABI fragment for the registerDevice function
-const abiFragment = [
-  {
-    "inputs": [
-      { "internalType": "string", "name": "deviceModel", "type": "string" },
-      { "internalType": "string", "name": "ram", "type": "string" },
-      { "internalType": "string", "name": "storageCapacity", "type": "string" },
-      { "internalType": "string", "name": "cpu", "type": "string" },
-      { "internalType": "string", "name": "ngrokLink", "type": "string" },
-      { "internalType": "uint256", "name": "hostingFee", "type": "uint256" },
-      { "internalType": "address", "name": "deviceAddress", "type": "address" },
-      { "internalType": "bytes32", "name": "verificationHash", "type": "bytes32" },
-      { "internalType": "bytes", "name": "signature", "type": "bytes" }
-    ],
-    "name": "registerDevice",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      { "indexed": true, "internalType": "address", "name": "deviceAddress", "type": "address" },
-      { "indexed": true, "internalType": "address", "name": "owner", "type": "address" },
-      { "indexed": false, "internalType": "string", "name": "deviceModel", "type": "string" },
-      { "indexed": false, "internalType": "string", "name": "ram", "type": "string" },
-      { "indexed": false, "internalType": "string", "name": "storageCapacity", "type": "string" },
-      { "indexed": false, "internalType": "string", "name": "cpu", "type": "string" },
-      { "indexed": false, "internalType": "string", "name": "ngrokLink", "type": "string" },
-      { "indexed": false, "internalType": "uint256", "name": "hostingFee", "type": "uint256" }
-    ],
-    "name": "DeviceRegistered",
-    "type": "event"
-  }
-];
-
-// Helper function to add delay between requests
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-// Helper function for exponential backoff retry
-const retryWithBackoff = async (
-  fn: () => Promise<any>,
-  retries = 3,
-  initialDelay = 1000,
-  maxDelay = 10000
-) => {
-  let currentDelay = initialDelay;
-
-  for (let i = 0; i <= retries; i++) {
-    try {
-      return await fn();
-    } catch (error: any) {
-      if (i === retries || (error.response?.status !== 429 && error.status !== 429)) {
-        throw error;
-      }
-
-      // Get retry delay from response header or use exponential backoff
-      const retryAfter = error.response?.headers?.['retry-after'];
-      const delayTime = retryAfter ? parseInt(retryAfter) * 1000 : Math.min(currentDelay, maxDelay);
-
-      await delay(delayTime);
-
-      // Increase delay for next attempt (exponential backoff)
-      currentDelay *= 2;
-    }
-  }
-};
 
 // Background animation component
 const Background = () => {
@@ -279,7 +209,6 @@ export default function MarketplacePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
-  const { user, login } = usePrivy()
 
   useEffect(() => {
     setIsClient(true)
@@ -296,7 +225,7 @@ export default function MarketplacePage() {
       const formattedDevices = await Promise.all(
         fetchedDevices.map(async (device: any) => {
           if (device.agents.length > 0) return;
-          const metadataRequest = await fetch(`/api/akave/fetch-json?url=${encodeURIComponent(device.metadata)}`);
+          const metadataRequest = await fetch(device.metadata);
           const metadata = await metadataRequest.json();
 
           return {
@@ -305,7 +234,7 @@ export default function MarketplacePage() {
             ram: metadata.ram ?? '8GB',
             storage: metadata.storage ?? '128GB',
             cpu: metadata.cpu ?? 'Snapdragon 8 Gen 2',
-            ngrokLink: device.ngrokLink,
+            ngrokLink: metadata.ngrokLink,
             walletAddress: device.id,
             hostingFee: device.hostingFee,
             agentCount: device.agents.length,
@@ -322,16 +251,13 @@ export default function MarketplacePage() {
   }, [isClient]);
 
 
-
-  // Handle device selection
   const handleDeviceSelect = (device: Device) => {
     console.log('Selected device:', device);
-    // Pass device information to the create-agent page using query parameters
-    router.push(`/create-agent?deviceModel=${encodeURIComponent(device.deviceModel)}&deviceStatus=${device.status}&deviceAddress=${device.walletAddress}&ngrokLink=${encodeURIComponent(device.ngrokLink)}&hostingFee=${encodeURIComponent(device.hostingFee)}`);
+    router.push(`/create-agent/${device.walletAddress}`);
   };
 
   if (!isClient) {
-    return null; // Avoid rendering during SSR
+    return null;
   }
 
   return (

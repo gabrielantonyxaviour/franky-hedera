@@ -28,12 +28,21 @@ contract Franky is HederaTokenService, KeyHelper {
         uint8 status;
     }
 
+    struct ServerWallet {
+        address owner;
+        address walletAddress;
+        bytes encryptedPrivateKey;
+        bytes32 privateKeyHash;
+    }
+
     uint256 public devicesCount = 0;
     uint256 public agentsCount = 0;
 
     address public frankyAgentAccountImplemetation;
     address public frankyAgentsNftAddress;
     address public owner;
+
+    mapping(address => uint256) public claimmables;
 
     mapping(address => Device) public devices;
 
@@ -47,7 +56,7 @@ contract Franky is HederaTokenService, KeyHelper {
 
     mapping(address => mapping(address => bytes32)) public agentsKeyHash;
 
-    mapping(address => address) public serverWalletsMapping;
+    mapping(address => ServerWallet) public serverWalletsMapping;
 
     constructor(
         address _frankyAgentAccountImplemetation,
@@ -112,16 +121,32 @@ contract Franky is HederaTokenService, KeyHelper {
     );
     event ServerWalletConfigured(
         address indexed walletAddress,
-        address indexed serverWalletAddress
+        address indexed serverWalletAddress,
+        bytes encryptedPrivateKey,
+        bytes32 privateKeyHash
     );
 
-    function configureServerWallet(address serverWalletAddress) external {
+    function configureServerWallet(
+        address walletAddress,
+        bytes memory encryptedPrivateKey,
+        bytes32 privateKeyHash
+    ) external {
         require(
-            serverWalletsMapping[msg.sender] == address(0),
+            serverWalletsMapping[msg.sender].walletAddress == address(0),
             "Server wallet already configured"
         );
-        serverWalletsMapping[msg.sender] = serverWalletAddress;
-        emit ServerWalletConfigured(msg.sender, serverWalletAddress);
+        serverWalletsMapping[msg.sender] = ServerWallet({
+            owner: msg.sender,
+            walletAddress: walletAddress,
+            encryptedPrivateKey: encryptedPrivateKey,
+            privateKeyHash: privateKeyHash
+        });
+        emit ServerWalletConfigured(
+            msg.sender,
+            walletAddress,
+            encryptedPrivateKey,
+            privateKeyHash
+        );
     }
 
     function registerDevice(
@@ -162,8 +187,12 @@ contract Franky is HederaTokenService, KeyHelper {
         address deviceAddress,
         uint256 perApiCallFee,
         bool isPublic
-    ) external {
+    ) external payable {
         require(devices[deviceAddress].isRegistered, "Device not registered");
+        require(
+            msg.value >= devices[deviceAddress].hostingFee,
+            "Insufficient Fee"
+        );
 
         address agentAddress = _deployAgentAccount(
             subdomain,
@@ -236,7 +265,7 @@ contract Franky is HederaTokenService, KeyHelper {
     function checkAvailableCredits(
         address walletAddress
     ) public view returns (uint256 amount) {
-        return serverWalletsMapping[walletAddress].balance;
+        return serverWalletsMapping[walletAddress].walletAddress.balance;
     }
 
     function isDeviceOwned(
@@ -252,16 +281,21 @@ contract Franky is HederaTokenService, KeyHelper {
     ) external view returns (bool) {
         return
             agents[agentAddress].owner == caller ||
-            serverWalletsMapping[caller].balance >=
+            serverWalletsMapping[caller].walletAddress.balance >=
             agents[agentAddress].perApiCallFee;
     }
 
-    function isRegisteredDeviceOrOwner(
-        address deviceAddress
+    function isRegisteredDevice(address caller) external view returns (bool) {
+        return devices[caller].isRegistered;
+    }
+
+    function canDecryptServerWallet(
+        address caller,
+        address serverWalletAddress
     ) external view returns (bool) {
         return
-            devices[msg.sender].isRegistered ||
-            ownerDevices[msg.sender][deviceAddress];
+            devices[caller].isRegistered ||
+            serverWalletsMapping[caller].walletAddress == serverWalletAddress;
     }
 
     function getDevice(
@@ -360,19 +394,22 @@ contract Franky is HederaTokenService, KeyHelper {
             );
     }
 
-    receive() external payable {}
+    receive() external payable {
+        claimmables[owner] = msg.value;
+    }
 
-    fallback() external payable {}
+    fallback() external payable {
+        claimmables[owner] = msg.value;
+    }
 
     function getBalance() external view returns (uint256) {
         return address(this).balance;
     }
 
-    function withdrawHBAR() external {
-        uint256 balance = address(this).balance;
-        require(balance > 0, "No HBAR to withdraw");
-
-        (bool success, ) = owner.call{value: balance}("");
-        require(success, "Failed to withdraw HBAR");
+    function claimHBAR() external {
+        uint256 amount = claimmables[msg.sender];
+        require(amount > 0, "Nothing to claim");
+        claimmables[msg.sender] = 0;
+        payable(msg.sender).transfer(amount);
     }
 }
