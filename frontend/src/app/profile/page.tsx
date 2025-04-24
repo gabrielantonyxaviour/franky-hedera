@@ -3,48 +3,32 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { usePrivy } from "@privy-io/react-auth";
 import { publicClient } from "@/lib/utils";
 import { formatEther } from "viem";
 import Image from "next/image";
+import { useWalletInterface } from "@/hooks/use-wallet-interface";
 
 export default function DashboardPage() {
-  const { user, login } = usePrivy()
   const [mounted, setMounted] = useState(false);
   const [balance, setBalance] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Use Privy for wallet connection (matching create-agent and marketplace pages)
-  const walletAddress = user?.wallet?.address;
-  const walletIsConnected = !!walletAddress;
-  const userEmail = user?.email?.address;
-  const userName = userEmail?.split('@')[0] || 'User';
+  const { accountId, walletInterface } = useWalletInterface()
 
 
   useEffect(() => {
     (async function () {
-      if (user && user.wallet) {
-        console.log(user)
+      if (accountId) {
+        console.log(accountId)
         const fetched = await publicClient.getBalance({
-          address: user.wallet?.address as `0x${string}`,
+          address: accountId as `0x${string}`,
         })
-        const formattedBalance = formatEther(fetched);
         setBalance(formatEther(fetched));
         setIsLoading(false);
       }
     })()
 
-  }, [user])
+  }, [accountId])
 
-  // Add wallet connect handler
-  const handleConnectWallet = async () => {
-    try {
-      console.log("Connecting wallet with Privy...");
-      await login();
-    } catch (error) {
-      console.error("Error connecting wallet:", error);
-    }
-  };
 
   // Fix hydration issues by waiting for component to mount
   useEffect(() => {
@@ -114,29 +98,8 @@ export default function DashboardPage() {
                 </svg>
               </div>
 
-              {/* Modified condition to show user info from Privy */}
-              {user && (
-                <motion.div
-                  className="mb-4 space-y-1"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.2 }}
-                >
-                  {userName && (
-                    <h3 className="text-lg font-medium text-[#00FF88]">
-                      {userName}
-                    </h3>
-                  )}
-                  {userEmail && (
-                    <p className="text-[#00FF88]/70 text-lg">
-                      {userEmail}
-                    </p>
-                  )}
-                </motion.div>
-              )}
-
               <div className="flex justify-center">
-                {walletIsConnected ? (
+                {accountId ? (
                   <div className="mb-6 p-3 rounded-lg bg-[#00FF88]/10 border border-[#00FF88]/30">
                     <div className="flex items-center">
                       <div className="flex justify-center items-center h-8 w-8 rounded-full bg-[#00FF88]/20 mr-3">
@@ -160,8 +123,8 @@ export default function DashboardPage() {
                       <div>
                         <p className="text-[#00FF88] font-medium">Wallet connected</p>
                         <p className="text-xs text-gray-400">
-                          {walletAddress
-                            ? `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}`
+                          {accountId
+                            ? `${accountId.substring(0, 6)}...${accountId.substring(accountId.length - 4)}`
                             : ""}
                         </p>
                       </div>
@@ -169,7 +132,11 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   <button
-                    onClick={handleConnectWallet}
+                    onClick={() => {
+                      if (accountId) {
+                        walletInterface.disconnect();
+                      }
+                    }}
                     className="px-6 py-2 rounded-lg bg-[#00FF88]/20 border border-[#00FF88]/50 text-[#00FF88] hover:bg-[#00FF88]/30 transition-colors mb-4"
                   >
                     Connect Wallet
@@ -179,7 +146,7 @@ export default function DashboardPage() {
                 {balance && (
                   <div className="flex items-center gap-2 mx-4 my-auto h-full pb-6">
                     <Image
-                      src="/fil.png"
+                      src="/hedera.png"
                       alt="Token Logo"
                       width={20}
                       height={20}
@@ -189,7 +156,7 @@ export default function DashboardPage() {
                       {parseFloat(balance).toFixed(3)}
                     </span>
                     <span className="text-[#00FF88]/70 text-xl">
-                      {`tFIL`}
+                      {`HBAR`}
                     </span>
                     {/* <span className="text-[#00FF88]/50 text-sm">
                                         ${(parseFloat(balance) * 2.5).toFixed(2)}
@@ -199,7 +166,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {walletIsConnected && (
+            {accountId && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
                 <Link href="/profile/agents">
                   <motion.div
