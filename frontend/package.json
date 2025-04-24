@@ -34,7 +34,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
-    "ethers": "^6.13.5",
+    "ethers": "^5.7.2",
     "form-data": "^4.0.0",
     "framer-motion": "^12.4.7",
     "graphql": "^16.10.0",

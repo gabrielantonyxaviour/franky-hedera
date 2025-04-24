@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, FormEvent, ReactNode } from "react";
+import { useState, FormEvent, ReactNode, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
 // Lucide icons can be directly imported
-import { MailIcon, ArrowLeftIcon, Boxes, Sliders } from "lucide-react";
+import { MailIcon, ArrowLeftIcon, Boxes, Sliders, Globe } from "lucide-react";
 import Image from "next/image";
-import { useCreateWallet, useLoginWithEmail, usePrivy } from "@privy-io/react-auth";
+import { useWalletInterface } from "@/hooks/use-wallet-interface";
 
 // TypeScript interfaces for component props
 interface GlowButtonProps {
@@ -263,7 +263,9 @@ interface AuthResponse {
     success: boolean;
 }
 
-export default function SignIn() {
+export default function SignIn({ setOpen }: {
+    setOpen: (val: boolean) => void;
+}) {
     const [email, setEmail] = useState<string>("");
     const [code, setCode] = useState<string>("");
     const [showEmailForm, setShowEmailForm] = useState<boolean>(false);
@@ -271,99 +273,44 @@ export default function SignIn() {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string>("");
     const router = useRouter();
-    const { createWallet } = useCreateWallet({
-        onSuccess: ({ wallet }) => {
-            console.log('Created wallet ', wallet);
-        },
-        onError: (error) => {
-            console.error('Failed to create wallet with error ', error)
-        }
-    });
-    const { sendCode, loginWithCode } = useLoginWithEmail({
-        onComplete: (data) => {
-            console.log("Login successful:", data);
-            const { linkedAccounts } = data.user
-            const account = linkedAccounts.find((account) => account.type === "wallet" && account.chainType === "ethereum");
-            if (account) {
-                console.log("Account found:", account);
-            } else {
-                console.log("No account found, creating a new wallet");
-                createWallet()
-            }
-        }
-    });
-    const { ready, user } = usePrivy();
+    const { accountId, walletInterface } = useWalletInterface();
+    // const { createWallet } = useCreateWallet({
+    //     onSuccess: ({ wallet }) => {
+    //         console.log('Created wallet ', wallet);
+    //     },
+    //     onError: (error) => {
+    //         console.error('Failed to create wallet with error ', error)
+    //     }
+    // });
+    // const { sendCode, loginWithCode } = useLoginWithEmail({
+    //     onComplete: (data) => {
+    //         console.log("Login successful:", data);
+    //         const { linkedAccounts } = data.user
+    //         const account = linkedAccounts.find((account) => account.type === "wallet" && account.chainType === "ethereum");
+    //         if (account) {
+    //             console.log("Account found:", account);
+    //         } else {
+    //             console.log("No account found, creating a new wallet");
+    //             createWallet()
+    //         }
+    //     }
+    // });
 
     // Function to handle initial button click
     const handleInitialClick = (): void => {
-        setShowEmailForm(true);
-    };
-
-    // Function to handle email submission
-    const handleEmailSubmit = async (e: FormEvent | { preventDefault: () => void }): Promise<void> => {
-        if (e.preventDefault) e.preventDefault();
-
-        if (!email || !/\S+@\S+\.\S+/.test(email)) {
-            setError("Please enter a valid email address");
-            return;
-        }
-
-        setIsLoading(true);
-        setError("");
-
-        try {
-            await sendCode({
-                email: email,
-            });
-            setShowOTPForm(true);
-        } catch (err) {
-            setError("Failed to send verification code. Please try again.");
-            console.error(err);
-        } finally {
-            setIsLoading(false);
+        if (accountId) {
+            walletInterface.disconnect();
+        } else {
+            setOpen(true);
         }
     };
 
-    // Function to handle OTP submission
-    const handleOTPSubmit = async (e: FormEvent): Promise<void> => {
-        e.preventDefault();
-
-        if (!code || code.length < 6) {
-            setError("Please enter a valid verification code");
-            return;
+    useEffect(() => {
+        if (accountId) {
+            setOpen(false);
         }
+    }, [accountId])
 
-        setIsLoading(true);
-        setError("");
-
-        try {
-            await loginWithCode({
-                code: code,
-            });
-            setShowOTPForm(false);
-            setShowEmailForm(false);
-            setCode("");
-            setEmail('');
-            // Redirect or show success
-        } catch (err) {
-            setError("Invalid verification code. Please try again.");
-            console.error(err);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Function to go back from OTP to email
-    const handleBackToEmail = (): void => {
-        setShowOTPForm(false);
-        setCode("");
-    };
-
-    // Function to go back from email to initial state
-    const handleBackToInitial = (): void => {
-        setShowEmailForm(false);
-        setError("");
-    };
 
     return (
 
@@ -387,7 +334,6 @@ export default function SignIn() {
                 </motion.div>
             )}
 
-            {/* Initial Button State */}
             {!showEmailForm && !showOTPForm && (
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -400,160 +346,10 @@ export default function SignIn() {
                         className="text-lg mx-auto"
                     >
                         <div className="flex space-x-2 items-center">
-                            <MailIcon size={24} />
-                            <p>Log in with Email</p>
+                            <Image src={'/hedera.png'} width={24} height={24} alt="hedera" className="rounded-full border border-white" />
+                            <p>Log in with Hedera</p>
                         </div>
                     </GlowButton>
-                </motion.div>
-            )}
-
-            {/* Email Form */}
-            {showEmailForm && !showOTPForm && (
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className="w-full max-w-md mx-auto"
-                >
-                    <GlowCard>
-                        <GlowCardHeader>
-                            <GlowCardTitle>Sign in with Email</GlowCardTitle>
-                            <GlowCardDescription>
-                                Enter your email address to receive a verification code
-                            </GlowCardDescription>
-                        </GlowCardHeader>
-
-                        <GlowCardContent>
-                            <form onSubmit={(e) => handleEmailSubmit(e)}>
-                                <div className="space-y-4">
-                                    <div className="space-y-1.5">
-                                        <GlowLabel htmlFor="email">Email</GlowLabel>
-                                        <GlowInput
-                                            id="email"
-                                            type="email"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            placeholder="youremail@example.com"
-                                            required
-                                        />
-                                    </div>
-
-                                    {error && (
-                                        <GlowAlert>{error}</GlowAlert>
-                                    )}
-
-                                    <GlowButton
-                                        type="submit"
-                                        className="w-full mt-2"
-                                        disabled={isLoading}
-                                    >
-                                        {isLoading ? (
-                                            <div className="flex space-x-2 items-center">
-                                                <span>
-                                                    <svg className="animate-spin h-5 w-5 text-[#00FF88]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                    </svg>
-                                                </span>
-                                                <p>Sending</p>
-                                            </div>
-                                        ) : "Send OTP"}
-                                    </GlowButton>
-                                </div>
-                            </form>
-                        </GlowCardContent>
-
-                        <GlowCardFooter>
-                            <GlowButton
-                                variant="ghost"
-                                onClick={handleBackToInitial}
-                            >
-                                <div className="flex space-x-2 items-center">
-                                    <ArrowLeftIcon className=" h-4 w-4" />
-                                    <p>Back</p>
-                                </div>
-                            </GlowButton>
-                        </GlowCardFooter>
-                    </GlowCard>
-                </motion.div>
-            )}
-
-            {/* OTP Form */}
-            {showOTPForm && (
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className="w-full max-w-md mx-auto"
-                >
-                    <GlowCard>
-                        <GlowCardHeader>
-                            <GlowCardTitle>Verify your email</GlowCardTitle>
-                            <GlowCardDescription>
-                                We've sent a verification code to {email}
-                            </GlowCardDescription>
-                        </GlowCardHeader>
-
-                        <GlowCardContent>
-                            <form onSubmit={handleOTPSubmit} className="w-full">
-                                <OTPInput
-                                    value={code}
-                                    onChange={setCode}
-                                    maxLength={6}
-                                />
-
-                                {error && (
-                                    <GlowAlert>{error}</GlowAlert>
-                                )}
-
-                                <div className="flex items-center gap-2 mt-6 justify-center px-12">
-                                    <GlowButton
-                                        type="submit"
-                                        className="flex-1"
-                                        disabled={isLoading}
-                                    >
-                                        {isLoading ? (
-                                            <div className="flex space-x-2 items-center">
-                                                <span>
-                                                    <svg className="animate-spin h-5 w-5 text-[#00FF88]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                    </svg>
-                                                </span>
-                                                <p>Verifying</p>
-                                            </div>
-                                        ) : "Log in"}
-                                    </GlowButton>
-                                </div>
-
-                                <div className="mt-6 text-center mx-auto">
-                                    <GlowButton
-                                        variant="ghost"
-                                        onClick={handleBackToEmail}
-                                        className="text-sm mx-auto"
-                                    >
-                                        <div className="flex space-x-2 items-center">
-                                            <ArrowLeftIcon className=" h-4 w-4" />
-                                            <p>Back</p>
-                                        </div>
-                                    </GlowButton>
-                                </div>
-                            </form>
-                        </GlowCardContent>
-
-                        <GlowCardFooter>
-                            <GlowButton
-                                variant="ghost"
-                                onClick={() => {
-                                    setError("");
-                                    handleEmailSubmit({ preventDefault: () => { } });
-                                }}
-                                className="text-sm hover:text-white/80"
-                            >
-                                Didn't receive a code? Resend
-                            </GlowButton>
-                        </GlowCardFooter>
-                    </GlowCard>
                 </motion.div>
             )}
         </div>

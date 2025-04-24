@@ -2,6 +2,10 @@
 
 import Image from "next/image";
 import Header from "./ui/Header";
+import { useWalletInterface } from "@/hooks/use-wallet-interface";
+import SignIn from "./sign-in";
+import { useState } from "react";
+import { WalletSelectionDialog } from "./wallet-selection-dialog";
 
 const HeroAnimation = () => {
     return (
@@ -48,12 +52,19 @@ export default function Layout({
 }: {
     children: React.ReactNode;
 }) {
+    const { accountId } = useWalletInterface()
+    const [open, setOpen] = useState(false)
     return (
         <div className="min-h-screen flex flex-col sen">
             <div className="min-h-screen flex flex-col">
                 <Header />
                 <HeroAnimation />
-                {children}
+                {
+                    accountId != null ? children :
+
+                        <SignIn setOpen={setOpen} />
+                }
+                <WalletSelectionDialog open={open} setOpen={setOpen} onClose={() => setOpen(false)} />
             </div>
         </div>
     );

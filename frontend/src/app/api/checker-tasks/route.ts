@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { publicClient } from '@/lib/utils';
 import { ethers } from 'ethers';
 import { ApolloClient, InMemoryCache, gql } from '@apollo/client';
-import type { CheckerMetrics, StandardizedReputation, ConsensusVote } from '@/../types/checker-network';
+import type { CheckerMetrics, StandardizedReputation, ConsensusVote } from '@/types/checker-network';
 
 // Initialize Apollo Client for GraphQL queries
 const client = new ApolloClient({
@@ -51,7 +51,7 @@ async function storeReputationData(deviceId: string, data: StandardizedReputatio
   try {
     const AKAVE_API_URL = 'http://3.88.107.110:8000';
     const DEVICE_REPUTATION_BUCKET = 'device-reputation';
-    
+
     // Ensure bucket exists
     const checkResponse = await fetch(`${AKAVE_API_URL}/buckets/${DEVICE_REPUTATION_BUCKET}`);
     if (!checkResponse.ok) {
@@ -62,22 +62,22 @@ async function storeReputationData(deviceId: string, data: StandardizedReputatio
       });
       if (!createResponse.ok) throw new Error('Failed to create bucket');
     }
-    
+
     // Store the data
     const formData = new FormData();
     const jsonBlob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const filename = `${deviceId.toLowerCase()}-${Date.now()}.json`;
     formData.append('file', jsonBlob, filename);
-    
+
     const uploadResponse = await fetch(`${AKAVE_API_URL}/buckets/${DEVICE_REPUTATION_BUCKET}/files`, {
       method: 'POST',
       body: formData
     });
-    
+
     if (!uploadResponse.ok) {
       throw new Error(`Failed to upload reputation data: ${uploadResponse.status}`);
     }
-    
+
     return true;
   } catch (error) {
     console.error('Error storing reputation data:', error);
@@ -184,7 +184,7 @@ export async function POST(request: Request) {
     // Verify the signature
     const message = JSON.stringify({ deviceId, metrics, timestamp: new Date().toISOString() });
     const recoveredAddress = ethers.verifyMessage(message, signature);
-    
+
     if (recoveredAddress.toLowerCase() !== checkerAddress.toLowerCase()) {
       return NextResponse.json(
         { error: 'Invalid signature' },
@@ -215,10 +215,10 @@ export async function POST(request: Request) {
     // If we have enough results, calculate consensus
     if (check.results.length >= Math.min(check.assignedCheckers.length, 3)) {
       check.status = 'complete';
-      
+
       // Calculate consensus metrics (median of all results)
       const consensusMetrics = calculateConsensusMetrics(check.results.map(r => r.metrics));
-      
+
       // Store final reputation
       await storeReputationData(deviceId, {
         version: '1.0.0',
@@ -282,8 +282,8 @@ function calculateConsensusMetrics(allMetrics: CheckerMetrics[]): CheckerMetrics
   const median = (arr: number[]) => {
     const sorted = [...arr].sort((a, b) => a - b);
     const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 === 0 
-      ? (sorted[mid - 1] + sorted[mid]) / 2 
+    return sorted.length % 2 === 0
+      ? (sorted[mid - 1] + sorted[mid]) / 2
       : sorted[mid];
   };
 
