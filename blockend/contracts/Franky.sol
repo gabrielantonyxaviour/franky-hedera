@@ -9,8 +9,9 @@ import {IFrankyAgentAccountImplementation} from "./interfaces/IFrankyAgentAccoun
 
 contract Franky is HederaTokenService, KeyHelper {
     struct Device {
-        string deviceMetadataTopicId;
+        string deviceMetadata;
         address deviceAddress;
+        address owner;
         uint256 hostingFee;
         uint256 agentCount;
         bool isRegistered;
@@ -106,7 +107,7 @@ contract Franky is HederaTokenService, KeyHelper {
     event DeviceRegistered(
         address indexed deviceAddress,
         address indexed owner,
-        string deviceMetadataTopicId,
+        string deviceMetadata,
         uint256 hostingFee
     );
     event ServerWalletConfigured(
@@ -124,7 +125,7 @@ contract Franky is HederaTokenService, KeyHelper {
     }
 
     function registerDevice(
-        string calldata deviceMetadataTopicId,
+        string calldata deviceMetadata,
         uint256 hostingFee,
         address deviceAddress,
         bytes32 verificationHash,
@@ -135,8 +136,9 @@ contract Franky is HederaTokenService, KeyHelper {
         require(recoveredAddress == deviceAddress, "Invalid signature");
 
         devices[deviceAddress] = Device({
-            deviceMetadataTopicId: deviceMetadataTopicId,
+            deviceMetadata: deviceMetadata,
             deviceAddress: deviceAddress,
+            owner: msg.sender,
             agentCount: 0,
             hostingFee: hostingFee,
             isRegistered: true
@@ -149,7 +151,7 @@ contract Franky is HederaTokenService, KeyHelper {
         emit DeviceRegistered(
             deviceAddress,
             msg.sender,
-            deviceMetadataTopicId,
+            deviceMetadata,
             hostingFee
         );
     }
@@ -168,11 +170,11 @@ contract Franky is HederaTokenService, KeyHelper {
             msg.sender,
             keccak256(characterConfig[0])
         );
-        (
-            int responseCode,
-            int64 newTotalSupply,
-            int64[] memory serialNumbers
-        ) = mintToken(frankyAgentsNftAddress, 0, characterConfig);
+        (int responseCode, int64 newTotalSupply, ) = mintToken(
+            frankyAgentsNftAddress,
+            0,
+            characterConfig
+        );
         uint256 tokenId = uint256(uint64(newTotalSupply)) - 1;
         require(
             responseCode == HederaResponseCodes.SUCCESS,
@@ -238,10 +240,10 @@ contract Franky is HederaTokenService, KeyHelper {
     }
 
     function isDeviceOwned(
-        address owner,
+        address _owner,
         address deviceAddress
     ) external view returns (bool) {
-        return ownerDevices[owner][deviceAddress];
+        return ownerDevices[_owner][deviceAddress];
     }
 
     function allowApiCall(
@@ -254,8 +256,12 @@ contract Franky is HederaTokenService, KeyHelper {
             agents[agentAddress].perApiCallFee;
     }
 
-    function isRegisteredDevice() external view returns (bool) {
-        return devices[msg.sender].isRegistered;
+    function isRegisteredDeviceOrOwner(
+        address deviceAddress
+    ) external view returns (bool) {
+        return
+            devices[msg.sender].isRegistered ||
+            ownerDevices[msg.sender][deviceAddress];
     }
 
     function getDevice(

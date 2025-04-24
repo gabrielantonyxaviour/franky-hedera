@@ -19,7 +19,7 @@ services:
       postgres_pass: let-me-in
       postgres_db: graph-node
       ipfs: 'ipfs:5001'
-      ethereum: 'testnet:https://rpc.ankr.com/filecoin_testnet'
+      ethereum: 'testnet:https://testnet.hashio.io/api'
       GRAPH_LOG: info
   ipfs:
     image: ipfs/kubo:v0.17.0
