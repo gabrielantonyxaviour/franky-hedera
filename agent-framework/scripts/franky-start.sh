@@ -11,7 +11,6 @@ RETRY_INTERVAL=20
 API_PORT=8080
 API_LOG_FILE="api_server.log"
 METADATA_FILE="device_metadata.json"
-METADATA_FILE="device_metadata.json"
 
 # Colors for better visibility
 RED='\033[0;31m'
@@ -348,16 +347,8 @@ gather_device_metadata() {
           // Placeholder format for signature (65 bytes = 130 hex chars + 0x prefix)
           // Format: r (32 bytes) + s (32 bytes) + v (1 byte)
           signature: '0x' + '0'.repeat(128) + '00'
-          ngrokLink: process.env.NGROK_URL || 'http://localhost:8080',
-          // Placeholder format for bytes32 (64 hex chars + 0x prefix)
-          bytes32Data: '0x' + '0'.repeat(64),
-          // Placeholder format for signature (65 bytes = 130 hex chars + 0x prefix)
-          // Format: r (32 bytes) + s (32 bytes) + v (1 byte)
-          signature: '0x' + '0'.repeat(128) + '00'
         };
         
-        // Save metadata to file
-        fs.writeFileSync('$METADATA_FILE', JSON.stringify(metadata, null, 2));
         // Save metadata to file
         fs.writeFileSync('$METADATA_FILE', JSON.stringify(metadata, null, 2));
         console.log('SUCCESS');
@@ -382,85 +373,10 @@ gather_device_metadata() {
 # Function to update metadata with wallet address
 update_metadata_with_address() {
   log_status "Updating device metadata with wallet address and cryptographic proof..."
-# Function to update metadata with wallet address
-update_metadata_with_address() {
-  log_status "Updating device metadata with wallet address and cryptographic proof..."
   
-  # Create a Node.js script to update metadata
   # Create a Node.js script to update metadata
   node -e "
     const fs = require('fs');
-    const crypto = require('crypto');
-    
-    /**
-     * Generates a deterministic private key from the device ID and other info
-     * @param {string} deviceInfo - Information about the device to use as a seed
-     * @returns {Buffer} - A 32-byte private key
-     */
-    function generatePrivateKey(deviceInfo) {
-      // Create a deterministic seed by hashing the device info
-      return crypto.createHash('sha256').update(deviceInfo).digest();
-    }
-    
-    /**
-     * Creates a bytes32 representation of the device info (similar to keccak256 in Ethereum)
-     * @param {string} deviceInfo - Device information string
-     * @returns {string} - bytes32 representation as hex string with 0x prefix
-     */
-    function createBytes32(deviceInfo) {
-      // In Ethereum this would be keccak256, but for simplicity 
-      // we'll use sha256 since we're not on an Ethereum chain
-      const hash = crypto.createHash('sha256').update(deviceInfo).digest('hex');
-      return '0x' + hash;
-    }
-    
-    /**
-     * Signs a message (bytes32) with a private key using a simplified ECDSA approach
-     * This is a simplified version of Ethereum's signing
-     * @param {Buffer} privateKey - The private key to sign with
-     * @param {string} bytes32 - The bytes32 message to sign
-     * @returns {string} - Signature as hex string with 0x prefix
-     */
-    function signBytes32(privateKey, bytes32) {
-      try {
-        // Convert bytes32 to buffer (remove 0x prefix if present)
-        const messageBuffer = Buffer.from(bytes32.startsWith('0x') ? bytes32.slice(2) : bytes32, 'hex');
-        
-        // Use the built-in crypto module to sign (this differs from Ethereum signing but is similar)
-        // We're creating a simple sign operation with the private key
-        const sign = crypto.createSign('SHA256');
-        sign.update(messageBuffer);
-        
-        try {
-          // Try to sign with the private key (may require formatting)
-          const signature = sign.sign({
-            key: privateKey,
-            dsaEncoding: 'ieee-p1363' // This would be different for Ethereum, but works for our demo
-          }, 'hex');
-          
-          // Add a recovery byte placeholder (v) at the end (in Ethereum this would be 27 or 28)
-          const recoveryByte = '01'; // Simplified recovery byte
-          
-          return '0x' + signature + recoveryByte;
-        } catch (e) {
-          // If signing fails with the private key directly, we'll create a simulated signature
-          // This is just for demo purposes - in a real implementation, proper ECDSA would be used
-          const simulatedSignature = crypto.createHmac('sha256', privateKey)
-            .update(messageBuffer)
-            .digest('hex');
-          
-          // Pad to look like a 65-byte signature (r, s, v) with recovery byte
-          const paddedSig = simulatedSignature.padEnd(128, '0') + '01';
-          return '0x' + paddedSig;
-        }
-      } catch (error) {
-        console.error('Signing error:', error);
-        // Return a fallback signature for demo purposes
-        return '0x' + '1'.repeat(128) + '01';
-      }
-    }
-    
-    async function updateMetadata() {
     const crypto = require('crypto');
     
     /**
@@ -535,9 +451,7 @@ update_metadata_with_address() {
       try {
         // Read the metadata
         const metadata = JSON.parse(fs.readFileSync('$METADATA_FILE', 'utf8'));
-        const metadata = JSON.parse(fs.readFileSync('$METADATA_FILE', 'utf8'));
         
-        // Read account ID from the device details file
         // Read account ID from the device details file
         const deviceDetailsContent = fs.readFileSync('$DEVICE_DETAILS_FILE', 'utf8');
         const accountIdMatch = deviceDetailsContent.match(/Account ID: (.*)/);
@@ -545,13 +459,10 @@ update_metadata_with_address() {
         
         if (!accountIdMatch) {
           throw new Error('Could not find account ID in device details file');
-        if (!accountIdMatch) {
-          throw new Error('Could not find account ID in device details file');
         }
         
         const accountId = accountIdMatch[1];
         const privateKeyStr = privateKeyMatch ? privateKeyMatch[1] : null;
-        const privateKeyStr = privateKeyMatch ? privateKeyMatch[1] : null;
         
         // Update metadata with the wallet address (account ID)
         metadata.walletAddress = accountId;
@@ -576,44 +487,14 @@ update_metadata_with_address() {
         const privateKeyBuffer = privateKeyStr 
           ? Buffer.from(privateKeyStr) 
           : generatePrivateKey(deviceInfoStr);
-        // Update metadata with the wallet address (account ID)
-        metadata.walletAddress = accountId;
         
-        // Create a device info string to use for bytes32 creation
-        const deviceInfoStr = JSON.stringify({
-          deviceModel: metadata.deviceModel,
-          ram: metadata.ram,
-          cpu: metadata.cpu,
-          storage: metadata.storage,
-          os: metadata.os,
-          accountId: accountId,
-          timestamp: metadata.timestamp
-        });
-        
-        // Generate bytes32 data from device info
-        const bytes32Data = createBytes32(deviceInfoStr);
-        metadata.bytes32Data = bytes32Data;
-        
-        // Generate or derive a private key for signing
-        // In a real implementation, this would use the actual device private key
-        const privateKeyBuffer = privateKeyStr 
-          ? Buffer.from(privateKeyStr) 
-          : generatePrivateKey(deviceInfoStr);
-        
-        // Sign the bytes32 data
-        const signature = signBytes32(privateKeyBuffer, bytes32Data);
-        metadata.signature = signature;
         // Sign the bytes32 data
         const signature = signBytes32(privateKeyBuffer, bytes32Data);
         metadata.signature = signature;
         
         // Save updated metadata back to the file
         fs.writeFileSync('$METADATA_FILE', JSON.stringify(metadata, null, 2));
-        fs.writeFileSync('$METADATA_FILE', JSON.stringify(metadata, null, 2));
         
-        console.log(\`SUCCESS: Updated metadata with wallet address \${accountId} and cryptographic proof\`);
-        console.log(\`Bytes32: \${bytes32Data}\`);
-        console.log(\`Signature: \${signature}\`);
         console.log(\`SUCCESS: Updated metadata with wallet address \${accountId} and cryptographic proof\`);
         console.log(\`Bytes32: \${bytes32Data}\`);
         console.log(\`Signature: \${signature}\`);
@@ -624,64 +505,23 @@ update_metadata_with_address() {
     }
     
     updateMetadata();
-    updateMetadata();
   "
   
   # Check if metadata update was successful
-  # Check if metadata update was successful
   if [ $? -ne 0 ]; then
-    log_error "Failed to update metadata with wallet address and cryptographic proof"
     log_error "Failed to update metadata with wallet address and cryptographic proof"
     exit 1
   fi
   
-  log_success "Device metadata updated with wallet address and cryptographic proof"
   log_success "Device metadata updated with wallet address and cryptographic proof"
 }
 
 # Function to create and display a QR code
 create_and_display_qr_code() {
   log_status "Creating registration QR code with all device metadata..."
-  log_status "Creating registration QR code with all device metadata..."
   
-  # Get the account ID
   # Get the account ID
   ACCOUNT_ID=$(grep "Account ID:" "$DEVICE_DETAILS_FILE" | cut -d' ' -f3)
-  
-  # Create a Node.js script to encode all metadata as URL parameters
-  node -e "
-    const fs = require('fs');
-    
-    function encodeURIComponentRobust(str) {
-      return encodeURIComponent(str).replace(/[!'()*]/g, function(c) {
-        return '%' + c.charCodeAt(0).toString(16).toUpperCase();
-      });
-    }
-    
-    try {
-      // Read the metadata
-      const metadata = JSON.parse(fs.readFileSync('$METADATA_FILE', 'utf8'));
-      
-      // Create URL parameters from all metadata
-      const params = Object.entries(metadata).map(([key, value]) => {
-        return \`\${key}=\${encodeURIComponentRobust(String(value))}\`;
-      }).join('&');
-      
-      // Create the full URL
-      const registrationUrl = \`$BASE_URL?\${params}\`;
-      
-      // Save the URL to a file
-      fs.writeFileSync('registration_url.txt', registrationUrl);
-      
-      console.log(registrationUrl);
-    } catch (error) {
-      console.error('ERROR:', error.message);
-      process.exit(1);
-    }
-  "
-  
-  # Get the registration URL
-  REGISTRATION_URL=$(cat registration_url.txt)
   
   # Create a Node.js script to encode all metadata as URL parameters
   node -e "
@@ -731,7 +571,6 @@ create_and_display_qr_code() {
   "
   
   log_success "QR code displayed successfully with all device metadata"
-  log_success "QR code displayed successfully with all device metadata"
 }
 
 # Function to poll the graph endpoint for device creation
@@ -747,10 +586,6 @@ check_device_registration() {
   log_status "Polling $GRAPH_URL for device registration..."
   log_status "Will check every $RETRY_INTERVAL seconds for up to 10 minutes..."
   log_status "Press Ctrl+C to cancel and continue to the next step"
-  
-  # Display important information about the QR code again
-  log_status "Remember to scan the QR code or visit the registration URL to register your device!"
-  log_status "The registration URL contains all your device metadata."
   
   # Display important information about the QR code again
   log_status "Remember to scan the QR code or visit the registration URL to register your device!"
@@ -900,10 +735,10 @@ main() {
   # Step 5: Gather device metadata (now includes ngrok URL)
   gather_device_metadata
   
-  # Step 6: Update metadata with wallet address
-  update_metadata_with_address
+  # Step 5: Create Hedera topic and submit metadata (including ngrok URL)
+  create_topic_and_submit_metadata
   
-  # Step 7: Create and display QR code with all metadata as URL parameters
+  # Step 6: Create and display QR code
   create_and_display_qr_code
   
   # Step 8: Check device registration (now checks every 20 seconds for 10 minutes)
