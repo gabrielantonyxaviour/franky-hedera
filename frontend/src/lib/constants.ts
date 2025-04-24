@@ -1,5 +1,5 @@
-export const FRANKY_ADDRESS = "0x9636a17f6318988ee01dbeCeADc8C589C218c4e4";
-export const FRANKY_CONTRACT_ID = '0.0.5898159';
+export const FRANKY_ADDRESS = "0xD3CDA6145223bF80F7bF39c4f9ab21e40837a023";
+export const FRANKY_CONTRACT_ID = '0.0.5898281';
 export const FRANKY_ABI = [
   {
     "inputs": [

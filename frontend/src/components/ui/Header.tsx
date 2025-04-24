@@ -6,12 +6,15 @@ import Image from "next/image";
 import { useWalletInterface } from '@/hooks/use-wallet-interface';
 import { useEffect, useRef, useState } from "react";
 import { LogOut, User, UserCircle } from "lucide-react";
-import { shortenAddress } from "@/lib/utils";
-import { createPublicClient, formatEther, Hex, http, parseEther } from "viem";
-import { hederaTestnet } from "viem/chains";
-
+import { faucetWalletClient, publicClient, shortenAddress } from "@/lib/utils";
+import { formatEther, Hex, parseEther, stringToBytes, zeroAddress } from "viem";
+import { FRANKY_ABI, FRANKY_ADDRESS, FRANKY_CONTRACT_ID } from "@/lib/constants";
+import { toast } from "sonner"
+import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
+import { encryptServerWallet } from "@/utils/lit";
+import { ContractFunctionParameterBuilder } from "@/utils/param-builder";
+import { ContractId } from "@hashgraph/sdk";
 export default function Header() {
-  const [open, setOpen] = useState(false);
   const { accountId, walletInterface } = useWalletInterface();
   const [showLogout, setShowLogout] = useState(false);
   const logoutTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -36,21 +39,108 @@ export default function Header() {
     (async function () {
       if (accountId) {
         console.log("Fetching balance")
-        const publicClient = createPublicClient({
-          chain: hederaTestnet,
-          transport: http()
-        })
         const fetchedBalance = await publicClient.getBalance({
           address: accountId as Hex
         })
         console.log("Fetched balance")
         console.log(fetchedBalance)
-        setBalance(formatEther(fetchedBalance))
-        setIsLoading(false)
+        const formattedBalance = formatEther(fetchedBalance)
+        if (parseFloat(formattedBalance) < 1) {
+          toast.info("Funding wallet", {
+            description: "Your wallet balance is low to use Franky. Funding with 5 tFIL",
+          });
+          const tx = await faucetWalletClient.sendTransaction({
+            to: accountId as `0x${string}`,
+            value: parseEther('5'),
+          })
+          toast.promise(publicClient.waitForTransactionReceipt({
+            hash: tx,
+          }), {
+            loading: "Waiting for confirmation...",
+            success: (data) => {
+              return `Transaction confirmed! `;
+            },
+            action: {
+              label: "View Tx",
+              onClick: () => {
+                window.open(`https://hashscan.io/testnet/tx/${tx}`, "_blank");
+              }
+            }
+          })
+          setBalance((parseFloat(formattedBalance) + 5).toString());
+        }
+        setBalance(formattedBalance)
+        setIsLoading(false);
       }
     })()
 
   }, [accountId])
+
+  useEffect(() => {
+    if (balance == '0') return;
+    if (!accountId) return;
+    (async function () {
+      const serverWallet: any = await publicClient.readContract({
+        address: FRANKY_ADDRESS,
+        abi: FRANKY_ABI,
+        functionName: "serverWalletsMapping",
+        args: [accountId]
+      })
+      console.log("Server Wallets return value")
+      if (serverWallet[0] == zeroAddress) {
+        toast.warning("Server Wallet is not configured", {
+          description: "Configuring server wallet with your wallet"
+        })
+        toast.info("Setting up your Server Wallet",
+          {
+            description: "This will take a few seconds. Please wait...",
+          }
+        )
+        const privateKey = generatePrivateKey()
+        const serverWalletAddress = privateKeyToAddress(privateKey)
+        const { ciphertext, dataToEncryptHash } = await encryptServerWallet(serverWalletAddress, privateKey)
+        let keypair = {
+          address: serverWalletAddress,
+          encryptedPrivateKey: stringToBytes(ciphertext),
+          privateKeyHash: dataToEncryptHash,
+        }
+        const params = new ContractFunctionParameterBuilder().addParam({
+          type: "address",
+          name: "walletAddress",
+          value: keypair.address
+        })
+          .addParam({
+            type: "bytes",
+            name: "encryptedPrivateKey",
+            value: keypair.encryptedPrivateKey
+          })
+          .addParam({
+            type: "bytes32",
+            name: "privateKeyHash",
+            value: keypair.privateKeyHash
+          })
+        const hash = await walletInterface?.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), "createAgent", params, 400_000)
+        console.log("Transaction sent, hash:", hash);
+
+        toast.promise(publicClient.waitForTransactionReceipt({
+          hash,
+        }), {
+          loading: "Waiting for confirmation...",
+          success: (data) => {
+            console.log("Transaction confirmed, receipt:", data);
+            return `Transaction confirmed! `;
+          },
+          action: {
+            label: "View Tx",
+            onClick: () => {
+              window.open(`https://hashscan.io/testnet/tx/${hash}`, "_blank");
+            }
+          }
+        });
+      }
+
+    })()
+  }, [accountId, balance])
 
   return (
     <>
