@@ -1,12 +1,12 @@
 {
-  "deviceId": "89ba599d-3f98-4a20-aa37-899b2e48d3a2",
   "deviceModel": "Apple Inc. Mac14,2",
   "ram": "16 GB",
-  "storage": "1143.1 GB",
+  "storage": "1142.8 GB",
   "cpu": "Apple M2 (8 cores)",
   "os": "macOS 15.1.1",
-  "timestamp": "2025-04-21T20:22:00.565Z",
+  "timestamp": "2025-04-23T19:24:20.867Z",
   "ngrokLink": "https://f601-106-219-179-113.ngrok-free.app",
-  "deviceAddress": "0.0.199345",
-  "topicId": "0.0.353783"
+  "bytes32Data": "0x95eb42295ffa82474ee728a4ee9f01796cee585f9baf639bce06fe0e211f9cd2",
+  "signature": "0x0be2595367a7f242baaacaa3bc625da2389b510bccf41d796e3716869606a85c000000000000000000000000000000000000000000000000000000000000000001",
+  "walletAddress": "0.0.199345"
 }

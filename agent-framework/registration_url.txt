@@ -1,1 +1,1 @@
-https://frankyagent.xyz?deviceMetadataTopicId=0.0.353783&deviceAddress=0.0.199345
+https://frankyagent.xyz?deviceModel=Apple%20Inc.%20Mac14%2C2&ram=16%20GB&storage=1142.8%20GB&cpu=Apple%20M2%20%288%20cores%29&os=macOS%2015.1.1&timestamp=2025-04-23T19%3A24%3A20.867Z&ngrokLink=https%3A%2F%2Ff601-106-219-179-113.ngrok-free.app&bytes32Data=0x95eb42295ffa82474ee728a4ee9f01796cee585f9baf639bce06fe0e211f9cd2&signature=0x0be2595367a7f242baaacaa3bc625da2389b510bccf41d796e3716869606a85c000000000000000000000000000000000000000000000000000000000000000001&walletAddress=0.0.199345
