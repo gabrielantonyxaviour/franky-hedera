@@ -362,7 +362,9 @@ export const DeviceVerification = () => {
 
                                                 console.log("Sending transaction...");
                                                 const response = await walletInterface.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), 'registerDevice', params, 500_000)
-
+                                                    if(response ==null){
+                                                        throw Error("Transaction Failed. Check the transaction Data")
+                                                    }
                                                 console.log("Transaction Response")
                                                 console.log(response)
                                                 toast.promise(publicClient.waitForTransactionReceipt({

@@ -80,65 +80,74 @@ export default function Header() {
     if (balance == '0') return;
     if (!accountId) return;
     (async function () {
-      const serverWallet: any = await publicClient.readContract({
-        address: FRANKY_ADDRESS,
-        abi: FRANKY_ABI,
-        functionName: "serverWalletsMapping",
-        args: [accountId]
-      })
-      console.log("Server Wallets return value")
-      if (serverWallet[0] == zeroAddress) {
-        toast.warning("Server Wallet is not configured", {
-          description: "Configuring server wallet with your wallet"
+      try{
+        const serverWallet: any = await publicClient.readContract({
+          address: FRANKY_ADDRESS,
+          abi: FRANKY_ABI,
+          functionName: "serverWalletsMapping",
+          args: [accountId]
         })
-        toast.info("Setting up your Server Wallet",
-          {
-            description: "This will take a few seconds. Please wait...",
-          }
-        )
-        const privateKey = generatePrivateKey()
-        const serverWalletAddress = privateKeyToAddress(privateKey)
-        const { ciphertext, dataToEncryptHash } = await encryptServerWallet(serverWalletAddress, privateKey)
-        let keypair = {
-          address: serverWalletAddress,
-          encryptedPrivateKey: ciphertext,
-          privateKeyHash: dataToEncryptHash,
-        }
-        console.log(keypair)
-        const params = new ContractFunctionParameterBuilder().addParam({
-          type: "address",
-          name: "walletAddress",
-          value: keypair.address
-        })
-          .addParam({
-            type: "string",
-            name: "encryptedPrivateKey",
-            value: keypair.encryptedPrivateKey
+        console.log("Server Wallets return value")
+        if (serverWallet[0] == zeroAddress) {
+          toast.warning("Server Wallet is not configured", {
+            description: "Configuring server wallet with your wallet"
           })
-          .addParam({
-            type: "bytes32",
-            name: "privateKeyHash",
-            value: keypair.privateKeyHash
-          })
-        const hash = await walletInterface?.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), "configureServerWallet", params, 400_000)
-        console.log("Transaction sent, hash:", hash);
-
-        toast.promise(publicClient.waitForTransactionReceipt({
-          hash,
-        }), {
-          loading: "Waiting for confirmation...",
-          success: (data) => {
-            console.log("Transaction confirmed, receipt:", data);
-            return `Transaction confirmed! `;
-          },
-          action: {
-            label: "View Tx",
-            onClick: () => {
-              window.open(`https://hashscan.io/testnet/tx/${hash}`, "_blank");
+          toast.info("Setting up your Server Wallet",
+            {
+              description: "This will take a few seconds. Please wait...",
             }
+          )
+          const privateKey = generatePrivateKey()
+          const serverWalletAddress = privateKeyToAddress(privateKey)
+          const { ciphertext, dataToEncryptHash } = await encryptServerWallet(serverWalletAddress, privateKey)
+          let keypair = {
+            address: serverWalletAddress,
+            encryptedPrivateKey: ciphertext,
+            privateKeyHash: dataToEncryptHash,
           }
-        });
+          console.log(keypair)
+          const params = new ContractFunctionParameterBuilder().addParam({
+            type: "address",
+            name: "walletAddress",
+            value: keypair.address
+          })
+            .addParam({
+              type: "string",
+              name: "encryptedPrivateKey",
+              value: keypair.encryptedPrivateKey
+            })
+            .addParam({
+              type: "bytes32",
+              name: "privateKeyHash",
+              value: '0x'+ keypair.privateKeyHash
+            })
+          const hash = await walletInterface?.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), "configureServerWallet", params, 400_000)
+          console.log("Transaction sent, hash:", hash);
+          if(hash ==null){
+            throw Error("Transaction Failed. Check the transaction Data")
+        }
+          toast.promise(publicClient.waitForTransactionReceipt({
+            hash,
+          }), {
+            loading: "Waiting for confirmation...",
+            success: (data) => {
+              console.log("Transaction confirmed, receipt:", data);
+              return `Transaction confirmed! `;
+            },
+            action: {
+              label: "View Tx",
+              onClick: () => {
+                window.open(`https://hashscan.io/testnet/tx/${hash}`, "_blank");
+              }
+            }
+          });
+        }
+      }catch(e){
+        toast.error("Transaction Failed",{
+          description: "Invalid Transaction Data or wallet address already configured"
+        })
       }
+     
 
     })()
   }, [accountId, balance])
