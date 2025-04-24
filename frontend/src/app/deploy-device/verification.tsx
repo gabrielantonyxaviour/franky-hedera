@@ -8,7 +8,7 @@ import GlowButton from "@/components/ui/GlowButton"
 import { toast } from "sonner"
 import { ContractFunctionParameterBuilder } from "@/utils/param-builder"
 import { parseEther } from "viem"
-import { ContractId } from "@hashgraph/sdk"
+import { AccountId, ContractId } from "@hashgraph/sdk"
 import { FRANKY_CONTRACT_ID } from "@/lib/constants"
 import { publicClient } from "@/lib/utils"
 
@@ -60,7 +60,7 @@ export const DeviceVerification = () => {
                 storage,
                 cpu: "",
                 ngrokLink,
-                walletAddress,
+                walletAddress: AccountId.fromString(walletAddress).toSolidityAddress(),
                 bytes32Data,
                 signature: signature || undefined
             })
