@@ -136,6 +136,16 @@ const DeviceCard = ({ device }: { device: any }) => {
               {new Date(device.checked).toLocaleString()}
             </span>
           </div>
+
+          {device.consensusDetails && (
+            <div className="flex items-center text-gray-300">
+              <Share2 className="w-4 h-4 mr-2 text-[#00FF88]" />
+              <span className="text-sm">Consensus Method:</span>
+              <span className="ml-2 text-sm capitalize">
+                {device.consensusDetails.consensusMethod}
+              </span>
+            </div>
+          )}
         </div>
 
         {device.status === 'checked' && device.retrievalStats && (
@@ -167,17 +177,20 @@ const DeviceCard = ({ device }: { device: any }) => {
         )}
       </div>
 
-      {device.reputationDataUrl && (
-        <div className="mt-4">
-          <a
-            href={device.reputationDataUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center text-sm text-[#00FF88] hover:text-[#00FF88]/80 transition-colors"
-          >
-            <Share2 className="w-4 h-4 mr-1" />
-            View Full Reputation Data
-          </a>
+      {device.consensusDetails && device.consensusDetails.topicId && (
+        <div className="mt-2 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+          <div className="flex items-start">
+            <Share2 className="w-5 h-5 mr-2 text-blue-400 mt-0.5" />
+            <div>
+              <p className="text-sm text-blue-400 font-medium">Hedera Consensus Service</p>
+              <p className="text-xs text-gray-400 mt-1">
+                HCS Topic: <span className="text-blue-400">{device.consensusDetails.topicId}</span>
+              </p>
+              <p className="text-xs text-gray-400">
+                Checker nodes: <span className="text-blue-400">{device.consensusDetails.checkerCount}</span>
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -294,6 +307,10 @@ export default function DeviceCheckerPage() {
   const [devices, setDevices] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isSelfChecking, setIsSelfChecking] = useState(false)
+  const [selfCheckResults, setSelfCheckResults] = useState<any>(null)
+  const [selectedDevices, setSelectedDevices] = useState<string[]>([])
+  const [isCheckingAll, setIsCheckingAll] = useState(false)
 
   // Function to check all devices
   const checkAllDevices = async () => {
@@ -304,6 +321,7 @@ export default function DeviceCheckerPage() {
   const searchDevices = async (deviceAddress: string, numChecks: number) => {
     setIsLoading(true)
     setError(null)
+    setSelectedDevices([]) // Reset selected devices when loading new ones
 
     try {
       const queryParams = new URLSearchParams()
@@ -327,6 +345,81 @@ export default function DeviceCheckerPage() {
       setError(err.message || 'An error occurred while checking devices')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // Function to toggle device selection
+  const toggleDeviceSelection = (deviceAddress: string) => {
+    setSelectedDevices(prev => {
+      if (prev.includes(deviceAddress)) {
+        return prev.filter(addr => addr !== deviceAddress);
+      } else {
+        return [...prev, deviceAddress];
+      }
+    });
+  };
+
+  // Function to select all devices
+  const selectAllDevices = () => {
+    if (selectedDevices.length === devices.length) {
+      // If all are selected, unselect all
+      setSelectedDevices([]);
+    } else {
+      // Otherwise, select all
+      setSelectedDevices(devices.map(device => device.deviceAddress));
+    }
+  };
+
+  // Function to trigger self-check for all or selected devices
+  const triggerSelfCheck = async (checkAll: boolean = false) => {
+    if (devices.length === 0) {
+      setError('No devices to check. Please search for devices first.')
+      return
+    }
+
+    if (!checkAll && selectedDevices.length === 0) {
+      setError('Please select at least one device to check or use "Check All Devices".')
+      return
+    }
+
+    setIsSelfChecking(true)
+    setSelfCheckResults(null)
+    setError(null)
+    setIsCheckingAll(checkAll)
+
+    try {
+      // Determine which device addresses to include
+      const deviceAddresses = checkAll 
+        ? [] // Empty array means check all devices on the backend
+        : selectedDevices;
+
+      // Call self-check API
+      const response = await fetch('/api/self-check', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ deviceAddresses })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to perform self-check')
+      }
+
+      const data = await response.json()
+      setSelfCheckResults(data)
+
+      // Refresh devices to show updated reputation after a short delay
+      setTimeout(() => {
+        checkAllDevices()
+      }, 5000) // 5-second delay to allow HCS to process
+    } catch (err: any) {
+      console.error('Error performing self-check:', err)
+      setError(err.message || 'An error occurred while performing self-check')
+    } finally {
+      setIsSelfChecking(false)
+      setIsCheckingAll(false)
     }
   }
 
@@ -404,14 +497,123 @@ export default function DeviceCheckerPage() {
                 <h2 className="text-2xl font-bold text-[#00FF88]">
                   Device Reputation Scores
                 </h2>
-                <span className="text-sm text-gray-400">
-                  {devices.length} device{devices.length !== 1 ? 's' : ''} found
-                </span>
+                <div className="flex items-center space-x-3">
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => triggerSelfCheck(true)}
+                      disabled={isSelfChecking || isLoading}
+                      className={`px-4 py-2 rounded-lg flex items-center text-sm ${
+                        isSelfChecking && isCheckingAll
+                          ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
+                          : 'bg-green-600 hover:bg-green-700 text-white'
+                      } transition-colors`}
+                    >
+                      {isSelfChecking && isCheckingAll ? (
+                        <>
+                          <span className="animate-spin mr-2">
+                            <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          </span>
+                          Checking All...
+                        </>
+                      ) : (
+                        <>
+                          <FiServer className="w-4 h-4 mr-2" />
+                          Check All Devices
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => triggerSelfCheck(false)}
+                      disabled={isSelfChecking || isLoading || selectedDevices.length === 0}
+                      className={`px-4 py-2 rounded-lg flex items-center text-sm ${
+                        isSelfChecking && !isCheckingAll || selectedDevices.length === 0
+                          ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      } transition-colors`}
+                    >
+                      {isSelfChecking && !isCheckingAll ? (
+                        <>
+                          <span className="animate-spin mr-2">
+                            <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          </span>
+                          Checking Selected...
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="w-4 h-4 mr-2" />
+                          Check Selected ({selectedDevices.length})
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <span className="text-sm text-gray-400">
+                    {devices.length} device{devices.length !== 1 ? 's' : ''} found
+                  </span>
+                </div>
               </div>
+
+              {/* Selection Controls */}
+              <div className="mb-4 flex justify-between items-center">
+                <div className="flex items-center">
+                  <button
+                    onClick={selectAllDevices}
+                    className="text-sm text-[#00FF88] hover:underline focus:outline-none"
+                  >
+                    {selectedDevices.length === devices.length 
+                      ? 'Unselect All' 
+                      : selectedDevices.length === 0 
+                        ? 'Select All' 
+                        : `Select All (${selectedDevices.length}/${devices.length} selected)`}
+                  </button>
+                </div>
+                <div className="text-xs text-gray-400">
+                  Select devices to check or use "Check All Devices" to test everything
+                </div>
+              </div>
+
+              {selfCheckResults && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="mb-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-xl"
+                >
+                  <div className="flex items-start">
+                    <ShieldCheck className="w-6 h-6 mr-3 text-blue-400 mt-0.5" />
+                    <div>
+                      <p className="text-blue-400 font-medium">Self-Check Completed</p>
+                      <p className="text-gray-300 text-sm mt-1">{selfCheckResults.message}</p>
+                      <p className="text-gray-400 text-xs mt-2">
+                        Self-check data has been submitted to HCS. Reputation scores will update shortly.
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
 
               <div className="space-y-4">
                 {devices.map((device, index) => (
-                  <DeviceCard key={device.deviceAddress || index} device={device} />
+                  <div key={device.deviceAddress || index} className="flex items-start">
+                    <div className="pt-5 pr-3">
+                      <input
+                        type="checkbox"
+                        id={`device-${device.deviceAddress}`}
+                        checked={selectedDevices.includes(device.deviceAddress)}
+                        onChange={() => toggleDeviceSelection(device.deviceAddress)}
+                        className="w-4 h-4 text-[#00FF88] bg-black border-[#00FF88]/30 rounded focus:ring-[#00FF88]/30"
+                        disabled={isSelfChecking}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <DeviceCard device={device} />
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
@@ -454,7 +656,7 @@ export default function DeviceCheckerPage() {
               </ul>
 
               <p className="mt-6">
-                All reputation data is stored on Filecoin via Akave buckets, ensuring the data itself is decentralized
+                All reputation data is stored on Hedera Consensus Service (HCS), ensuring the data itself is decentralized
                 and tamper-resistant. This creates a trustless verification layer for the Franky AI agent network.
               </p>
             </div>

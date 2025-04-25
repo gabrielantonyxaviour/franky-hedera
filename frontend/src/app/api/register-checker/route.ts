@@ -1,15 +1,5 @@
 import { NextResponse } from 'next/server';
-import { publicClient } from '@/lib/utils';
-import { ethers } from 'ethers';
-
-// In a real implementation, this would be stored in a database
-const checkerNodes = new Map<string, {
-  walletAddress: string;
-  serverUrl: string;
-  registeredAt: string;
-  lastSeen: string;
-  checksPerformed: number;
-}>();
+import { hcsService } from '@/lib/services/hcs-service';
 
 export async function POST(request: Request) {
   try {
@@ -33,18 +23,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // Register the checker node
-    checkerNodes.set(walletAddress.toLowerCase(), {
-      walletAddress: walletAddress.toLowerCase(),
-      serverUrl,
-      registeredAt: new Date().toISOString(),
-      lastSeen: new Date().toISOString(),
-      checksPerformed: 0
-    });
+    // Make sure HCS topics are initialized
+    await hcsService.initializeTopics();
+
+    // Register the checker node in HCS
+    const transactionId = await hcsService.registerChecker(walletAddress, serverUrl);
 
     return NextResponse.json({
       success: true,
-      message: 'Checker node registered successfully'
+      message: 'Checker node registered successfully',
+      transactionId
     });
 
   } catch (error: any) {
@@ -57,9 +45,22 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  // Return list of registered checker nodes
-  return NextResponse.json({
-    success: true,
-    checkers: Array.from(checkerNodes.values())
-  });
+  try {
+    // Make sure HCS topics are initialized
+    await hcsService.initializeTopics();
+    
+    // Get registered checker nodes from HCS
+    const checkers = await hcsService.getCheckers();
+    
+    return NextResponse.json({
+      success: true,
+      checkers
+    });
+  } catch (error: any) {
+    console.error('Error getting checker nodes:', error);
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    );
+  }
 } 
