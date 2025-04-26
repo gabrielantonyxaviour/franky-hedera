@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { hcsService } from '@/lib/services/hcs-service';
 
 // Self checker configuration
-const SELF_CHECKER_ADDRESS = '0xSelfCheckerNode'; // Identifier for the self-checker
+const SELF_CHECKER_ADDRESS = '0.0.5868472'; // Hedera account ID format
 const SELF_CHECKER_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 const DEVICES_API_URL = 'https://www.frankyagent.xyz/api/graph/devices';
 
@@ -20,6 +20,40 @@ interface DeviceInfo {
   ngrokLink?: string;
   agents?: any[];
   [key: string]: any;
+}
+
+// Ensure self-checker is registered
+async function ensureSelfCheckerRegistered() {
+  try {
+    console.log('Initializing HCS topics...');
+    // Initialize HCS topics first
+    await hcsService.initializeTopics();
+    
+    console.log('Checking for existing self-checker registration...');
+    // Get current checkers to see if self-checker is registered
+    const checkers = await hcsService.getCheckers();
+    console.log('Current registered checkers:', checkers);
+    
+    const isSelfCheckerRegistered = checkers.some(
+      c => c.walletAddress === SELF_CHECKER_ADDRESS // Remove toLowerCase() for Hedera account IDs
+    );
+    
+    if (!isSelfCheckerRegistered) {
+      console.log('Self-checker not registered. Registering now...');
+      try {
+        const registrationResult = await hcsService.registerChecker(SELF_CHECKER_ADDRESS, SELF_CHECKER_URL);
+        console.log('Self-checker registered successfully:', registrationResult);
+      } catch (error: any) {
+        console.error('Failed to register self-checker:', error);
+        throw new Error(`Self-checker registration failed: ${error?.message || 'Unknown error'}`);
+      }
+    } else {
+      console.log('Self-checker already registered');
+    }
+  } catch (error) {
+    console.error('Error ensuring self-checker registration:', error);
+    throw error;
+  }
 }
 
 /**
@@ -173,7 +207,7 @@ async function checkDeviceHealth(deviceId: string, deviceInfo?: DeviceInfo): Pro
     let httpStatus: string | number = 'No response';
     if (deviceResponse) {
       try {
-        httpStatus = deviceResponse.status;
+        httpStatus = (deviceResponse as Response).status;
       } catch (error) {
         httpStatus = 'Unknown status';
       }
@@ -257,6 +291,9 @@ async function checkDeviceHealth(deviceId: string, deviceInfo?: DeviceInfo): Pro
  */
 export async function POST(request: Request) {
   try {
+    // First ensure self-checker is registered
+    await ensureSelfCheckerRegistered();
+    
     const body = await request.json();
     const providedDeviceAddresses = body.deviceAddresses;
     
@@ -299,21 +336,6 @@ export async function POST(request: Request) {
         { error: `Failed to fetch devices: ${error.message}` },
         { status: 500 }
       );
-    }
-
-    // Make sure HCS topics are initialized
-    await hcsService.initializeTopics();
-
-    // Register our own server as a checker if not already registered
-    try {
-      await hcsService.registerChecker(
-        SELF_CHECKER_ADDRESS,
-        SELF_CHECKER_URL
-      );
-      console.log('Self-checker registered successfully');
-    } catch (error) {
-      console.log('Self-checker may already be registered:', error);
-      // Continue even if registration fails (might already exist)
     }
 
     // Perform checks for each device

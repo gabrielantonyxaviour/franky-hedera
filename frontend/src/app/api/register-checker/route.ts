@@ -42,14 +42,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate wallet address format
-    if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
-      console.log('Invalid wallet address format:', walletAddress);
-      return NextResponse.json(
-        { error: 'Invalid wallet address format. Must be a valid Ethereum address' },
-        { status: 400 }
-      );
-    }
+
 
     // Validate server URL
     try {

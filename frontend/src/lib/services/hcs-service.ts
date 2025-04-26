@@ -82,6 +82,18 @@ interface TestResult {
   error?: string;
 }
 
+interface MirrorNodeResponse {
+  messages: Array<{
+    consensus_timestamp: string;
+    message: string;
+    sequence_number: number;
+    topic_id: string;
+  }>;
+  links: {
+    next?: string;
+  };
+}
+
 // HCS Service for reputation system
 export class HcsService {
   private client: Client | null = null;
@@ -309,6 +321,9 @@ export class HcsService {
         ? message 
         : JSON.stringify(message);
       
+      console.log('Submitting message to topic:', topicId.toString());
+      console.log('Message content:', messageString);
+      
       // Create and execute the transaction
       const transaction = new TopicMessageSubmitTransaction({
         topicId: topicId,
@@ -323,6 +338,7 @@ export class HcsService {
         throw new Error(`Message submission failed with status: ${receipt.status}`);
       }
       
+      console.log('Message submitted successfully, transaction ID:', txResponse.transactionId.toString());
       return txResponse.transactionId.toString();
     } catch (error) {
       console.error(`Error submitting message: ${error}`);
@@ -334,64 +350,37 @@ export class HcsService {
    * Get messages from a topic
    */
   private async getMessages(topicId: TopicId, limit: number = 100): Promise<any[]> {
-    this.ensureInitialized();
+    console.log(`Getting messages from topic ${topicId.toString()}`);
+    
+    const networkType = process.env.HEDERA_NETWORK || 'testnet';
+    const baseUrl = networkType === 'mainnet' 
+      ? 'https://mainnet-public.mirrornode.hedera.com'
+      : 'https://testnet.mirrornode.hedera.com';
+      
+    let url: string | null = `${baseUrl}/api/v1/topics/${topicId.toString()}/messages?encoding=UTF-8&limit=${limit}&order=desc`;
+    const messages: any[] = [];
 
     try {
-      if (!this.client) {
-        throw new Error('Client not initialized');
+      while (url && messages.length < limit) {
+        const response: Response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data: MirrorNodeResponse = await response.json();
+        console.log('Mirror node response data:', JSON.stringify(data, null, 2));
+        messages.push(...data.messages);
+
+        // Update URL for pagination
+        url = data.links?.next ? baseUrl + data.links.next : null;
       }
 
-      const messages: any[] = [];
-      
-      // Set up a topic message query
-      const query = new TopicMessageQuery()
-        .setTopicId(topicId)
-        .setLimit(limit);
-      
-      // Execute the query and collect messages
-      await new Promise<void>((resolve, reject) => {
-        let count = 0;
-        
-        query.subscribe(
-          this.client!,
-          (message: TopicMessage | null) => {
-            if (!message) return;
-            
-            count++;
-            
-            // Convert message content to string
-            const messageContent = Buffer.from(message.contents).toString();
-            
-            messages.push({
-              sequenceNumber: message.sequenceNumber,
-              consensusTimestamp: message.consensusTimestamp.toDate(),
-              message: messageContent,
-              runningHash: Buffer.from(message.runningHash).toString('hex'),
-              topicId: topicId.toString()
-            });
-            
-            // Resolve when we've reached our limit
-            if (count >= limit) {
-              resolve();
-            }
-          },
-          (error) => {
-            reject(error);
-          }
-        );
-        
-        // Set a timeout to resolve if fewer than limit messages exist
-        setTimeout(() => {
-          if (messages.length < limit) {
-            resolve();
-          }
-        }, 10000); // 10 second timeout
-      });
-      
+      console.log(`Retrieved ${messages.length} messages from topic ${topicId.toString()}`);
       return messages;
     } catch (error) {
-      console.error(`Error getting messages: ${error}`);
-      return [];
+      console.error('Error getting messages:', error);
+      throw error;
     }
   }
 
@@ -412,7 +401,7 @@ export class HcsService {
       const message: HcsMessage = {
         type: MessageType.REGISTER_CHECKER,
         payload: {
-          walletAddress: walletAddress.toLowerCase(),
+          walletAddress,
           serverUrl,
           registeredAt: new Date().toISOString()
         },
@@ -442,39 +431,76 @@ export class HcsService {
       }
 
       const messages = await this.getMessages(this.checkerRegistryTopic);
+      console.log('Raw messages from getMessages:', JSON.stringify(messages, null, 2));
       const checkers = new Map<string, any>();
       
       // Process messages to build checker list
       messages.forEach(msg => {
         try {
-          const content = JSON.parse(msg.message);
+          // Log the raw message for debugging
+          console.log('Processing message:', JSON.stringify(msg, null, 2));
+
+          // Validate message has message content before parsing
+          if (!msg || !msg.message) {
+            console.warn('Skipping invalid message: missing message content', msg);
+            return;
+          }
+
+          // Try to parse the contents
+          let content;
+          try {
+            content = JSON.parse(msg.message);
+            console.log('Parsed content:', JSON.stringify(content, null, 2));
+          } catch (parseError) {
+            console.warn('Skipping message: invalid JSON content', parseError);
+            return;
+          }
+
+          // Validate content structure
+          if (!content || !content.type || !content.payload) {
+            console.warn('Skipping message: invalid content structure', content);
+            return;
+          }
           
           if (content.type === MessageType.REGISTER_CHECKER) {
             const checker = content.payload;
+            if (!checker.walletAddress || !checker.serverUrl) {
+              console.warn('Skipping invalid checker registration: missing required fields', checker);
+              return;
+            }
             
-            // Update or add checker info
-            checkers.set(checker.walletAddress.toLowerCase(), {
-              walletAddress: checker.walletAddress.toLowerCase(),
+            // Update or add checker info - preserve original wallet address format
+            checkers.set(checker.walletAddress, {
+              walletAddress: checker.walletAddress,
               serverUrl: checker.serverUrl,
               registeredAt: checker.registeredAt,
               lastSeen: content.timestamp,
-              lastActivity: msg.consensusTimestamp
+              lastActivity: msg.consensus_timestamp
             });
           } else if (content.type === MessageType.CHECKER_HEARTBEAT) {
+            // Validate heartbeat payload
+            if (!content.payload.walletAddress) {
+              console.warn('Skipping invalid heartbeat: missing wallet address', content.payload);
+              return;
+            }
+
             // Update last seen time for heartbeats
-            const checker = checkers.get(content.payload.walletAddress.toLowerCase());
+            const checker = checkers.get(content.payload.walletAddress);
             if (checker) {
               checker.lastSeen = content.timestamp;
-              checker.lastActivity = msg.consensusTimestamp;
-              checkers.set(content.payload.walletAddress.toLowerCase(), checker);
+              checker.lastActivity = msg.consensus_timestamp;
+              checkers.set(content.payload.walletAddress, checker);
             }
           }
         } catch (e) {
           console.error("Error processing checker message:", e);
+          // Continue processing other messages
         }
       });
       
-      return Array.from(checkers.values());
+      const result = Array.from(checkers.values());
+      console.log('Final checkers result:', JSON.stringify(result, null, 2));
+      return result;
     } catch (error) {
       console.error(`Error getting checkers: ${error}`);
       return [];
@@ -585,7 +611,7 @@ export class HcsService {
             return false;
           }
         })
-        .sort((a, b) => b.sequenceNumber - a.sequenceNumber);
+        .sort((a, b) => b.sequence_number - a.sequence_number);
       
       if (mappings.length > 0) {
         const content = JSON.parse(mappings[0].message);
@@ -644,8 +670,8 @@ export class HcsService {
           const content = JSON.parse(msg.message);
           return {
             ...content.payload,
-            consensusTimestamp: msg.consensusTimestamp,
-            sequenceNumber: msg.sequenceNumber
+            consensus_timestamp: msg.consensus_timestamp,
+            sequence_number: msg.sequence_number
           };
         });
       
@@ -667,7 +693,7 @@ export class HcsService {
         lastChecked: new Date().toISOString(),
         checkResults: checkResults.slice(0, 10), // Include the 10 most recent checks
         checkCount: checkResults.length,
-        consensusTimestamp: checkResults[0].consensusTimestamp
+        consensus_timestamp: checkResults[0].consensus_timestamp
       };
     } catch (error: unknown) {
       console.error(`Error getting device reputation: ${error}`);
@@ -700,8 +726,8 @@ export class HcsService {
       .map(([checker, results]) => {
         // Sort by consensus timestamp (most recent first)
         results.sort((a, b) => 
-          new Date(b.consensusTimestamp).getTime() - 
-          new Date(a.consensusTimestamp).getTime()
+          new Date(b.consensus_timestamp).getTime() - 
+          new Date(a.consensus_timestamp).getTime()
         );
         return results[0]; // Return the most recent result
       });
