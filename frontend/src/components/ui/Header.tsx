@@ -239,14 +239,6 @@ export default function Header() {
                             </div>
                           </Link>
 
-                          {/* Dashboard option */}
-                          <Link href="/checker-dashboard">
-                            <div className="cursor-pointer flex space-x-2 items-center hover:bg-black/80 text-[#AAAAAA] px-4 py-2 transition-colors">
-                              <User size={20} className="text-[#AAAAAA]" />
-                              <p className="text-sm">Checker Dashboard</p>
-                            </div>
-                          </Link>
-
                           {/* Divider */}
                           <div className="h-px bg-[#00FF88] bg-opacity-10"></div>
 

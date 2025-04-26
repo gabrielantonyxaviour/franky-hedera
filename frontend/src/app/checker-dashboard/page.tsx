@@ -6,11 +6,26 @@ import { FiServer, FiClock, FiZap, FiCheckCircle } from 'react-icons/fi'
 import { Share2, Users, Database, ShieldCheck } from 'lucide-react'
 import Header from '@/components/ui/Header'
 
+interface HcsInfo {
+  network: string;
+  deviceRegistryTopicId: string;
+  checkerRegistryTopicId: string;
+  lastRefreshed: string;
+}
+
+interface CheckerNode {
+  walletAddress: string;
+  serverUrl: string;
+  registeredAt?: string;
+  lastSeen?: string;
+}
+
 export default function CheckerDashboardPage() {
-  const [checkers, setCheckers] = useState<any[]>([])
+  const [checkers, setCheckers] = useState<CheckerNode[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [hcsInfo, setHcsInfo] = useState({
+  const [hcsInfo, setHcsInfo] = useState<HcsInfo>({
+    network: 'Loading...',
     deviceRegistryTopicId: 'Loading...',
     checkerRegistryTopicId: 'Loading...',
     lastRefreshed: new Date().toLocaleString()
@@ -30,15 +45,10 @@ export default function CheckerDashboardPage() {
       }
 
       const data = await response.json()
+      
+      // Update both checkers and HCS info from the single response
       setCheckers(data.checkers || [])
-
-      // In a real implementation, we would fetch these from an API endpoint
-      // For now, simulate fetching HCS info
-      setHcsInfo({
-        deviceRegistryTopicId: process.env.DEVICE_REGISTRY_TOPIC_ID || 'Auto-created',
-        checkerRegistryTopicId: process.env.CHECKER_REGISTRY_TOPIC_ID || 'Auto-created',
-        lastRefreshed: new Date().toLocaleString()
-      })
+      setHcsInfo(data.hcsInfo)
     } catch (err: any) {
       console.error('Error fetching checkers:', err)
       setError(err.message || 'Failed to fetch checker nodes')
@@ -105,7 +115,7 @@ export default function CheckerDashboardPage() {
           transition={{ duration: 0.5 }}
         >
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-6">
-            Checker Network Dashboard
+            Checker Dashboard
           </h1>
           
           <p className="text-gray-400 mb-8 max-w-3xl">
@@ -134,7 +144,7 @@ export default function CheckerDashboardPage() {
             <div className="mt-4 text-gray-300">
               <div className="flex justify-between items-center py-2 border-b border-gray-800">
                 <span className="text-sm">Network</span>
-                <span className="text-sm font-medium">{process.env.HEDERA_NETWORK || 'testnet'}</span>
+                <span className="text-sm font-medium">{hcsInfo.network}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-gray-800">
                 <span className="text-sm">Last Updated</span>
@@ -184,6 +194,7 @@ export default function CheckerDashboardPage() {
                 <span className="text-sm">Active (24h)</span>
                 <span className="text-sm font-medium">
                   {checkers.filter(c => {
+                    if (!c.lastSeen) return false;
                     const lastSeen = new Date(c.lastSeen);
                     const now = new Date();
                     return (now.getTime() - lastSeen.getTime()) < (24 * 60 * 60 * 1000);
@@ -205,9 +216,14 @@ export default function CheckerDashboardPage() {
             <h2 className="text-xl font-bold text-white">Registered Checker Nodes</h2>
             <button
               onClick={fetchCheckers}
-              className="px-4 py-2 bg-[#00FF88]/20 hover:bg-[#00FF88]/30 text-[#00FF88] rounded-lg text-sm transition-all duration-200"
+              disabled={isLoading}
+              className={`px-4 py-2 ${
+                isLoading 
+                  ? 'bg-gray-700 text-gray-300 cursor-not-allowed' 
+                  : 'bg-[#00FF88]/20 hover:bg-[#00FF88]/30 text-[#00FF88]'
+              } rounded-lg text-sm transition-all duration-200`}
             >
-              Refresh Data
+              {isLoading ? 'Refreshing...' : 'Refresh Data'}
             </button>
           </div>
           
@@ -250,10 +266,10 @@ export default function CheckerDashboardPage() {
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center">
-                          <div className={`h-3 w-3 rounded-full mr-2 ${getStatusColor(checker.lastSeen)}`}></div>
+                          <div className={`h-3 w-3 rounded-full mr-2 ${getStatusColor(checker.lastSeen || '')}`}></div>
                           <span className="text-sm">
-                            {getStatusColor(checker.lastSeen) === 'bg-green-500' ? 'Active' : 
-                             getStatusColor(checker.lastSeen) === 'bg-yellow-500' ? 'Idle' : 'Offline'}
+                            {getStatusColor(checker.lastSeen || '') === 'bg-green-500' ? 'Active' : 
+                             getStatusColor(checker.lastSeen || '') === 'bg-yellow-500' ? 'Idle' : 'Offline'}
                           </span>
                         </div>
                       </td>
@@ -275,10 +291,10 @@ export default function CheckerDashboardPage() {
                         </a>
                       </td>
                       <td className="px-4 py-3 text-xs">
-                        {new Date(checker.registeredAt).toLocaleString()}
+                        {checker.registeredAt ? new Date(checker.registeredAt).toLocaleString() : 'Unknown'}
                       </td>
                       <td className="px-4 py-3 text-xs">
-                        {timeAgo(checker.lastSeen)}
+                        {checker.lastSeen ? timeAgo(checker.lastSeen) : 'Never'}
                       </td>
                     </tr>
                   ))}
@@ -293,24 +309,7 @@ export default function CheckerDashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="grid grid-cols-1 md:grid-cols-2 gap-6"
-        >
-          <div className="bg-black/50 backdrop-blur-sm border border-[#00FF88]/30 rounded-xl p-6">
-            <h3 className="text-lg font-bold text-white mb-3 flex items-center">
-              <ShieldCheck className="w-5 h-5 mr-2 text-[#00FF88]" />
-              About the Checker Network
-            </h3>
-            <p className="text-gray-400 mb-3">
-              The Checker Network provides a decentralized reputation system for devices in the Franky network. 
-              It uses Hedera Consensus Service (HCS) to ensure transparent, immutable, and consensus-based 
-              reputation scoring.
-            </p>
-            <p className="text-gray-400">
-              Each checker node independently evaluates device health and submits results to HCS. The system
-              then calculates a consensus reputation score using a democratic median approach.
-            </p>
-          </div>
-          
+        >       
           <div className="bg-black/50 backdrop-blur-sm border border-[#00FF88]/30 rounded-xl p-6">
             <h3 className="text-lg font-bold text-white mb-3 flex items-center">
               <Share2 className="w-5 h-5 mr-2 text-[#00FF88]" />
