@@ -7,6 +7,33 @@ import { FiSearch, FiServer, FiCheckCircle, FiXCircle, FiClock } from 'react-ico
 import { Zap, ShieldCheck, Clock, Share2 } from 'lucide-react'
 import Header from '@/components/ui/Header'
 
+interface HcsInfo {
+  network: string;
+  deviceRegistryTopicId: string;
+  checkerRegistryTopicId: string;
+  lastRefreshed: string;
+}
+
+interface Device {
+  deviceAddress: string;
+  ngrokLink?: string;
+  status: 'checked' | 'skipped' | 'error';
+  checked: string;
+  reputationScore?: number;
+  error?: string;
+  reason?: string;
+  consensusDetails?: {
+    consensusMethod: string;
+    topicId: string;
+    checkerCount: number;
+  };
+  retrievalStats?: {
+    successRate: number;
+    averageResponseTime: number;
+    totalChecks: number;
+  };
+}
+
 // Background component
 const Background = () => {
   return (
@@ -68,7 +95,7 @@ const Background = () => {
 }
 
 // DeviceCard component to display device info and reputation
-const DeviceCard = ({ device }: { device: any }) => {
+const DeviceCard = ({ device }: { device: Device }) => {
   // Format reputation score for display
   const formatScore = (score: number) => {
     return score.toFixed(2);
@@ -105,10 +132,10 @@ const DeviceCard = ({ device }: { device: any }) => {
         </h3>
         <div className="mt-2 sm:mt-0">
           {device.status === 'checked' ? (
-            <div className={`flex items-center ${getReputationColor(device.reputationScore)}`}>
+            <div className={`flex items-center ${getReputationColor(device.reputationScore || 0)}`}>
               <ShieldCheck className="w-5 h-5 mr-2" />
-              <span className="font-bold">{formatScore(device.reputationScore)}</span>
-              <span className="ml-2 text-sm">{getReputationLabel(device.reputationScore)}</span>
+              <span className="font-bold">{formatScore(device.reputationScore || 0)}</span>
+              <span className="ml-2 text-sm">{getReputationLabel(device.reputationScore || 0)}</span>
             </div>
           ) : (
             <div className="flex items-center text-gray-400">
@@ -304,18 +331,35 @@ const SearchForm = ({ onSearch, isLoading }: { onSearch: (address: string, numCh
 }
 
 export default function DeviceCheckerPage() {
-  const [devices, setDevices] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [isSelfChecking, setIsSelfChecking] = useState(false)
-  const [selfCheckResults, setSelfCheckResults] = useState<any>(null)
+  const [devices, setDevices] = useState<Device[]>([])
   const [selectedDevices, setSelectedDevices] = useState<string[]>([])
-  const [isCheckingAll, setIsCheckingAll] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isRegistering, setIsRegistering] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [hcsInfo, setHcsInfo] = useState<HcsInfo>({
+    network: 'Loading...',
+    deviceRegistryTopicId: 'Loading...',
+    checkerRegistryTopicId: 'Loading...',
+    lastRefreshed: new Date().toLocaleString()
+  })
 
-  // Function to check all devices
-  const checkAllDevices = async () => {
-    await searchDevices('', 5)
-  }
+  // Fetch initial HCS info
+  useEffect(() => {
+    const fetchHcsInfo = async () => {
+      try {
+        const response = await fetch('/api/register-checker')
+        if (!response.ok) {
+          throw new Error('Failed to fetch HCS info')
+        }
+        const data = await response.json()
+        setHcsInfo(data.hcsInfo)
+      } catch (err: any) {
+        console.error('Error fetching HCS info:', err)
+        setError(err.message || 'Failed to fetch HCS info')
+      }
+    }
+    fetchHcsInfo()
+  }, [])
 
   // Function to search devices by address
   const searchDevices = async (deviceAddress: string, numChecks: number) => {
@@ -370,8 +414,49 @@ export default function DeviceCheckerPage() {
     }
   };
 
-  // Function to trigger self-check for all or selected devices
-  const triggerSelfCheck = async (checkAll: boolean = false) => {
+  // Function to trigger self-check using our server
+  const triggerServerSelfCheck = async () => {
+    if (devices.length === 0) {
+      setError('No devices to check. Please search for devices first.')
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+    setSelectedDevices([])
+
+    try {
+      // Call self-check API with empty deviceAddresses to check all devices
+      const response = await fetch('/api/self-check', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ deviceAddresses: [] })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to perform self-check')
+      }
+
+      const data = await response.json()
+      setDevices(data)
+
+      // Refresh devices to show updated reputation after a short delay
+      setTimeout(() => {
+        searchDevices('', 5)
+      }, 5000) // 5-second delay to allow HCS to process
+    } catch (err: any) {
+      console.error('Error performing self-check:', err)
+      setError(err.message || 'An error occurred while performing self-check')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Function to trigger manual self-check for all or selected devices
+  const triggerManualCheck = async (checkAll: boolean = false) => {
     if (devices.length === 0) {
       setError('No devices to check. Please search for devices first.')
       return
@@ -382,10 +467,9 @@ export default function DeviceCheckerPage() {
       return
     }
 
-    setIsSelfChecking(true)
-    setSelfCheckResults(null)
+    setIsLoading(true)
     setError(null)
-    setIsCheckingAll(checkAll)
+    setSelectedDevices([])
 
     try {
       // Determine which device addresses to include
@@ -408,25 +492,52 @@ export default function DeviceCheckerPage() {
       }
 
       const data = await response.json()
-      setSelfCheckResults(data)
+      setDevices(data)
 
       // Refresh devices to show updated reputation after a short delay
       setTimeout(() => {
-        checkAllDevices()
+        searchDevices('', 5)
       }, 5000) // 5-second delay to allow HCS to process
     } catch (err: any) {
       console.error('Error performing self-check:', err)
       setError(err.message || 'An error occurred while performing self-check')
     } finally {
-      setIsSelfChecking(false)
-      setIsCheckingAll(false)
+      setIsLoading(false)
     }
   }
 
-  // Load devices on initial render
-  useEffect(() => {
-    checkAllDevices()
-  }, [])
+  // Function to register server as checker
+  const registerAsChecker = async () => {
+    setIsRegistering(true)
+    setError(null)
+    
+    try {
+      const response = await fetch('/api/register-checker', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          walletAddress: '0.0.5868472', // Hedera account ID format
+          serverUrl: window.location.origin // Current server URL
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to register checker')
+      }
+
+      const data = await response.json()
+      console.log('Registration successful:', data)
+      alert('Successfully registered as a checker node!')
+    } catch (err: any) {
+      console.error('Error registering checker:', err)
+      setError(err.message || 'Failed to register as checker')
+    } finally {
+      setIsRegistering(false)
+    }
+  }
 
   return (
     <>
@@ -446,10 +557,30 @@ export default function DeviceCheckerPage() {
             <p className="text-xl mb-6 text-[#AAAAAA] max-w-4xl mx-auto">
               Verify device reliability and build reputation scores based on content retrieval from Akave buckets.
             </p>
-            <p className="text-md mb-12 text-[#888888] max-w-3xl mx-auto">
+            <p className="text-md mb-6 text-[#888888] max-w-3xl mx-auto">
               The Checker Network creates verifiable quality of service metrics for DePIN nodes,
               measuring data retrieval success rates and response times.
             </p>
+            
+            {/* Register as Checker Button */}
+            <button
+              onClick={registerAsChecker}
+              disabled={isRegistering}
+              className={`px-6 py-3 rounded-lg text-black font-medium mb-8 ${
+                isRegistering
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-[#00FF88] hover:bg-[#00FF88]/90'
+              }`}
+            >
+              {isRegistering ? (
+                <>
+                  <span className="animate-spin inline-block mr-2">⚡</span>
+                  Registering...
+                </>
+              ) : (
+                'Register as Checker Node'
+              )}
+            </button>
           </motion.div>
         </div>
       </section>
@@ -500,15 +631,41 @@ export default function DeviceCheckerPage() {
                 <div className="flex items-center space-x-3">
                   <div className="flex space-x-2">
                     <button
-                      onClick={() => triggerSelfCheck(true)}
-                      disabled={isSelfChecking || isLoading}
+                      onClick={triggerServerSelfCheck}
+                      disabled={isLoading}
                       className={`px-4 py-2 rounded-lg flex items-center text-sm ${
-                        isSelfChecking && isCheckingAll
+                        isLoading
+                          ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
+                          : 'bg-purple-600 hover:bg-purple-700 text-white'
+                      } transition-colors`}
+                    >
+                      {isLoading ? (
+                        <>
+                          <span className="animate-spin mr-2">
+                            <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          </span>
+                          Server Checking...
+                        </>
+                      ) : (
+                        <>
+                          <FiServer className="w-4 h-4 mr-2" />
+                          Server Self-Check
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => triggerManualCheck(true)}
+                      disabled={isLoading}
+                      className={`px-4 py-2 rounded-lg flex items-center text-sm ${
+                        isLoading
                           ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
                           : 'bg-green-600 hover:bg-green-700 text-white'
                       } transition-colors`}
                     >
-                      {isSelfChecking && isCheckingAll ? (
+                      {isLoading ? (
                         <>
                           <span className="animate-spin mr-2">
                             <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -526,15 +683,15 @@ export default function DeviceCheckerPage() {
                       )}
                     </button>
                     <button
-                      onClick={() => triggerSelfCheck(false)}
-                      disabled={isSelfChecking || isLoading || selectedDevices.length === 0}
+                      onClick={() => triggerManualCheck(false)}
+                      disabled={isLoading || selectedDevices.length === 0}
                       className={`px-4 py-2 rounded-lg flex items-center text-sm ${
-                        isSelfChecking && !isCheckingAll || selectedDevices.length === 0
+                        isLoading && selectedDevices.length === 0
                           ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
                           : 'bg-blue-600 hover:bg-blue-700 text-white'
                       } transition-colors`}
                     >
-                      {isSelfChecking && !isCheckingAll ? (
+                      {isLoading && selectedDevices.length === 0 ? (
                         <>
                           <span className="animate-spin mr-2">
                             <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -577,26 +734,6 @@ export default function DeviceCheckerPage() {
                 </div>
               </div>
 
-              {selfCheckResults && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="mb-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-xl"
-                >
-                  <div className="flex items-start">
-                    <ShieldCheck className="w-6 h-6 mr-3 text-blue-400 mt-0.5" />
-                    <div>
-                      <p className="text-blue-400 font-medium">Self-Check Completed</p>
-                      <p className="text-gray-300 text-sm mt-1">{selfCheckResults.message}</p>
-                      <p className="text-gray-400 text-xs mt-2">
-                        Self-check data has been submitted to HCS. Reputation scores will update shortly.
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
               <div className="space-y-4">
                 {devices.map((device, index) => (
                   <div key={device.deviceAddress || index} className="flex items-start">
@@ -606,8 +743,6 @@ export default function DeviceCheckerPage() {
                         id={`device-${device.deviceAddress}`}
                         checked={selectedDevices.includes(device.deviceAddress)}
                         onChange={() => toggleDeviceSelection(device.deviceAddress)}
-                        className="w-4 h-4 text-[#00FF88] bg-black border-[#00FF88]/30 rounded focus:ring-[#00FF88]/30"
-                        disabled={isSelfChecking}
                       />
                     </div>
                     <div className="flex-1">
@@ -620,49 +755,6 @@ export default function DeviceCheckerPage() {
           )}
         </div>
       </section>
-
-      {/* Info Section */}
-      <section className="py-16 px-6">
-        <div className="container mx-auto max-w-4xl">
-          <div className="bg-black/50 backdrop-blur-sm border border-[#00FF88]/30 rounded-xl p-8">
-            <h2 className="text-2xl font-bold text-[#00FF88] mb-6">
-              About the Checker Network
-            </h2>
-
-            <div className="prose prose-invert max-w-none">
-              <p>
-                The Checker Network provides verifiable quality of service checks and reputation data on DePIN nodes and networks,
-                similar to how Google Reviews works for businesses, but for decentralized physical infrastructure.
-              </p>
-
-              <p>
-                This DePIN Device Checker is a subnet of the Checker Network, focused on verifying the reliability of
-                agent devices in the Franky network. It measures and scores:
-              </p>
-
-              <ul className="space-y-2 mt-4">
-                <li className="flex items-start">
-                  <FiCheckCircle className="w-5 h-5 mr-3 text-[#00FF88] mt-0.5" />
-                  <span>Success rate of character data retrieval from Akave buckets</span>
-                </li>
-                <li className="flex items-start">
-                  <Clock className="w-5 h-5 mr-3 text-[#00FF88] mt-0.5" />
-                  <span>Response time performance for data retrieval</span>
-                </li>
-                <li className="flex items-start">
-                  <Zap className="w-5 h-5 mr-3 text-[#00FF88] mt-0.5" />
-                  <span>Consistency and reliability of the hosted services</span>
-                </li>
-              </ul>
-
-              <p className="mt-6">
-                All reputation data is stored on Hedera Consensus Service (HCS), ensuring the data itself is decentralized
-                and tamper-resistant. This creates a trustless verification layer for the Franky AI agent network.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
     </>
   )
-} 
+}

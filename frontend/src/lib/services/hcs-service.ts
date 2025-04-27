@@ -7,17 +7,55 @@ import {
   TopicId, 
   TopicMessageQuery,
   TopicInfoQuery,
-  TopicMessage
+  TopicMessage,
+  Status,
+  Hbar
 } from "@hashgraph/sdk";
 
-// Environment configuration
+// Environment configuration with validation
 const HEDERA_NETWORK = process.env.HEDERA_NETWORK || 'testnet';
-const OPERATOR_ID = process.env.HEDERA_OPERATOR_ID || '';
-const OPERATOR_KEY = process.env.HEDERA_OPERATOR_KEY || '';
+const OPERATOR_ID = process.env.HEDERA_OPERATOR_ID;
+const OPERATOR_KEY = process.env.HEDERA_OPERATOR_KEY;
+const DEVICE_REGISTRY_TOPIC_ID = process.env.DEVICE_REGISTRY_TOPIC_ID;
+const CHECKER_REGISTRY_TOPIC_ID = process.env.CHECKER_REGISTRY_TOPIC_ID;
 
-// Topic configuration
-const DEVICE_REGISTRY_TOPIC_ID = process.env.DEVICE_REGISTRY_TOPIC_ID || '';
-const CHECKER_REGISTRY_TOPIC_ID = process.env.CHECKER_REGISTRY_TOPIC_ID || '';
+// Add fs and path for .env management
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Function to update .env file with new topic IDs
+async function updateEnvFile(updates: { [key: string]: string }) {
+  try {
+    const envPath = path.resolve(process.cwd(), '.env');
+    let envContent = '';
+    
+    // Read existing content if file exists
+    if (fs.existsSync(envPath)) {
+      envContent = fs.readFileSync(envPath, 'utf8');
+    }
+
+    // Update or add each key-value pair
+    for (const [key, value] of Object.entries(updates)) {
+      const regex = new RegExp(`^${key}=.*$`, 'm');
+      const newLine = `${key}=${value}`;
+      
+      if (regex.test(envContent)) {
+        // Update existing line
+        envContent = envContent.replace(regex, newLine);
+      } else {
+        // Add new line
+        envContent += `\n${newLine}`;
+      }
+    }
+
+    // Write back to file
+    fs.writeFileSync(envPath, envContent.trim() + '\n');
+    console.log('Updated .env with new topic IDs');
+  } catch (error) {
+    console.error('Error updating .env file:', error);
+    // Don't throw - this is a non-critical operation
+  }
+}
 
 // Message types for different reputation operations
 export enum MessageType {
@@ -36,35 +74,80 @@ interface HcsMessage {
   signature?: string;
 }
 
+// Test result interface
+interface TestResult {
+  success: boolean;
+  duration: number;
+  status?: number;
+  error?: string;
+}
+
+interface MirrorNodeResponse {
+  messages: Array<{
+    consensus_timestamp: string;
+    message: string;
+    sequence_number: number;
+    topic_id: string;
+  }>;
+  links: {
+    next?: string;
+  };
+}
+
 // HCS Service for reputation system
 export class HcsService {
-  private client: Client;
-  private operatorId: AccountId;
-  private operatorKey: PrivateKey;
+  private client: Client | null = null;
+  private operatorId: AccountId | null = null;
+  private operatorKey: PrivateKey | null = null;
   private deviceRegistryTopic: TopicId | null = null;
   private checkerRegistryTopic: TopicId | null = null;
+  private initialized: boolean = false;
 
   constructor() {
-    // Initialize Hedera client
-    this.operatorId = AccountId.fromString(OPERATOR_ID);
-    this.operatorKey = PrivateKey.fromString(OPERATOR_KEY);
-    
-    // Create client based on network setting
-    if (HEDERA_NETWORK === 'mainnet') {
-      this.client = Client.forMainnet();
-    } else {
-      this.client = Client.forTestnet();
+    this.initializeClient();
+  }
+
+  private initializeClient(): void {
+    try {
+      // Validate required environment variables
+      if (!OPERATOR_ID || !OPERATOR_KEY) {
+        throw new Error('Missing required Hedera credentials. Please set HEDERA_OPERATOR_ID and HEDERA_OPERATOR_KEY');
+      }
+
+      // Initialize operator credentials
+      this.operatorId = AccountId.fromString(OPERATOR_ID);
+      this.operatorKey = process.env.HEDERA_KEY_TYPE === "ECDSA" 
+        ? PrivateKey.fromStringECDSA(OPERATOR_KEY)
+        : PrivateKey.fromString(OPERATOR_KEY);
+      
+      // Create client based on network setting
+      this.client = HEDERA_NETWORK === 'mainnet' 
+        ? Client.forMainnet()
+        : Client.forTestnet();
+      
+      this.client.setOperator(this.operatorId, this.operatorKey);
+      
+      // Set existing topic IDs if available
+      if (DEVICE_REGISTRY_TOPIC_ID) {
+        this.deviceRegistryTopic = TopicId.fromString(DEVICE_REGISTRY_TOPIC_ID);
+      }
+      
+      if (CHECKER_REGISTRY_TOPIC_ID) {
+        this.checkerRegistryTopic = TopicId.fromString(CHECKER_REGISTRY_TOPIC_ID);
+      }
+
+      this.initialized = true;
+      console.log('HCS Service initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize HCS Service:', error);
+      this.initialized = false;
+      throw error;
     }
-    
-    this.client.setOperator(this.operatorId, this.operatorKey);
-    
-    // Set topic IDs if available in environment variables
-    if (DEVICE_REGISTRY_TOPIC_ID) {
-      this.deviceRegistryTopic = TopicId.fromString(DEVICE_REGISTRY_TOPIC_ID);
-    }
-    
-    if (CHECKER_REGISTRY_TOPIC_ID) {
-      this.checkerRegistryTopic = TopicId.fromString(CHECKER_REGISTRY_TOPIC_ID);
+  }
+
+  private ensureInitialized(): void {
+    if (!this.initialized || !this.client) {
+      throw new Error('HCS Service not properly initialized');
     }
   }
 
@@ -72,46 +155,150 @@ export class HcsService {
    * Initialize HCS topics for reputation system if they don't exist
    */
   async initializeTopics(): Promise<void> {
-    // Create device registry topic if not already set
-    if (!this.deviceRegistryTopic) {
-      console.log("Creating device registry topic...");
-      const deviceTopic = await this.createTopic("Franky Device Registry");
-      this.deviceRegistryTopic = deviceTopic;
-      console.log(`Device registry topic created: ${deviceTopic.toString()}`);
-    }
+    this.ensureInitialized();
 
-    // Create checker registry topic if not already set
-    if (!this.checkerRegistryTopic) {
-      console.log("Creating checker registry topic...");
-      const checkerTopic = await this.createTopic("Franky Checker Registry");
-      this.checkerRegistryTopic = checkerTopic;
-      console.log(`Checker registry topic created: ${checkerTopic.toString()}`);
+    try {
+      // First try to use existing topic IDs from environment
+      if (DEVICE_REGISTRY_TOPIC_ID && CHECKER_REGISTRY_TOPIC_ID) {
+        console.log('Using existing registry topics from environment');
+        
+        // Verify topics exist and are accessible
+        try {
+          // Device Registry Topic
+          this.deviceRegistryTopic = TopicId.fromString(DEVICE_REGISTRY_TOPIC_ID);
+          await this.verifyTopicAccess(this.deviceRegistryTopic);
+          console.log('Device registry topic verified:', DEVICE_REGISTRY_TOPIC_ID);
+          
+          // Checker Registry Topic
+          this.checkerRegistryTopic = TopicId.fromString(CHECKER_REGISTRY_TOPIC_ID);
+          await this.verifyTopicAccess(this.checkerRegistryTopic);
+          console.log('Checker registry topic verified:', CHECKER_REGISTRY_TOPIC_ID);
+          
+          // Both topics verified successfully
+          return;
+        } catch (error) {
+          console.error('Failed to verify existing topics:', error);
+          // Reset topics to ensure clean creation
+          this.deviceRegistryTopic = null;
+          this.checkerRegistryTopic = null;
+        }
+      }
+
+      // Create topics sequentially to ensure uniqueness
+      if (!this.deviceRegistryTopic) {
+        console.log("Creating device registry topic...");
+        const deviceTopic = await this.createTopic(
+          "Franky Device Registry",
+          "Registry for device reputation topics"
+        );
+        this.deviceRegistryTopic = deviceTopic;
+        
+        // Save device registry topic immediately
+        await updateEnvFile({
+          DEVICE_REGISTRY_TOPIC_ID: deviceTopic.toString()
+        });
+        console.log(`Device registry topic created and saved: ${deviceTopic.toString()}`);
+      }
+
+      // Wait a moment before creating the second topic
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      if (!this.checkerRegistryTopic) {
+        console.log("Creating checker registry topic...");
+        const checkerTopic = await this.createTopic(
+          "Franky Checker Registry",
+          "Registry for reputation checker nodes"
+        );
+        this.checkerRegistryTopic = checkerTopic;
+        
+        // Save checker registry topic immediately
+        await updateEnvFile({
+          CHECKER_REGISTRY_TOPIC_ID: checkerTopic.toString()
+        });
+        console.log(`Checker registry topic created and saved: ${checkerTopic.toString()}`);
+      }
+
+    } catch (error) {
+      console.error('Failed to initialize topics:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify topic exists and is accessible
+   */
+  private async verifyTopicAccess(topicId: TopicId): Promise<void> {
+    if (!this.client) throw new Error('Client not initialized');
+    
+    try {
+      const query = new TopicInfoQuery()
+        .setTopicId(topicId);
+      
+      await query.execute(this.client);
+    } catch (error) {
+      throw new Error(`Topic ${topicId.toString()} is not accessible: ${error}`);
     }
   }
 
   /**
    * Create a new topic on Hedera
-   * @param memo Topic description
-   * @returns TopicId of the created topic
    */
-  async createTopic(memo: string): Promise<TopicId> {
-    try {
-      // Create a new topic
-      const transaction = new TopicCreateTransaction()
-        .setTopicMemo(memo)
-        .setSubmitKey(this.operatorKey.publicKey);
+  private async createTopic(name: string, memo: string): Promise<TopicId> {
+    this.ensureInitialized();
 
-      // Sign with the client operator key and submit
-      const txResponse = await transaction.execute(this.client);
-      
-      // Get the receipt to confirm successful creation
-      const receipt = await txResponse.getReceipt(this.client);
-      
-      if (!receipt.topicId) {
-        throw new Error("Failed to create topic");
+    try {
+      if (!this.client || !this.operatorKey) {
+        throw new Error('Client or operator key not initialized');
       }
+
+      console.log(`Creating topic: ${name}`);
       
-      return receipt.topicId;
+      // Create a new topic with memo and submit key
+      const transaction = await (
+        new TopicCreateTransaction()
+          .setTopicMemo(memo)
+          .setAdminKey(this.operatorKey.publicKey)
+          .setSubmitKey(this.operatorKey.publicKey)
+          .setMaxTransactionFee(new Hbar(2))
+          .freezeWith(this.client)
+      );
+
+      // Execute with retry logic
+      let attempts = 0;
+      const maxAttempts = 3;
+      let lastError: Error | null = null;
+
+      while (attempts < maxAttempts) {
+        try {
+          console.log(`Attempt ${attempts + 1} of ${maxAttempts} to create topic`);
+          
+          // Sign with the operator key
+          const signedTx = await transaction.sign(this.operatorKey);
+          
+          // Execute the transaction
+          const txResponse = await signedTx.execute(this.client);
+          
+          // Wait for receipt with timeout
+          const receipt = await txResponse.getReceipt(this.client);
+          
+          if (!receipt.topicId) {
+            throw new Error('No topic ID in receipt');
+          }
+          
+          console.log(`Topic created successfully: ${receipt.topicId.toString()}`);
+          return receipt.topicId;
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          attempts++;
+          
+          if (attempts < maxAttempts) {
+            // Wait before retrying (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempts)));
+          }
+        }
+      }
+
+      throw new Error(`Failed to create topic after ${maxAttempts} attempts: ${lastError?.message}`);
     } catch (error) {
       console.error(`Error creating topic: ${error}`);
       throw error;
@@ -119,18 +306,257 @@ export class HcsService {
   }
 
   /**
-   * Get or create a device-specific topic
-   * @param deviceId Device address
-   * @returns TopicId for the device reputation
+   * Submit a message to a HCS topic
    */
-  async getDeviceTopic(deviceId: string): Promise<TopicId> {
+  private async submitMessage(topicId: TopicId, message: any): Promise<string> {
+    this.ensureInitialized();
+
+    try {
+      if (!this.client) {
+        throw new Error('Client not initialized');
+      }
+
+      // Convert message to string if it's an object
+      const messageString = typeof message === 'string' 
+        ? message 
+        : JSON.stringify(message);
+      
+      console.log('Submitting message to topic:', topicId.toString());
+      console.log('Message content:', messageString);
+      
+      // Create and execute the transaction
+      const transaction = new TopicMessageSubmitTransaction({
+        topicId: topicId,
+        message: messageString,
+      })
+      .setMaxTransactionFee(new Hbar(2));
+      
+      const txResponse = await transaction.execute(this.client);
+      const receipt = await txResponse.getReceipt(this.client);
+      
+      if (receipt.status !== Status.Success) {
+        throw new Error(`Message submission failed with status: ${receipt.status}`);
+      }
+      
+      console.log('Message submitted successfully, transaction ID:', txResponse.transactionId.toString());
+      return txResponse.transactionId.toString();
+    } catch (error) {
+      console.error(`Error submitting message: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Get messages from a topic
+   */
+  private async getMessages(topicId: TopicId, limit: number = 100): Promise<any[]> {
+    console.log(`Getting messages from topic ${topicId.toString()}`);
+    
+    const networkType = process.env.HEDERA_NETWORK || 'testnet';
+    const baseUrl = networkType === 'mainnet' 
+      ? 'https://mainnet-public.mirrornode.hedera.com'
+      : 'https://testnet.mirrornode.hedera.com';
+      
+    let url: string | null = `${baseUrl}/api/v1/topics/${topicId.toString()}/messages?encoding=UTF-8&limit=${limit}&order=desc`;
+    const messages: any[] = [];
+
+    try {
+      while (url && messages.length < limit) {
+        const response: Response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data: MirrorNodeResponse = await response.json();
+        console.log('Mirror node response data:', JSON.stringify(data, null, 2));
+        messages.push(...data.messages);
+
+        // Update URL for pagination
+        url = data.links?.next ? baseUrl + data.links.next : null;
+      }
+
+      console.log(`Retrieved ${messages.length} messages from topic ${topicId.toString()}`);
+      return messages;
+    } catch (error) {
+      console.error('Error getting messages:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Register a new checker node
+   */
+  async registerChecker(walletAddress: string, serverUrl: string): Promise<string> {
+    this.ensureInitialized();
+
+    try {
+      if (!this.checkerRegistryTopic) {
+        await this.initializeTopics();
+        if (!this.checkerRegistryTopic) {
+          throw new Error('Failed to initialize checker registry topic');
+        }
+      }
+
+      const message: HcsMessage = {
+        type: MessageType.REGISTER_CHECKER,
+        payload: {
+          walletAddress,
+          serverUrl,
+          registeredAt: new Date().toISOString()
+        },
+        timestamp: new Date().toISOString(),
+        sender: this.operatorId?.toString() || 'unknown'
+      };
+      
+      return await this.submitMessage(this.checkerRegistryTopic, message);
+    } catch (error) {
+      console.error(`Error registering checker: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Get registered checker nodes
+   */
+  async getCheckers(): Promise<any[]> {
+    this.ensureInitialized();
+
+    try {
+      if (!this.checkerRegistryTopic) {
+        await this.initializeTopics();
+        if (!this.checkerRegistryTopic) {
+          return [];
+        }
+      }
+
+      const messages = await this.getMessages(this.checkerRegistryTopic);
+      console.log('Raw messages from getMessages:', JSON.stringify(messages, null, 2));
+      const checkers = new Map<string, any>();
+      
+      // Process messages to build checker list
+      messages.forEach(msg => {
+        try {
+          // Log the raw message for debugging
+          console.log('Processing message:', JSON.stringify(msg, null, 2));
+
+          // Validate message has message content before parsing
+          if (!msg || !msg.message) {
+            console.warn('Skipping invalid message: missing message content', msg);
+            return;
+          }
+
+          // Try to parse the contents
+          let content;
+          try {
+            content = JSON.parse(msg.message);
+            console.log('Parsed content:', JSON.stringify(content, null, 2));
+          } catch (parseError) {
+            console.warn('Skipping message: invalid JSON content', parseError);
+            return;
+          }
+
+          // Validate content structure
+          if (!content || !content.type || !content.payload) {
+            console.warn('Skipping message: invalid content structure', content);
+            return;
+          }
+          
+          if (content.type === MessageType.REGISTER_CHECKER) {
+            const checker = content.payload;
+            if (!checker.walletAddress || !checker.serverUrl) {
+              console.warn('Skipping invalid checker registration: missing required fields', checker);
+              return;
+            }
+            
+            // Update or add checker info - preserve original wallet address format
+            checkers.set(checker.walletAddress, {
+              walletAddress: checker.walletAddress,
+              serverUrl: checker.serverUrl,
+              registeredAt: checker.registeredAt,
+              lastSeen: content.timestamp,
+              lastActivity: msg.consensus_timestamp
+            });
+          } else if (content.type === MessageType.CHECKER_HEARTBEAT) {
+            // Validate heartbeat payload
+            if (!content.payload.walletAddress) {
+              console.warn('Skipping invalid heartbeat: missing wallet address', content.payload);
+              return;
+            }
+
+            // Update last seen time for heartbeats
+            const checker = checkers.get(content.payload.walletAddress);
+            if (checker) {
+              checker.lastSeen = content.timestamp;
+              checker.lastActivity = msg.consensus_timestamp;
+              checkers.set(content.payload.walletAddress, checker);
+            }
+          }
+        } catch (e) {
+          console.error("Error processing checker message:", e);
+          // Continue processing other messages
+        }
+      });
+      
+      const result = Array.from(checkers.values());
+      console.log('Final checkers result:', JSON.stringify(result, null, 2));
+      return result;
+    } catch (error) {
+      console.error(`Error getting checkers: ${error}`);
+      return [];
+    }
+  }
+
+  /**
+   * Submit a device check result
+   */
+  async submitDeviceCheck(
+    checkerAddress: string,
+    deviceAddress: string,
+    checkResults: any
+  ): Promise<string> {
+    this.ensureInitialized();
+
+    try {
+      // Get the topic for this device
+      const deviceTopic = await this.getDeviceTopic(deviceAddress);
+      
+      // Format the check message
+      const message: HcsMessage = {
+        type: MessageType.DEVICE_CHECK,
+        payload: {
+          checkerAddress: checkerAddress.toLowerCase(),
+          deviceAddress: deviceAddress.toLowerCase(),
+          results: checkResults,
+          timestamp: new Date().toISOString()
+        },
+        timestamp: new Date().toISOString(),
+        sender: this.operatorId?.toString() || 'unknown'
+      };
+      
+      // Submit to the device's topic
+      return await this.submitMessage(deviceTopic, message);
+    } catch (error) {
+      console.error(`Error submitting device check: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Get or create a device-specific topic
+   */
+  private async getDeviceTopic(deviceId: string): Promise<TopicId> {
+    this.ensureInitialized();
+
     try {
       if (!this.deviceRegistryTopic) {
         await this.initializeTopics();
+        if (!this.deviceRegistryTopic) {
+          throw new Error('Failed to initialize device registry topic');
+        }
       }
 
       // First check if this device already has a topic
-      const deviceTopicKey = `device:${deviceId.toLowerCase()}`;
       const existingTopicId = await this.getDeviceTopicMapping(deviceId);
       
       if (existingTopicId) {
@@ -138,17 +564,18 @@ export class HcsService {
       }
       
       // If not, create a new topic for this device
-      const deviceTopic = await this.createTopic(`Franky Device Reputation: ${deviceId}`);
+      const deviceTopic = await this.createTopic(
+        `Franky Device Reputation: ${deviceId}`,
+        `Reputation topic for device ${deviceId}`
+      );
       
       // Register the mapping in the device registry topic
-      if (this.deviceRegistryTopic) {
-        await this.submitMessage(this.deviceRegistryTopic, {
-          type: 'DEVICE_TOPIC_MAPPING',
-          deviceId: deviceId.toLowerCase(),
-          topicId: deviceTopic.toString(),
-          timestamp: new Date().toISOString()
-        });
-      }
+      await this.submitMessage(this.deviceRegistryTopic, {
+        type: 'DEVICE_TOPIC_MAPPING',
+        deviceId: deviceId.toLowerCase(),
+        topicId: deviceTopic.toString(),
+        timestamp: new Date().toISOString()
+      });
       
       return deviceTopic;
     } catch (error) {
@@ -159,10 +586,10 @@ export class HcsService {
 
   /**
    * Look up the topic ID for a specific device
-   * @param deviceId Device address
-   * @returns TopicId as string if found, null otherwise
    */
-  async getDeviceTopicMapping(deviceId: string): Promise<string | null> {
+  private async getDeviceTopicMapping(deviceId: string): Promise<string | null> {
+    this.ensureInitialized();
+
     try {
       if (!this.deviceRegistryTopic) {
         await this.initializeTopics();
@@ -184,10 +611,7 @@ export class HcsService {
             return false;
           }
         })
-        .sort((a, b) => {
-          // Sort by sequence number (most recent first)
-          return b.sequenceNumber - a.sequenceNumber;
-        });
+        .sort((a, b) => b.sequence_number - a.sequence_number);
       
       if (mappings.length > 0) {
         const content = JSON.parse(mappings[0].message);
@@ -202,230 +626,11 @@ export class HcsService {
   }
 
   /**
-   * Submit a message to a HCS topic
-   * @param topicId Topic to submit to
-   * @param message Message object to submit
-   * @returns Transaction ID
-   */
-  async submitMessage(topicId: TopicId, message: any): Promise<string> {
-    try {
-      // Convert message to string if it's an object
-      const messageString = typeof message === 'string' 
-        ? message 
-        : JSON.stringify(message);
-      
-      // Create the transaction
-      const transaction = new TopicMessageSubmitTransaction({
-        topicId: topicId,
-        message: messageString,
-      });
-      
-      // Sign and submit
-      const txResponse = await transaction.execute(this.client);
-      
-      // Get receipt
-      const receipt = await txResponse.getReceipt(this.client);
-      
-      return txResponse.transactionId.toString();
-    } catch (error) {
-      console.error(`Error submitting message: ${error}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Get messages from a topic
-   * @param topicId Topic to query
-   * @param limit Maximum number of messages to retrieve
-   * @returns Array of topic messages
-   */
-  async getMessages(topicId: TopicId, limit: number = 100): Promise<any[]> {
-    try {
-      const messages: any[] = [];
-      
-      // Set up a topic message query
-      const query = new TopicMessageQuery()
-        .setTopicId(topicId)
-        .setLimit(limit);
-      
-      // Execute the query and collect messages
-      await new Promise<void>((resolve, reject) => {
-        let count = 0;
-        
-        query.subscribe(
-          this.client,
-          (message: TopicMessage | null) => {
-            if (!message) return;
-            
-            count++;
-            
-            // Convert message content to string
-            const messageContent = Buffer.from(message.contents).toString();
-            
-            messages.push({
-              sequenceNumber: message.sequenceNumber,
-              consensusTimestamp: message.consensusTimestamp.toDate(),
-              message: messageContent,
-              runningHash: Buffer.from(message.runningHash).toString('hex'),
-              topicId: topicId.toString()
-            });
-            
-            // Resolve when we've reached our limit
-            if (count >= limit) {
-              resolve();
-            }
-          },
-          (error) => {
-            reject(error);
-          }
-        );
-        
-        // Set a timeout to resolve if fewer than limit messages exist
-        setTimeout(() => {
-          if (messages.length < limit) {
-            resolve();
-          }
-        }, 10000); // 10 second timeout
-      });
-      
-      return messages;
-    } catch (error) {
-      console.error(`Error getting messages: ${error}`);
-      return [];
-    }
-  }
-
-  /**
-   * Register a new checker node
-   * @param walletAddress Checker's wallet address
-   * @param serverUrl Checker's server URL
-   * @returns Transaction ID
-   */
-  async registerChecker(walletAddress: string, serverUrl: string): Promise<string> {
-    try {
-      if (!this.checkerRegistryTopic) {
-        await this.initializeTopics();
-        if (!this.checkerRegistryTopic) {
-          throw new Error("Failed to initialize checker registry topic");
-        }
-      }
-
-      const message: HcsMessage = {
-        type: MessageType.REGISTER_CHECKER,
-        payload: {
-          walletAddress: walletAddress.toLowerCase(),
-          serverUrl,
-          registeredAt: new Date().toISOString()
-        },
-        timestamp: new Date().toISOString(),
-        sender: this.operatorId.toString()
-      };
-      
-      return await this.submitMessage(this.checkerRegistryTopic, message);
-    } catch (error) {
-      console.error(`Error registering checker: ${error}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Get registered checker nodes
-   * @returns Array of checker nodes
-   */
-  async getCheckers(): Promise<any[]> {
-    try {
-      if (!this.checkerRegistryTopic) {
-        await this.initializeTopics();
-        if (!this.checkerRegistryTopic) {
-          return [];
-        }
-      }
-
-      const messages = await this.getMessages(this.checkerRegistryTopic);
-      const checkers = new Map<string, any>();
-      
-      // Process messages to build checker list
-      messages.forEach(msg => {
-        try {
-          const content = JSON.parse(msg.message);
-          
-          if (content.type === MessageType.REGISTER_CHECKER) {
-            const checker = content.payload;
-            
-            // Update or add checker info
-            checkers.set(checker.walletAddress.toLowerCase(), {
-              walletAddress: checker.walletAddress.toLowerCase(),
-              serverUrl: checker.serverUrl,
-              registeredAt: checker.registeredAt,
-              lastSeen: content.timestamp,
-              // Track when we last saw activity from this checker
-              lastActivity: msg.consensusTimestamp
-            });
-          } else if (content.type === MessageType.CHECKER_HEARTBEAT) {
-            // Update last seen time for heartbeats
-            const checker = checkers.get(content.payload.walletAddress.toLowerCase());
-            if (checker) {
-              checker.lastSeen = content.timestamp;
-              checker.lastActivity = msg.consensusTimestamp;
-              checkers.set(content.payload.walletAddress.toLowerCase(), checker);
-            }
-          }
-        } catch (e) {
-          console.error("Error processing checker message:", e);
-        }
-      });
-      
-      return Array.from(checkers.values());
-    } catch (error) {
-      console.error(`Error getting checkers: ${error}`);
-      return [];
-    }
-  }
-
-  /**
-   * Submit a device check result
-   * @param checkerAddress Checker's wallet address
-   * @param deviceAddress Device address being checked
-   * @param checkResults Results of the device check
-   * @returns Transaction ID
-   */
-  async submitDeviceCheck(
-    checkerAddress: string,
-    deviceAddress: string,
-    checkResults: any
-  ): Promise<string> {
-    try {
-      // Get the topic for this device
-      const deviceTopic = await this.getDeviceTopic(deviceAddress);
-      
-      // Format the check message
-      const message: HcsMessage = {
-        type: MessageType.DEVICE_CHECK,
-        payload: {
-          checkerAddress: checkerAddress.toLowerCase(),
-          deviceAddress: deviceAddress.toLowerCase(),
-          results: checkResults,
-          timestamp: new Date().toISOString()
-        },
-        timestamp: new Date().toISOString(),
-        sender: this.operatorId.toString()
-      };
-      
-      // Submit to the device's topic
-      return await this.submitMessage(deviceTopic, message);
-    } catch (error) {
-      console.error(`Error submitting device check: ${error}`);
-      throw error;
-    }
-  }
-
-  /**
    * Get reputation data for a device using HCS consensus
-   * @param deviceAddress Device address to check
-   * @param checkCount Number of recent checks to include
-   * @returns Consensus reputation data
    */
   async getDeviceReputation(deviceAddress: string, checkCount: number = 10): Promise<any> {
+    this.ensureInitialized();
+
     try {
       // Get the topic for this device
       const deviceTopicId = await this.getDeviceTopicMapping(deviceAddress);
@@ -465,8 +670,8 @@ export class HcsService {
           const content = JSON.parse(msg.message);
           return {
             ...content.payload,
-            consensusTimestamp: msg.consensusTimestamp,
-            sequenceNumber: msg.sequenceNumber
+            consensus_timestamp: msg.consensus_timestamp,
+            sequence_number: msg.sequence_number
           };
         });
       
@@ -488,7 +693,7 @@ export class HcsService {
         lastChecked: new Date().toISOString(),
         checkResults: checkResults.slice(0, 10), // Include the 10 most recent checks
         checkCount: checkResults.length,
-        consensusTimestamp: checkResults[0].consensusTimestamp
+        consensus_timestamp: checkResults[0].consensus_timestamp
       };
     } catch (error: unknown) {
       console.error(`Error getting device reputation: ${error}`);
@@ -503,8 +708,6 @@ export class HcsService {
 
   /**
    * Calculate consensus reputation score from check results
-   * @param checkResults Array of check results from different checkers
-   * @returns Consensus reputation score and metrics
    */
   private calculateReputationConsensus(checkResults: any[]): any {
     // Group results by checker to prevent a single checker from dominating
@@ -523,8 +726,8 @@ export class HcsService {
       .map(([checker, results]) => {
         // Sort by consensus timestamp (most recent first)
         results.sort((a, b) => 
-          new Date(b.consensusTimestamp).getTime() - 
-          new Date(a.consensusTimestamp).getTime()
+          new Date(b.consensus_timestamp).getTime() - 
+          new Date(a.consensus_timestamp).getTime()
         );
         return results[0]; // Return the most recent result
       });
@@ -560,8 +763,6 @@ export class HcsService {
 
   /**
    * Calculate median value from an array of numbers
-   * @param values Array of numeric values
-   * @returns Median value
    */
   private calculateMedian(values: number[]): number {
     if (values.length === 0) return 0;
@@ -580,7 +781,18 @@ export class HcsService {
       return sorted[mid];
     }
   }
+
+  // Add getter methods for topic IDs
+  public async getDeviceRegistryTopicId(): Promise<string> {
+    this.ensureInitialized();
+    return this.deviceRegistryTopic?.toString() || '';
+  }
+
+  public async getCheckerRegistryTopicId(): Promise<string> {
+    this.ensureInitialized();
+    return this.checkerRegistryTopic?.toString() || '';
+  }
 }
 
 // Export a singleton instance
-export const hcsService = new HcsService(); 
+export const hcsService = new HcsService();
