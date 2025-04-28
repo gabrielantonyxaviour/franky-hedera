@@ -332,6 +332,7 @@ create_hedera_wallet() {
           // Create a new account with a smaller initial balance
           const createAccountTx = new AccountCreateTransaction()
             .setKey(newPublicKey)
+            .setAlias(newPublicKey.toEvmAddress())
             .setInitialBalance(new Hbar(10));
             
           // Execute the transaction

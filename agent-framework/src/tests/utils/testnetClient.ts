@@ -57,6 +57,7 @@ export class NetworkClientWrapper {
 
     const tx = new AccountCreateTransaction()
       .setKey(accountPublicKey)
+      .setAlias(accountPublicKey.toEvmAddress())
       .setInitialBalance(new Hbar(initialHBARAmount))
       .setMaxAutomaticTokenAssociations(maxAutoAssociation);
     const txResponse = await tx.execute(this.client);
