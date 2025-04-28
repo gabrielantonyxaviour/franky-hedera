@@ -438,6 +438,11 @@
         "type": "string"
       },
       {
+        "internalType": "string",
+        "name": "metadata",
+        "type": "string"
+      },
+      {
         "internalType": "address",
         "name": "deviceAddress",
         "type": "address"

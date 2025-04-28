@@ -1,6 +1,6 @@
 # Migration to Hedera Consensus Service for Reputation System
 
-This document explains the migration of Franky's device reputation system from Akave/Filecoin storage to the Hedera Consensus Service (HCS).
+This document explains the migration of Franky's device reputation system from Pinata/Filecoin storage to the Hedera Consensus Service (HCS).
 
 ## Overview
 
@@ -11,7 +11,7 @@ The device checker and reputation system has been migrated to use Hedera Consens
 3. Consensus calculation for reputation scores
 4. Immutable storage of all reputation data
 
-This migration eliminates the dependency on Akave/Filecoin storage and provides a more robust, consensus-driven system for device reputation management.
+This migration eliminates the dependency on Pinata/Filecoin storage and provides a more robust, consensus-driven system for device reputation management.
 
 ## Architecture
 
@@ -66,7 +66,7 @@ The API endpoints have been updated to use HCS but maintain backward compatibili
 
 1. **Improved Immutability**: All reputation data is stored with consensus timestamps in HCS
 2. **Democratic Consensus**: Multiple checkers contribute to reputation calculation
-3. **Simplified Architecture**: Eliminated need for Akave/Filecoin integration
+3. **Simplified Architecture**: Eliminated need for Pinata/Filecoin integration
 4. **Transparent Audit Trail**: Complete history of all device reputation checks
 5. **No Custom Fees**: Monetization via HIP-991 is not implemented in this version
 

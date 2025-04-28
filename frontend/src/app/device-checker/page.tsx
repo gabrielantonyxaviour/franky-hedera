@@ -555,7 +555,7 @@ export default function DeviceCheckerPage() {
               DePIN Device Checker
             </h1>
             <p className="text-xl mb-6 text-[#AAAAAA] max-w-4xl mx-auto">
-              Verify device reliability and build reputation scores based on content retrieval from Akave buckets.
+              Verify device reliability and build reputation scores based on content retrieval from Pinata buckets.
             </p>
             <p className="text-md mb-6 text-[#888888] max-w-3xl mx-auto">
               The Checker Network creates verifiable quality of service metrics for DePIN nodes,

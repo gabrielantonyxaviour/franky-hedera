@@ -184,6 +184,7 @@ contract Franky is HederaTokenService, KeyHelper {
     function createAgent(
         string calldata subdomain,
         string memory characterConfig,
+        string memory metadata,
         address deviceAddress,
         uint256 perApiCallFee,
         bool isPublic
@@ -193,10 +194,10 @@ contract Franky is HederaTokenService, KeyHelper {
         address agentAddress = _deployAgentAccount(
             subdomain,
             msg.sender,
-            keccak256(bytes(characterConfig))
+            keccak256(bytes(metadata))
         );
         bytes[] memory bytesArray = new bytes[](1);
-        bytesArray[0] = bytes(characterConfig);
+        bytesArray[0] = bytes(metadata);
         (int responseCode, int64 newTotalSupply, ) = mintToken(
             frankyAgentsNftAddress,
             0,

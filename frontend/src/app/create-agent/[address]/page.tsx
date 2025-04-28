@@ -22,6 +22,7 @@ import { useWalletInterface } from "@/hooks/use-wallet-interface";
 import { ContractId,ContractExecuteTransaction} from "@hashgraph/sdk";
 import { ContractFunctionParameterBuilder } from "@/utils/param-builder";
 import { WalletInterface } from "@/types/wallet-interface";
+import { encryptEnv } from "@/utils/lit";
 
 interface Device {
   id: string
@@ -353,7 +354,7 @@ function SecretsEditor({
       />
       <div className="mt-3 text-xs text-gray-400">
         <p>• Your secrets will be encrypted using Lit Protocol before storage</p>
-        <p>• They will be stored alongside your character data in the Akave bucket</p>
+        <p>• They will be stored alongside your character data in the Pinata bucket</p>
         <p>• They will only be accessible by your agent with proper authentication</p>
         <p className="text-[#00FF88] mt-1">• Sensitive API keys will never be stored in plaintext</p>
       </div>
@@ -599,7 +600,7 @@ function ConfirmationModal({
               <div className="flex items-center">
                 <div className="animate-spin h-4 w-4 mr-2 border-2 border-[#00FF88] border-t-transparent rounded-full"></div>
                 <p className="text-[#00FF88] text-sm">
-                  {isEncrypting ? 'Encrypting secrets with Lit Protocol...' : 'Uploading character data to Akave...'}
+                  {isEncrypting ? 'Encrypting secrets with Lit Protocol...' : 'Uploading character data to Pinata...'}
                 </p>
               </div>
               <p className="text-xs text-gray-400 mt-1">
@@ -945,7 +946,6 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
       const subname = agentName.toLowerCase();
       setIsUploading(true);
 
-      // TODO: 1. First upload Avatar 2. Upload Character with Secrets 3. Send Transaction
       try {
         console.log("Preparing transaction");
         toast.info("Uploading Avatar to Filecoin...", {
@@ -963,7 +963,11 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
         console.log(avatarUrl)
         console.log('Uploading character data to Pinata with encrypted secrets...');
         let characterConfigUrl = "";
-        toast.info("Uploading character data to Pinata...", {
+        toast.info("Encrypting .env with Lit Protocol", {
+          description: "Your secrets can be decrypted only by the Device"
+        });
+        const {ciphertext, dataToEncryptHash} = await encryptEnv(secrets)
+        toast.info("Uploading character data to Pinata", {
           description: "This will take some time..."
         });
         try {
@@ -975,7 +979,8 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
             body: JSON.stringify({
               character: constructedCharacter,
               subname,
-              secrets,
+              secrets: ciphertext,
+              secretsHash: dataToEncryptHash,
               avatarUrl
             }),
           });
@@ -993,8 +998,9 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
 
         console.log("Simulating contract call...");
         console.log("ARGS")
-
-        const args = [subname, characterConfigUrl, deviceInfo.id, parseEther(perApiCallFee), isPublic];
+        const cid = characterConfigUrl.split('/files/')[1].split('?')[0];
+        const args = [subname, cid, characterConfigUrl, deviceInfo.id, parseEther(perApiCallFee), isPublic];
+        console.log(args)
         const params = new ContractFunctionParameterBuilder().addParam({
           type: "string",
           name: "subdomain",
@@ -1004,6 +1010,11 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
             type: "string",
             name: "characterConfig",
             value: [characterConfigUrl]
+          })
+          .addParam({
+            type: "string",
+            name: "metadata",
+            value: [cid]
           })
           .addParam({
             type: "address",
@@ -1020,7 +1031,7 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
             name: "isPublic",
             value: isPublic
           })
-        const hash = await walletInterface.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), "createAgent", params, 500_000, deviceInfo.hostingFee)
+        const hash = await walletInterface.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), "createAgent", params, 600_000, deviceInfo.hostingFee)
         console.log("Transaction sent, hash:", hash);
 
         toast.promise(publicClient.waitForTransactionReceipt({
@@ -1324,7 +1335,7 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
           </div>
         </motion.div>
 
-        {/* Add Akave Test Button */}
+        {/* Add Pinata Test Button */}
 
         <motion.div
           className="mt-12 text-center"

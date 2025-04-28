@@ -13,7 +13,7 @@ async function main() {
 
   const Franky = await ethers.getContractFactory("Franky");
   const franky = await Franky.attach(
-    "0xC9a1563801f67206586375be66405050430dBF60"
+    "0x0cfdac1c25ec367344c3bee2444f0f8f5f06371d"
   );
 
   const signer = await franky.recoverSigner(hash, signature);

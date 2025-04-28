@@ -8,7 +8,7 @@ dataSources:
     name: Franky
     network: testnet
     source:
-      address: "0xC9a1563801f67206586375be66405050430dBF60"
+      address: "0x0cfdac1c25ec367344c3bee2444f0f8f5f06371d"
       abi: Franky
       startBlock: 18902355
     mapping:

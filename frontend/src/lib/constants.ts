@@ -1,1083 +1,1088 @@
-export const FRANKY_ADDRESS = "0xC9a1563801f67206586375be66405050430dBF60";
+export const FRANKY_ADDRESS = "0x0cfdac1c25ec367344c3bee2444f0f8f5f06371d";
 export const FRANKY_IMPLEMENTATION =
   "0x2f2c723f79D40667E1f850Ec4f969BD08B143445";
-export const FRANKY_CONTRACT_ID = "0.0.5918596";
+export const FRANKY_CONTRACT_ID = "0.0.5918696";
 export const FRANKY_ABI = [
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "_frankyAgentAccountImplemetation",
-        type: "address",
+        "internalType": "address",
+        "name": "_frankyAgentAccountImplemetation",
+        "type": "address"
       },
       {
-        internalType: "string",
-        name: "name",
-        type: "string",
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
       },
       {
-        internalType: "string",
-        name: "symbol",
-        type: "string",
+        "internalType": "string",
+        "name": "symbol",
+        "type": "string"
       },
       {
-        internalType: "string",
-        name: "memo",
-        type: "string",
-      },
+        "internalType": "string",
+        "name": "memo",
+        "type": "string"
+      }
     ],
-    stateMutability: "payable",
-    type: "constructor",
+    "stateMutability": "payable",
+    "type": "constructor"
   },
   {
-    inputs: [],
-    name: "FailedDeployment",
-    type: "error",
+    "inputs": [],
+    "name": "FailedDeployment",
+    "type": "error"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "balance",
-        type: "uint256",
+        "internalType": "uint256",
+        "name": "balance",
+        "type": "uint256"
       },
       {
-        internalType: "uint256",
-        name: "needed",
-        type: "uint256",
-      },
+        "internalType": "uint256",
+        "name": "needed",
+        "type": "uint256"
+      }
     ],
-    name: "InsufficientBalance",
-    type: "error",
+    "name": "InsufficientBalance",
+    "type": "error"
   },
   {
-    anonymous: false,
-    inputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        indexed: true,
-        internalType: "uint256",
-        name: "agentTokenId",
-        type: "uint256",
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "agentTokenId",
+        "type": "uint256"
       },
       {
-        indexed: true,
-        internalType: "address",
-        name: "agentAddress",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "agentAddress",
+        "type": "address"
       },
       {
-        indexed: true,
-        internalType: "address",
-        name: "deviceAddress",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "deviceAddress",
+        "type": "address"
       },
       {
-        indexed: false,
-        internalType: "string",
-        name: "subdomain",
-        type: "string",
+        "indexed": false,
+        "internalType": "string",
+        "name": "subdomain",
+        "type": "string"
       },
       {
-        indexed: false,
-        internalType: "address",
-        name: "owner",
-        type: "address",
+        "indexed": false,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
       },
       {
-        indexed: false,
-        internalType: "uint256",
-        name: "perApiCallFee",
-        type: "uint256",
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "perApiCallFee",
+        "type": "uint256"
       },
       {
-        indexed: false,
-        internalType: "string",
-        name: "characterConfig",
-        type: "string",
+        "indexed": false,
+        "internalType": "string",
+        "name": "characterConfig",
+        "type": "string"
       },
       {
-        indexed: false,
-        internalType: "bool",
-        name: "isPublic",
-        type: "bool",
-      },
+        "indexed": false,
+        "internalType": "bool",
+        "name": "isPublic",
+        "type": "bool"
+      }
     ],
-    name: "AgentCreated",
-    type: "event",
+    "name": "AgentCreated",
+    "type": "event"
   },
   {
-    anonymous: false,
-    inputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        indexed: true,
-        internalType: "address",
-        name: "agentAddress",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "agentAddress",
+        "type": "address"
       },
       {
-        indexed: false,
-        internalType: "bytes32",
-        name: "keyHash",
-        type: "bytes32",
-      },
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "keyHash",
+        "type": "bytes32"
+      }
     ],
-    name: "ApiKeyRegenerated",
-    type: "event",
+    "name": "ApiKeyRegenerated",
+    "type": "event"
   },
   {
-    anonymous: false,
-    inputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        indexed: false,
-        internalType: "bool",
-        name: "",
-        type: "bool",
+        "indexed": false,
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
       },
       {
-        indexed: false,
-        internalType: "bytes",
-        name: "",
-        type: "bytes",
-      },
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "",
+        "type": "bytes"
+      }
     ],
-    name: "CallResponseEvent",
-    type: "event",
+    "name": "CallResponseEvent",
+    "type": "event"
   },
   {
-    anonymous: false,
-    inputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        indexed: true,
-        internalType: "address",
-        name: "deviceAddress",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "deviceAddress",
+        "type": "address"
       },
       {
-        indexed: true,
-        internalType: "address",
-        name: "owner",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
       },
       {
-        indexed: false,
-        internalType: "string",
-        name: "deviceMetadata",
-        type: "string",
+        "indexed": false,
+        "internalType": "string",
+        "name": "deviceMetadata",
+        "type": "string"
       },
       {
-        indexed: false,
-        internalType: "uint256",
-        name: "hostingFee",
-        type: "uint256",
-      },
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "hostingFee",
+        "type": "uint256"
+      }
     ],
-    name: "DeviceRegistered",
-    type: "event",
+    "name": "DeviceRegistered",
+    "type": "event"
   },
   {
-    anonymous: false,
-    inputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        indexed: false,
-        internalType: "address",
-        name: "nftAddress",
-        type: "address",
-      },
+        "indexed": false,
+        "internalType": "address",
+        "name": "nftAddress",
+        "type": "address"
+      }
     ],
-    name: "FrankyAgentsNftCreated",
-    type: "event",
+    "name": "FrankyAgentsNftCreated",
+    "type": "event"
   },
   {
-    anonymous: false,
-    inputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        indexed: true,
-        internalType: "address",
-        name: "walletAddress",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "walletAddress",
+        "type": "address"
       },
       {
-        indexed: true,
-        internalType: "address",
-        name: "serverWalletAddress",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "serverWalletAddress",
+        "type": "address"
       },
       {
-        indexed: false,
-        internalType: "string",
-        name: "encryptedPrivateKey",
-        type: "string",
+        "indexed": false,
+        "internalType": "string",
+        "name": "encryptedPrivateKey",
+        "type": "string"
       },
       {
-        indexed: false,
-        internalType: "bytes32",
-        name: "privateKeyHash",
-        type: "bytes32",
-      },
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "privateKeyHash",
+        "type": "bytes32"
+      }
     ],
-    name: "ServerWalletConfigured",
-    type: "event",
+    "name": "ServerWalletConfigured",
+    "type": "event"
   },
   {
-    stateMutability: "payable",
-    type: "fallback",
+    "stateMutability": "payable",
+    "type": "fallback"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    name: "agents",
-    outputs: [
+    "name": "agents",
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "tokenId",
-        type: "uint256",
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
       },
       {
-        internalType: "address",
-        name: "smartAccountAddress",
-        type: "address",
+        "internalType": "address",
+        "name": "smartAccountAddress",
+        "type": "address"
       },
       {
-        internalType: "address",
-        name: "deviceAddress",
-        type: "address",
+        "internalType": "address",
+        "name": "deviceAddress",
+        "type": "address"
       },
       {
-        internalType: "string",
-        name: "subdomain",
-        type: "string",
+        "internalType": "string",
+        "name": "subdomain",
+        "type": "string"
       },
       {
-        internalType: "string",
-        name: "characterConfig",
-        type: "string",
+        "internalType": "string",
+        "name": "characterConfig",
+        "type": "string"
       },
       {
-        internalType: "address",
-        name: "owner",
-        type: "address",
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
       },
       {
-        internalType: "uint256",
-        name: "perApiCallFee",
-        type: "uint256",
+        "internalType": "uint256",
+        "name": "perApiCallFee",
+        "type": "uint256"
       },
       {
-        internalType: "uint8",
-        name: "status",
-        type: "uint8",
-      },
+        "internalType": "uint8",
+        "name": "status",
+        "type": "uint8"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [],
-    name: "agentsCount",
-    outputs: [
+    "inputs": [],
+    "name": "agentsCount",
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       },
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    name: "agentsKeyHash",
-    outputs: [
+    "name": "agentsKeyHash",
+    "outputs": [
       {
-        internalType: "bytes32",
-        name: "",
-        type: "bytes32",
-      },
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "caller",
-        type: "address",
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
       },
       {
-        internalType: "address",
-        name: "agentAddress",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "agentAddress",
+        "type": "address"
+      }
     ],
-    name: "allowApiCall",
-    outputs: [
+    "name": "allowApiCall",
+    "outputs": [
       {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "caller",
-        type: "address",
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
       },
       {
-        internalType: "address",
-        name: "serverWalletAddress",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "serverWalletAddress",
+        "type": "address"
+      }
     ],
-    name: "canDecryptServerWallet",
-    outputs: [
+    "name": "canDecryptServerWallet",
+    "outputs": [
       {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "walletAddress",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "walletAddress",
+        "type": "address"
+      }
     ],
-    name: "checkAvailableCredits",
-    outputs: [
+    "name": "checkAvailableCredits",
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [],
-    name: "claimHBAR",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "inputs": [],
+    "name": "claimHBAR",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    name: "claimmables",
-    outputs: [
+    "name": "claimmables",
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "walletAddress",
-        type: "address",
+        "internalType": "address",
+        "name": "walletAddress",
+        "type": "address"
       },
       {
-        internalType: "string",
-        name: "encryptedPrivateKey",
-        type: "string",
+        "internalType": "string",
+        "name": "encryptedPrivateKey",
+        "type": "string"
       },
       {
-        internalType: "bytes32",
-        name: "privateKeyHash",
-        type: "bytes32",
-      },
+        "internalType": "bytes32",
+        "name": "privateKeyHash",
+        "type": "bytes32"
+      }
     ],
-    name: "configureServerWallet",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "name": "configureServerWallet",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "string",
-        name: "subdomain",
-        type: "string",
+        "internalType": "string",
+        "name": "subdomain",
+        "type": "string"
       },
       {
-        internalType: "string",
-        name: "characterConfig",
-        type: "string",
+        "internalType": "string",
+        "name": "characterConfig",
+        "type": "string"
       },
       {
-        internalType: "address",
-        name: "deviceAddress",
-        type: "address",
+        "internalType": "string",
+        "name": "metadata",
+        "type": "string"
       },
       {
-        internalType: "uint256",
-        name: "perApiCallFee",
-        type: "uint256",
+        "internalType": "address",
+        "name": "deviceAddress",
+        "type": "address"
       },
       {
-        internalType: "bool",
-        name: "isPublic",
-        type: "bool",
+        "internalType": "uint256",
+        "name": "perApiCallFee",
+        "type": "uint256"
       },
+      {
+        "internalType": "bool",
+        "name": "isPublic",
+        "type": "bool"
+      }
     ],
-    name: "createAgent",
-    outputs: [],
-    stateMutability: "payable",
-    type: "function",
+    "name": "createAgent",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       },
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    name: "deviceAgents",
-    outputs: [
+    "name": "deviceAgents",
+    "outputs": [
       {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    name: "deviceRegistered",
-    outputs: [
+    "name": "deviceRegistered",
+    "outputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    name: "devices",
-    outputs: [
+    "name": "devices",
+    "outputs": [
       {
-        internalType: "string",
-        name: "deviceMetadata",
-        type: "string",
+        "internalType": "string",
+        "name": "deviceMetadata",
+        "type": "string"
       },
       {
-        internalType: "address",
-        name: "deviceAddress",
-        type: "address",
+        "internalType": "address",
+        "name": "deviceAddress",
+        "type": "address"
       },
       {
-        internalType: "address",
-        name: "owner",
-        type: "address",
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
       },
       {
-        internalType: "uint256",
-        name: "hostingFee",
-        type: "uint256",
+        "internalType": "uint256",
+        "name": "hostingFee",
+        "type": "uint256"
       },
       {
-        internalType: "uint256",
-        name: "agentCount",
-        type: "uint256",
+        "internalType": "uint256",
+        "name": "agentCount",
+        "type": "uint256"
       },
       {
-        internalType: "bool",
-        name: "isRegistered",
-        type: "bool",
-      },
+        "internalType": "bool",
+        "name": "isRegistered",
+        "type": "bool"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [],
-    name: "devicesCount",
-    outputs: [
+    "inputs": [],
+    "name": "devicesCount",
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [],
-    name: "frankyAgentAccountImplemetation",
-    outputs: [
+    "inputs": [],
+    "name": "frankyAgentAccountImplemetation",
+    "outputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [],
-    name: "frankyAgentsNftAddress",
-    outputs: [
+    "inputs": [],
+    "name": "frankyAgentsNftAddress",
+    "outputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "agentAddress",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "agentAddress",
+        "type": "address"
+      }
     ],
-    name: "getAgent",
-    outputs: [
+    "name": "getAgent",
+    "outputs": [
       {
-        components: [
+        "components": [
           {
-            internalType: "uint256",
-            name: "tokenId",
-            type: "uint256",
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
           },
           {
-            internalType: "address",
-            name: "smartAccountAddress",
-            type: "address",
+            "internalType": "address",
+            "name": "smartAccountAddress",
+            "type": "address"
           },
           {
-            internalType: "address",
-            name: "deviceAddress",
-            type: "address",
+            "internalType": "address",
+            "name": "deviceAddress",
+            "type": "address"
           },
           {
-            internalType: "string",
-            name: "subdomain",
-            type: "string",
+            "internalType": "string",
+            "name": "subdomain",
+            "type": "string"
           },
           {
-            internalType: "string",
-            name: "characterConfig",
-            type: "string",
+            "internalType": "string",
+            "name": "characterConfig",
+            "type": "string"
           },
           {
-            internalType: "address",
-            name: "owner",
-            type: "address",
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
           },
           {
-            internalType: "uint256",
-            name: "perApiCallFee",
-            type: "uint256",
+            "internalType": "uint256",
+            "name": "perApiCallFee",
+            "type": "uint256"
           },
           {
-            internalType: "uint8",
-            name: "status",
-            type: "uint8",
-          },
+            "internalType": "uint8",
+            "name": "status",
+            "type": "uint8"
+          }
         ],
-        internalType: "struct Franky.Agent",
-        name: "",
-        type: "tuple",
-      },
+        "internalType": "struct Franky.Agent",
+        "name": "",
+        "type": "tuple"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [],
-    name: "getBalance",
-    outputs: [
+    "inputs": [],
+    "name": "getBalance",
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "deviceAddress",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "deviceAddress",
+        "type": "address"
+      }
     ],
-    name: "getDevice",
-    outputs: [
+    "name": "getDevice",
+    "outputs": [
       {
-        components: [
+        "components": [
           {
-            internalType: "string",
-            name: "deviceMetadata",
-            type: "string",
+            "internalType": "string",
+            "name": "deviceMetadata",
+            "type": "string"
           },
           {
-            internalType: "address",
-            name: "deviceAddress",
-            type: "address",
+            "internalType": "address",
+            "name": "deviceAddress",
+            "type": "address"
           },
           {
-            internalType: "address",
-            name: "owner",
-            type: "address",
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
           },
           {
-            internalType: "uint256",
-            name: "hostingFee",
-            type: "uint256",
+            "internalType": "uint256",
+            "name": "hostingFee",
+            "type": "uint256"
           },
           {
-            internalType: "uint256",
-            name: "agentCount",
-            type: "uint256",
+            "internalType": "uint256",
+            "name": "agentCount",
+            "type": "uint256"
           },
           {
-            internalType: "bool",
-            name: "isRegistered",
-            type: "bool",
-          },
+            "internalType": "bool",
+            "name": "isRegistered",
+            "type": "bool"
+          }
         ],
-        internalType: "struct Franky.Device",
-        name: "",
-        type: "tuple",
-      },
+        "internalType": "struct Franky.Device",
+        "name": "",
+        "type": "tuple"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "agentAddress",
-        type: "address",
+        "internalType": "address",
+        "name": "agentAddress",
+        "type": "address"
       },
       {
-        internalType: "address",
-        name: "caller",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      }
     ],
-    name: "getKeyHash",
-    outputs: [
+    "name": "getKeyHash",
+    "outputs": [
       {
-        internalType: "bytes32",
-        name: "",
-        type: "bytes32",
-      },
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [],
-    name: "getRandomBytes32",
-    outputs: [
+    "inputs": [],
+    "name": "getRandomBytes32",
+    "outputs": [
       {
-        internalType: "bytes32",
-        name: "",
-        type: "bytes32",
-      },
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "agentAddress",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "agentAddress",
+        "type": "address"
+      }
     ],
-    name: "isAgentPublic",
-    outputs: [
+    "name": "isAgentPublic",
+    "outputs": [
       {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "_owner",
-        type: "address",
+        "internalType": "address",
+        "name": "_owner",
+        "type": "address"
       },
       {
-        internalType: "address",
-        name: "deviceAddress",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "deviceAddress",
+        "type": "address"
+      }
     ],
-    name: "isDeviceOwned",
-    outputs: [
+    "name": "isDeviceOwned",
+    "outputs": [
       {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "deviceAddress",
-        type: "address",
+        "internalType": "address",
+        "name": "deviceAddress",
+        "type": "address"
       },
       {
-        internalType: "address",
-        name: "agentAddress",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "agentAddress",
+        "type": "address"
+      }
     ],
-    name: "isHostingAgent",
-    outputs: [
+    "name": "isHostingAgent",
+    "outputs": [
       {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "caller",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      }
     ],
-    name: "isRegisteredDevice",
-    outputs: [
+    "name": "isRegisteredDevice",
+    "outputs": [
       {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [],
-    name: "owner",
-    outputs: [
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       },
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    name: "ownerDevices",
-    outputs: [
+    "name": "ownerDevices",
+    "outputs": [
       {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "bytes32",
-        name: "_hash",
-        type: "bytes32",
+        "internalType": "bytes32",
+        "name": "_hash",
+        "type": "bytes32"
       },
       {
-        internalType: "bytes",
-        name: "_signature",
-        type: "bytes",
-      },
+        "internalType": "bytes",
+        "name": "_signature",
+        "type": "bytes"
+      }
     ],
-    name: "recoverSigner",
-    outputs: [
+    "name": "recoverSigner",
+    "outputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    stateMutability: "pure",
-    type: "function",
+    "stateMutability": "pure",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "token",
-        type: "address",
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
       },
       {
-        internalType: "bytes",
-        name: "encodedFunctionSelector",
-        type: "bytes",
-      },
+        "internalType": "bytes",
+        "name": "encodedFunctionSelector",
+        "type": "bytes"
+      }
     ],
-    name: "redirectForToken",
-    outputs: [
+    "name": "redirectForToken",
+    "outputs": [
       {
-        internalType: "int256",
-        name: "responseCode",
-        type: "int256",
+        "internalType": "int256",
+        "name": "responseCode",
+        "type": "int256"
       },
       {
-        internalType: "bytes",
-        name: "response",
-        type: "bytes",
-      },
+        "internalType": "bytes",
+        "name": "response",
+        "type": "bytes"
+      }
     ],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "agentAddress",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "agentAddress",
+        "type": "address"
+      }
     ],
-    name: "regenerateApiKey",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "name": "regenerateApiKey",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "string",
-        name: "deviceMetadata",
-        type: "string",
+        "internalType": "string",
+        "name": "deviceMetadata",
+        "type": "string"
       },
       {
-        internalType: "uint256",
-        name: "hostingFee",
-        type: "uint256",
+        "internalType": "uint256",
+        "name": "hostingFee",
+        "type": "uint256"
       },
       {
-        internalType: "address",
-        name: "deviceAddress",
-        type: "address",
+        "internalType": "address",
+        "name": "deviceAddress",
+        "type": "address"
       },
       {
-        internalType: "bytes32",
-        name: "verificationHash",
-        type: "bytes32",
+        "internalType": "bytes32",
+        "name": "verificationHash",
+        "type": "bytes32"
       },
       {
-        internalType: "bytes",
-        name: "signature",
-        type: "bytes",
-      },
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
     ],
-    name: "registerDevice",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "name": "registerDevice",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    name: "serverWalletsMapping",
-    outputs: [
+    "name": "serverWalletsMapping",
+    "outputs": [
       {
-        internalType: "address",
-        name: "owner",
-        type: "address",
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
       },
       {
-        internalType: "address",
-        name: "walletAddress",
-        type: "address",
+        "internalType": "address",
+        "name": "walletAddress",
+        "type": "address"
       },
       {
-        internalType: "string",
-        name: "encryptedPrivateKey",
-        type: "string",
+        "internalType": "string",
+        "name": "encryptedPrivateKey",
+        "type": "string"
       },
       {
-        internalType: "bytes32",
-        name: "privateKeyHash",
-        type: "bytes32",
-      },
+        "internalType": "bytes32",
+        "name": "privateKeyHash",
+        "type": "bytes32"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "token",
-        type: "address",
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
       },
       {
-        internalType: "address",
-        name: "from",
-        type: "address",
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
       },
       {
-        internalType: "address",
-        name: "to",
-        type: "address",
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
       },
       {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
     ],
-    name: "transferFrom",
-    outputs: [
+    "name": "transferFrom",
+    "outputs": [
       {
-        internalType: "int64",
-        name: "responseCode",
-        type: "int64",
-      },
+        "internalType": "int64",
+        "name": "responseCode",
+        "type": "int64"
+      }
     ],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "token",
-        type: "address",
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
       },
       {
-        internalType: "address",
-        name: "from",
-        type: "address",
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
       },
       {
-        internalType: "address",
-        name: "to",
-        type: "address",
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
       },
       {
-        internalType: "uint256",
-        name: "serialNumber",
-        type: "uint256",
-      },
+        "internalType": "uint256",
+        "name": "serialNumber",
+        "type": "uint256"
+      }
     ],
-    name: "transferFromNFT",
-    outputs: [
+    "name": "transferFromNFT",
+    "outputs": [
       {
-        internalType: "int64",
-        name: "responseCode",
-        type: "int64",
-      },
+        "internalType": "int64",
+        "name": "responseCode",
+        "type": "int64"
+      }
     ],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    stateMutability: "payable",
-    type: "receive",
-  },
+    "stateMutability": "payable",
+    "type": "receive"
+  }
 ];
 
 export const FRANY_INDEXER_API =
