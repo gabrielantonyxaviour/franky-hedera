@@ -302,20 +302,20 @@ export default function ChatInterface({
                         <div className="flex items-start max-w-3xl">
                           <div className="flex-shrink-0 mr-4">
                             {message.role === 'assistant' ? (
-                              <div className="h-8 w-8 rounded-full bg-[#00FF88]/20 flex items-center justify-center">
-                                <span className="text-[#00FF88] text-sm">AI</span>
+                              <div className="h-8 w-8 rounded-full flex items-center justify-center">
+                                <Image src="/logo.png" alt="Franky Logo" width={32} height={32} className="rounded-full" />
                               </div>
                             ) : (
-                              <div className="h-8 w-8 rounded-full bg-gray-700 flex items-center justify-center">
-                                <span className="text-white text-sm">You</span>
+                              <div className="h-8 w-8 rounded-full flex items-center justify-center">
+                                <Image src="/you.png" alt="You" width={32} height={32} className="rounded-full" />
                               </div>
                             )}
                           </div>
                           <div className="space-y-1">
-                            <p className="font-semibold text-sm text-white">
+                            <p className="font-semibold text-sm text-white text-left">
                               {message.role === 'assistant' ? 'Franky AI' : 'You'}
                             </p>
-                            <div className="prose text-[#AAAAAA]">
+                            <div className="prose text-[#AAAAAA] text-left">
                               {message.content}
                             </div>
 
@@ -334,9 +334,9 @@ export default function ChatInterface({
                       <div className="flex">
                         <div className="flex items-start max-w-3xl">
                           <div className="flex-shrink-0 mr-4">
-                            <div className="h-8 w-8 rounded-full bg-[#00FF88]/20 flex items-center justify-center">
-                              <span className="text-[#00FF88] text-sm">AI</span>
-                            </div>
+                          <div className="h-8 w-8 rounded-full flex items-center justify-center">
+                                <Image src="/logo.png" alt="Franky Logo" width={32} height={32} className="rounded-full" />
+                              </div>
                           </div>
                           <div className="space-y-1">
                             <p className="font-semibold text-sm text-white">Franky AI</p>
@@ -375,24 +375,24 @@ export default function ChatInterface({
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={handleKeyDown}
-                      className="w-full py-3.5 pl-4 pr-14 rounded-2xl border border-[#00FF88]/30 bg-black/50 text-white resize-none focus:outline-none focus:border-[#00FF88]/50"
+                      className="w-full py-3.5 pl-4 pr-14 rounded-md border border-[#00FF88]/30 bg-black/50 text-white resize-none focus:outline-none focus:border-[#00FF88]/50"
                       disabled={isLoading}
                       style={{ minHeight: '56px', maxHeight: '200px', height: 'auto' }}
                     />
-                    <div className="absolute right-2 bottom-2.5">
+                    <div className="absolute right-2 bottom-3">
                       <button
                         onClick={handleSend}
                         disabled={!input.trim() || isLoading}
-                        className={`p-1.5 rounded-full bg-black border border-[#00FF88]/30 ${!input.trim() || isLoading ? 'opacity-40 cursor-not-allowed' : 'opacity-100'}`}
+                        className={`p-1.5 rounded-md bg-[#00FF88] hover:bg-[#00FF88]/80 transition-colors ${!input.trim() || isLoading ? 'opacity-40 cursor-not-allowed' : 'opacity-100'}`}
                       >
                         {isLoading ? (
-                          <svg className="w-5 h-5 animate-spin text-[#00FF88]" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5 animate-spin text-black" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                           </svg>
                         ) : (
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M7 11L12 6L17 11M12 18V7" stroke="#00FF88" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" transform="rotate(90 12 12)"></path>
+                            <path d="M7 11L12 6L17 11M12 18V7" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" transform="rotate(90 12 12)"></path>
                           </svg>
                         )}
                       </button>
