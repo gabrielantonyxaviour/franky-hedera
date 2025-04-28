@@ -29,7 +29,9 @@ interface Agent {
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl
   const hostname = request.headers.get('host') || ''
-  const isSubdomain = hostname.includes('.frankyagent.xyz') && !hostname.match(/^www\.frankyagent\.xyz$/)
+  const isHederaSubdomain = hostname.includes('.hedera.frankyagent.xyz')
+  const isMainDomain = hostname === 'hedera.frankyagent.xyz'
+  const isSubdomain = isHederaSubdomain && !isMainDomain
 
   if (isSubdomain) {
     // Extract subdomain (agent prefix)
@@ -45,7 +47,7 @@ export async function middleware(request: NextRequest) {
       
       try {
         // Fetch agents from the API endpoint
-        const response = await fetch('https://www.frankyagent.xyz/api/graph/agents')
+        const response = await fetch('https://hedera.frankyagent.xyz/api/graph/agents')
         
         if (!response.ok) {
           console.error(`Failed to fetch agents: ${response.status} ${response.statusText}`)
