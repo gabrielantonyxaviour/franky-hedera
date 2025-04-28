@@ -537,7 +537,7 @@ gather_device_metadata() {
 
 # Function to update metadata with wallet address
 update_metadata_with_address() {
-  log_status "Updating device metadata with wallet address and cryptographic proof..."
+  log_status "Updating device metadata with EVM wallet address and cryptographic proof..."
   
   # Check if ethers.js is available and install if needed
   node -e "
@@ -555,6 +555,7 @@ update_metadata_with_address() {
   # Create a Node.js script to update metadata
   node -e "
     const fs = require('fs');
+    const { PrivateKey, PublicKey } = require('@hashgraph/sdk');
     let ethers;
     
     try {
@@ -625,21 +626,37 @@ update_metadata_with_address() {
         // Read the metadata
         const metadata = JSON.parse(fs.readFileSync('$METADATA_FILE', 'utf8'));
         
-        // Read account ID and private key from the device details file
+        // Read account ID, public key, and private key from the device details file
         const deviceDetailsContent = fs.readFileSync('$DEVICE_DETAILS_FILE', 'utf8');
         
         const accountIdMatch = deviceDetailsContent.match(/Account ID: (.*)/);
         const privateKeyMatch = deviceDetailsContent.match(/Private Key: (.*)/);
+        const publicKeyMatch = deviceDetailsContent.match(/Public Key: (.*)/);
         
-        if (!accountIdMatch || !privateKeyMatch) {
-          throw new Error('Could not find account ID or private key in device details file');
+        if (!accountIdMatch || !privateKeyMatch || !publicKeyMatch) {
+          throw new Error('Could not find account ID, public key, or private key in device details file');
         }
         
         const accountId = accountIdMatch[1].trim();
         const privateKeyStr = privateKeyMatch[1].trim();
+        const publicKeyStr = publicKeyMatch[1].trim();
         
-        // Update metadata with the wallet address (account ID)
-        metadata.walletAddress = accountId;
+        // Get the EVM address using Hedera SDK
+        console.log('Using Hedera SDK to derive EVM address from public key...');
+        
+        // Create a PublicKey object from the raw string
+        const publicKey = PublicKey.fromString(publicKeyStr);
+        
+        // Get the EVM address
+        const evmAddress = publicKey.toEvmAddress();
+        console.log('Derived EVM address:', evmAddress);
+        
+        // Update metadata with the EVM wallet address instead of account ID
+        metadata.walletAddress = evmAddress;
+        console.log('Updated walletAddress in metadata to EVM address');
+        
+        // Also store the original accountId separately for reference
+        metadata.accountId = accountId;
         
         // Create a device info string to use for bytes32 creation
         const deviceInfoStr = JSON.stringify({
@@ -649,6 +666,7 @@ update_metadata_with_address() {
           storage: metadata.storage,
           os: metadata.os,
           accountId: accountId,
+          evmAddress: evmAddress,
           timestamp: metadata.timestamp
         });
         
@@ -668,7 +686,7 @@ update_metadata_with_address() {
         // Save updated metadata back to the file
         fs.writeFileSync('$METADATA_FILE', JSON.stringify(metadata, null, 2));
         
-        console.log(\`SUCCESS: Updated metadata with wallet address \${accountId}\`);
+        console.log(\`SUCCESS: Updated metadata with EVM wallet address \${evmAddress} for account ID \${accountId}\`);
       } catch (error) {
         console.error('ERROR updating metadata:', error.message);
         process.exit(1);
@@ -684,20 +702,17 @@ update_metadata_with_address() {
   
   # Check if metadata update was successful
   if [ $? -ne 0 ]; then
-    log_error "Failed to update metadata with wallet address and cryptographic proof"
+    log_error "Failed to update metadata with EVM wallet address and cryptographic proof"
     # Don't exit here, try to continue with the script even if this step fails
     log_warning "Continuing without cryptographic proof..."
   else
-    log_success "Device metadata updated with wallet address and cryptographic proof"
+    log_success "Device metadata updated with EVM wallet address and cryptographic proof"
   fi
 }
 
 # Function to create and display a QR code
 create_and_display_qr_code() {
-  log_status "Creating registration QR code with all device metadata..."
-  
-  # Get the account ID
-  ACCOUNT_ID=$(grep "Account ID:" "$DEVICE_DETAILS_FILE" | cut -d' ' -f3)
+  log_status "Creating registration QR code with all device metadata (using EVM address)..."
   
   # Create a Node.js script to encode all metadata as URL parameters
   node -e "
@@ -717,14 +732,15 @@ create_and_display_qr_code() {
       if (metadata.bytes32Data === '0x' + '0'.repeat(64)) {
         console.error('WARNING: bytes32Data is still zeros! Regenerating cryptographic proof...');
         
-        // Create a device info string using what's in the metadata
+        // Check if we have EVM address in metadata, otherwise use the Hedera account ID
         const deviceInfoStr = JSON.stringify({
           deviceModel: metadata.deviceModel,
           ram: metadata.ram,
           cpu: metadata.cpu,
           storage: metadata.storage,
           os: metadata.os,
-          accountId: metadata.walletAddress,
+          accountId: metadata.accountId || metadata.walletAddress,
+          evmAddress: metadata.walletAddress,
           timestamp: metadata.timestamp
         });
         
@@ -735,6 +751,46 @@ create_and_display_qr_code() {
         // Save the updated metadata
         fs.writeFileSync('$METADATA_FILE', JSON.stringify(metadata, null, 2));
       }
+      
+      // Verify that we are using the EVM address in walletAddress field
+      if (!metadata.walletAddress.startsWith('0x')) {
+        console.error('WARNING: walletAddress is not an EVM address! This may affect device registration.');
+        console.error('Current walletAddress:', metadata.walletAddress);
+        
+        // Try to recover using the device details file and Hedera SDK if needed
+        try {
+          console.log('Attempting to recover EVM address from public key...');
+          const { PublicKey } = require('@hashgraph/sdk');
+          
+          // Read public key from device details
+          const deviceDetailsContent = fs.readFileSync('$DEVICE_DETAILS_FILE', 'utf8');
+          const publicKeyMatch = deviceDetailsContent.match(/Public Key: (.*)/);
+          
+          if (publicKeyMatch) {
+            const publicKeyStr = publicKeyMatch[1].trim();
+            const publicKey = PublicKey.fromString(publicKeyStr);
+            const evmAddress = publicKey.toEvmAddress();
+            
+            console.log('Successfully derived EVM address:', evmAddress);
+            metadata.walletAddress = '0x' + evmAddress;
+            
+            // Also store the original accountId if not already present
+            if (!metadata.accountId) {
+              const accountIdMatch = deviceDetailsContent.match(/Account ID: (.*)/);
+              if (accountIdMatch) {
+                metadata.accountId = accountIdMatch[1].trim();
+              }
+            }
+            
+            // Save the updated metadata
+            fs.writeFileSync('$METADATA_FILE', JSON.stringify(metadata, null, 2));
+          }
+        } catch (err) {
+          console.error('Failed to recover EVM address:', err.message);
+        }
+      }
+      
+      console.log('Using walletAddress for registration:', metadata.walletAddress);
       
       // Create URL parameters from all metadata
       const params = Object.entries(metadata).map(([key, value]) => {
@@ -767,18 +823,39 @@ create_and_display_qr_code() {
     });
   "
   
-  log_success "QR code displayed successfully with all device metadata"
+  log_success "QR code displayed successfully with all device metadata using EVM address"
 }
 
 # Function to poll the graph endpoint for device creation
 check_device_registration() {
   log_status "Checking device registration..."
   
-  # Get the account ID
-  ACCOUNT_ID=$(grep "Account ID:" "$DEVICE_DETAILS_FILE" | cut -d' ' -f3)
-  
-  # Create the graph endpoint URL
-  GRAPH_URL="${BASE_URL}${GRAPH_API_ENDPOINT}${ACCOUNT_ID}"
+  # Read the EVM address from the metadata file
+  if [ -f "$METADATA_FILE" ]; then
+    # Try to extract EVM address using jq if available
+    if command_exists jq; then
+      EVM_ADDRESS=$(jq -r '.walletAddress' "$METADATA_FILE")
+    else
+      # Fallback to grep/sed extraction
+      EVM_ADDRESS=$(grep -o '"walletAddress":"[^"]*' "$METADATA_FILE" | sed 's/"walletAddress":"//g')
+    fi
+    
+    # Check if we got a valid EVM address
+    if [[ -z "$EVM_ADDRESS" || "$EVM_ADDRESS" == "null" ]]; then
+      log_error "Could not extract EVM address from metadata file. Falling back to Account ID."
+      # Fall back to Account ID if EVM address is not available
+      ACCOUNT_ID=$(grep "Account ID:" "$DEVICE_DETAILS_FILE" | cut -d' ' -f3)
+      GRAPH_URL="${BASE_URL}${GRAPH_API_ENDPOINT}${ACCOUNT_ID}"
+    else
+      log_status "Using EVM address for device registration check: $EVM_ADDRESS"
+      GRAPH_URL="${BASE_URL}${GRAPH_API_ENDPOINT}${EVM_ADDRESS}"
+    fi
+  else
+    log_error "Metadata file not found. Using Account ID as fallback."
+    # Fall back to Account ID
+    ACCOUNT_ID=$(grep "Account ID:" "$DEVICE_DETAILS_FILE" | cut -d' ' -f3)
+    GRAPH_URL="${BASE_URL}${GRAPH_API_ENDPOINT}${ACCOUNT_ID}"
+  fi
   
   log_status "Polling $GRAPH_URL for device registration..."
   log_status "Will check every $RETRY_INTERVAL seconds for up to 10 minutes..."
