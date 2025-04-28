@@ -20,15 +20,12 @@ export async function GET(request: NextRequest) {
         devices(where: { id: $id }) {
           id
           deviceMetadata
-          ngrokLink
           hostingFee
           createdAt
           updatedAt
           agents {
             id
-            subname
             perApiCallFee
-            avatar
             characterConfig
             isPublic
           }
