@@ -13,7 +13,6 @@ export async function GET() {
             id
           }
           deviceMetadata
-          ngrokLink
           hostingFee
           createdAt
           updatedAt
