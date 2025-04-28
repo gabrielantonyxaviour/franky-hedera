@@ -60,7 +60,7 @@ export const DeviceVerification = () => {
                 storage,
                 cpu: "",
                 ngrokLink,
-                walletAddress: AccountId.fromString(walletAddress).toSolidityAddress(),
+                walletAddress,
                 bytes32Data,
                 signature: signature || undefined
             })
