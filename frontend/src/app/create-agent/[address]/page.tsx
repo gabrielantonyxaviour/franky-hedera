@@ -1031,7 +1031,7 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
             name: "isPublic",
             value: isPublic
           })
-        const hash = await walletInterface.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), "createAgent", params, 600_000, deviceInfo.hostingFee)
+        const hash = await walletInterface.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), "createAgent", params, 1_000_000, deviceInfo.hostingFee)
         console.log("Transaction sent, hash:", hash);
 
         toast.promise(publicClient.waitForTransactionReceipt({
