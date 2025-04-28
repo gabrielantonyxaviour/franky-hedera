@@ -1081,5 +1081,4 @@ export const FRANKY_ABI = [
 ];
 
 export const FRANY_INDEXER_API =
-  process.env.NEXT_PUBLIC_INDEXER_URL ||
-  "https://f408-124-123-105-119.ngrok-free.app/subgraphs/name/graph-indexer";
+  "https://963a-124-123-105-119.ngrok-free.app/subgraphs/name/graph-indexer";
