@@ -225,7 +225,7 @@ export default function MarketplacePage() {
       const formattedDevices = await Promise.all(
         fetchedDevices.map(async (device: any) => {
           if (device.agents.length > 0) return;
-          const metadataRequest = await fetch(device.metadata);
+          const metadataRequest = await fetch(device.deviceMetadata);
           const metadata = await metadataRequest.json();
 
           return {
@@ -234,7 +234,7 @@ export default function MarketplacePage() {
             ram: metadata.ram ?? '8GB',
             storage: metadata.storage ?? '128GB',
             cpu: metadata.cpu ?? 'Snapdragon 8 Gen 2',
-            ngrokLink: metadata.ngrokLink,
+            ngrokLink: metadata.ngrokUrl,
             walletAddress: device.id,
             hostingFee: device.hostingFee,
             agentCount: device.agents.length,
