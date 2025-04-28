@@ -87,3 +87,7 @@ Desktop.ini
 *.debug
 debug.log
 debug/
+
+scripts/Device_details.txt
+scripts/device_metadata.json
+scripts/registration_url.txt

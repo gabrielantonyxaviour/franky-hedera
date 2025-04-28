@@ -11,13 +11,10 @@ export async function GET() {
           id
           deviceAddress {
             id
-            ngrokLink
           }
           owner {
             id
           }
-          avatar
-          subname
           perApiCallFee
           characterConfig
           createdAt
