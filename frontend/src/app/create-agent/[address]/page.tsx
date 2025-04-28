@@ -21,6 +21,7 @@ import { mainnet } from "viem/chains";
 import { useWalletInterface } from "@/hooks/use-wallet-interface";
 import { ContractId,ContractExecuteTransaction} from "@hashgraph/sdk";
 import { ContractFunctionParameterBuilder } from "@/utils/param-builder";
+import { WalletInterface } from "@/types/wallet-interface";
 
 interface Device {
   id: string
@@ -28,7 +29,7 @@ interface Device {
   ram: string
   storage: string
   cpu: string
-  ngrokLink: string
+  ngrokUrl: string
   walletAddress: string
   hostingFee: string
   agentCount: number
@@ -564,7 +565,7 @@ function ConfirmationModal({
                 </p>
                 <p className="text-white">
                   <span className="text-gray-400">Address:</span>{" "}
-                  {deviceInfo.walletAddress}
+                  {deviceInfo.id}
                 </p>
                 <p className="text-white">
                   <span className="text-gray-400">Hosting Fee:</span>{" "}
@@ -739,8 +740,10 @@ function SuccessModal({
 }
 
 // Client component that uses useSearchParams
-function CreateAgentContent({ deviceAddress }: {
+function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
   deviceAddress: string
+  walletInterface: any
+  accountId: string | null
 }) {
   const [selectedTools, setSelectedTools] = useState<Tool[]>([]);
   const [agentName, setAgentName] = useState("");
@@ -788,26 +791,30 @@ function CreateAgentContent({ deviceAddress }: {
   const [deviceInfo, setDeviceInfo] = useState<Device | null>(null)
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { accountId, walletInterface } = useWalletInterface()
   useEffect(() => {
     setHydrated(true);
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
+    if(!deviceAddress) return;
     (async function () {
       try {
-        const fetchedDeviceRequest = await fetch('/api/graph/devices-by-wallet?address=' + deviceAddress)
+        const fetchedDeviceRequest = await fetch('/api/graph/devices-by-wallet?address=' + deviceAddress.toLocaleLowerCase())
         const devices = await fetchedDeviceRequest.json()
+        console.log("Devices by wallet")
+        console.log(devices)
         if (devices.length == 0) throw Error("Device does not exist")
-        setDeviceInfo(devices[0])
+        const deviceMetadataRequest = await fetch(`${devices[0].deviceMetadata}`)
+        const deviceMetadata = await deviceMetadataRequest.json()
+        setDeviceInfo({...devices[0], ...deviceMetadata, agentCount: devices[0].agents.length})
       } catch (e) {
         console.log(e)
         setError('Device does not exist')
       }
       setLoading(false)
     })()
-  }, [])
+  }, [hydrated, deviceAddress])
 
   // Handle tool selection
   const handleToolToggle = (toolId: string) => {
@@ -889,7 +896,7 @@ function CreateAgentContent({ deviceAddress }: {
       return;
     }
 
-    if (!deviceInfo?.walletAddress) {
+    if (!deviceInfo?.id) {
       toast.error("No device selected. Please select a device from the marketplace.");
       return;
     }
@@ -918,10 +925,11 @@ function CreateAgentContent({ deviceAddress }: {
 
   // Update handleConfirmCreateAgent to include avatar and secrets
   async function handleConfirmCreateAgent() {
+    
     if (
-      !deviceInfo?.walletAddress ||
+      !deviceInfo?.id ||
       !isNameAvailable ||
-      !constructedCharacter
+      !constructedCharacter || !walletInterface
     ) {
       toast.error("Missing required information to create agent");
       return;
@@ -986,21 +994,21 @@ function CreateAgentContent({ deviceAddress }: {
         console.log("Simulating contract call...");
         console.log("ARGS")
 
-        const args = [subname, characterConfigUrl, deviceInfo.walletAddress, parseEther(perApiCallFee), isPublic];
+        const args = [subname, characterConfigUrl, deviceInfo.id, parseEther(perApiCallFee), isPublic];
         const params = new ContractFunctionParameterBuilder().addParam({
           type: "string",
           name: "subdomain",
           value: subname
         })
           .addParam({
-            type: "bytes[]",
+            type: "string",
             name: "characterConfig",
-            value: [stringToBytes(characterConfigUrl)]
+            value: [characterConfigUrl]
           })
           .addParam({
             type: "address",
             name: "deviceAddress",
-            value: deviceInfo.walletAddress.toLowerCase()
+            value: deviceInfo.id.toLowerCase()
           })
           .addParam({
             type: "uint256",
@@ -1012,7 +1020,7 @@ function CreateAgentContent({ deviceAddress }: {
             name: "isPublic",
             value: isPublic
           })
-        const hash = await walletInterface?.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), "createAgent", params, 500_000, parseEther(deviceInfo.hostingFee))
+        const hash = await walletInterface.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), "createAgent", params, 500_000, deviceInfo.hostingFee)
         console.log("Transaction sent, hash:", hash);
 
         toast.promise(publicClient.waitForTransactionReceipt({
@@ -1096,16 +1104,16 @@ function CreateAgentContent({ deviceAddress }: {
               <div className="flex items-center">
                 <FiLink className="text-[#00FF88] mr-2" />
                 <span className="text-gray-300 text-sm">
-                  {deviceInfo.ngrokLink}
+                  {deviceInfo.ngrokUrl}
                 </span>
               </div>
               <div className="flex items-center">
                 <span className="text-xs text-gray-400">Device Address: </span>
                 <span className="text-xs text-[#00FF88] ml-2">
-                  {`${deviceInfo.walletAddress.slice(
+                  {`${deviceInfo.id.slice(
                     0,
                     6
-                  )}...${deviceInfo.walletAddress.slice(-4)}`}
+                  )}...${deviceInfo.id.slice(-4)}`}
                 </span>
               </div>
             </div>
@@ -1413,16 +1421,27 @@ function LoadingFallback() {
   );
 }
 
-// Main page component with Suspense boundary
 export default function CreateAgentPage({ params }: {
-  params: {
+  params: Promise<{
     address: string
-  }
+  }>
 }) {
+  const [address, setAddress] = useState<string>('');
+  const {walletInterface, accountId} = useWalletInterface()
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const fetcgedparams = await params;
+      console.log(fetcgedparams)
+      setAddress(fetcgedparams.address);
+    };
+    fetchData()
+  }, []);
+
   return (
     <main className="min-h-screen pb-20">
       <Suspense fallback={<LoadingFallback />}>
-        <CreateAgentContent deviceAddress={params.address} />
+       {address && <CreateAgentContent deviceAddress={address} walletInterface={walletInterface} accountId={accountId} />}
       </Suspense>
     </main>
   );

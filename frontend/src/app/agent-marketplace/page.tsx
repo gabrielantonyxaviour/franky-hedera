@@ -592,7 +592,7 @@ export default function AgentMarketplacePage() {
           ) : (
             <div className="text-center py-20">
               <p className="text-xl text-[#AAAAAA] mb-3">No public agents available.</p>
-              <Link href="/create-agent">
+              <Link href="/marketplace">
                 <motion.button
                   className="px-6 py-2 rounded-lg bg-[#00FF88]/20 border border-[#00FF88]/50 text-[#00FF88] hover:bg-[#00FF88]/30 transition-colors"
                   whileHover={{ scale: 1.05 }}

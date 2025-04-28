@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { connectToMetamask } from "@/services/metamask";
-import { openWalletConnectModal } from "@/services/walletconnect";
 
 interface WalletSelectionDialogProps {
     open: boolean;
@@ -51,36 +50,6 @@ export const WalletSelectionDialog = (props: WalletSelectionDialogProps) => {
                             </h3>
 
                             <div className="space-y-3">
-                                {/* WalletConnect button */}
-                                <motion.button
-                                    onClick={() => {
-                                        openWalletConnectModal();
-                                        setOpen(false);
-                                    }}
-                                    onMouseEnter={() => setHoveredWallet('walletconnect')}
-                                    onMouseLeave={() => setHoveredWallet(null)}
-                                    className={`w-full flex items-center justify-start p-4 rounded-lg border transition-all duration-300 ${hoveredWallet === 'walletconnect'
-                                        ? 'border-[#00FF88] bg-[#00FF88]/10'
-                                        : 'border-[#00FF88]/30 bg-black/50'
-                                        }`}
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 flex items-center justify-center">
-                                            <img
-                                                src="/walletconnect.png"
-                                                alt="walletconnect logo"
-                                                className="w-8 h-8 object-contain rounded-full"
-                                            />
-                                        </div>
-                                        <span className={`text-lg font-medium ${hoveredWallet === 'walletconnect' ? 'text-[#00FF88]' : 'text-white'
-                                            }`}>
-                                            WalletConnect
-                                        </span>
-                                    </div>
-                                </motion.button>
-
                                 {/* MetaMask button */}
                                 <motion.button
                                     onClick={() => {

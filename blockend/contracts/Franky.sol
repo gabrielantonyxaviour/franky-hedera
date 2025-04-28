@@ -189,10 +189,6 @@ contract Franky is HederaTokenService, KeyHelper {
         bool isPublic
     ) external payable {
         require(devices[deviceAddress].isRegistered, "Device not registered");
-        require(
-            msg.value >= devices[deviceAddress].hostingFee,
-            "Insufficient Fee"
-        );
 
         address agentAddress = _deployAgentAccount(
             subdomain,

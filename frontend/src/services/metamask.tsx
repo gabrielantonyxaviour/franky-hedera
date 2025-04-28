@@ -6,6 +6,7 @@ import { appConfig } from "../config";
 import { MetamaskContext } from "../context/metamask";
 import { ContractFunctionParameterBuilder } from "../utils/param-builder";
 import { WalletInterface } from "../types/wallet-interface";
+import { FRANKY_ABI } from "@/lib/constants";
 
 const currentNetworkConfig = appConfig.networks.testnet;
 
@@ -163,7 +164,7 @@ class MetaMaskWallet implements WalletInterface {
         }
 
         const signer = await provider.getSigner();
-        const abi = [`function ${functionName}(${functionParameters.buildAbiFunctionParams()})`];
+        const abi = FRANKY_ABI;
 
         const contract = new ethers.Contract(`0x${contractId.toSolidityAddress()}`, abi, signer);
         try {
