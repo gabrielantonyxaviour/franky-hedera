@@ -19,7 +19,7 @@ import { publicClient } from "@/lib/utils";
 import { FRANKY_CONTRACT_ID } from "@/lib/constants";
 import { mainnet } from "viem/chains";
 import { useWalletInterface } from "@/hooks/use-wallet-interface";
-import { ContractId } from "@hashgraph/sdk";
+import { ContractId,ContractExecuteTransaction} from "@hashgraph/sdk";
 import { ContractFunctionParameterBuilder } from "@/utils/param-builder";
 
 interface Device {
@@ -1012,7 +1012,7 @@ function CreateAgentContent({ deviceAddress }: {
             name: "isPublic",
             value: isPublic
           })
-        const hash = await walletInterface?.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), "createAgent", params, 500_000)
+        const hash = await walletInterface?.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), "createAgent", params, 500_000, parseEther(deviceInfo.hostingFee))
         console.log("Transaction sent, hash:", hash);
 
         toast.promise(publicClient.waitForTransactionReceipt({

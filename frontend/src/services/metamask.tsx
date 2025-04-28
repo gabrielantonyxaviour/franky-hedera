@@ -156,7 +156,7 @@ class MetaMaskWallet implements WalletInterface {
         );
     }
 
-    async executeContractFunction(contractId: ContractId, functionName: string, functionParameters: ContractFunctionParameterBuilder, gasLimit: number) {
+    async executeContractFunction(contractId: ContractId, functionName: string, functionParameters: ContractFunctionParameterBuilder, gasLimit: number, value?: bigint) {
         const provider = getProvider();
         if (!provider) {
             throw new Error("Provider not available");
@@ -169,7 +169,7 @@ class MetaMaskWallet implements WalletInterface {
         try {
             const txResult = await contract[functionName](
                 ...functionParameters.buildEthersParams(),
-                { gasLimit: gasLimit === -1 ? undefined : gasLimit }
+                { gasLimit: gasLimit === -1 ? undefined : gasLimit, value: value?value:"0" }
             );
             return txResult.hash;
         } catch (error: any) {

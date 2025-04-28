@@ -162,7 +162,7 @@ const DeviceCard = ({ keyVal, device, onClick }: { keyVal: string, device: Devic
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span>Hosting Fee: <span className="text-[#00FF88] font-medium">
-            {parseInt(device.hostingFee) > 0 ? `${formatEther(BigInt(device.hostingFee))} TFIL` : 'Free'}
+            {parseInt(device.hostingFee) > 0 ? `${formatEther(BigInt(device.hostingFee))} HBAR` : 'Free'}
           </span></span>
         </div>
       </div>
@@ -341,7 +341,7 @@ export default function MarketplacePage() {
               Start Earning Money Now!
             </h2>
             <p className="text-[#AAAAAA] mb-6">
-              Deploy your idle mobile devices and earn TFIL by providing computing resources for AI agents.
+              Deploy your idle mobile devices and earn HBAR by providing computing resources for AI agents.
             </p>
             <Link href="/deploy-device">
               <motion.button

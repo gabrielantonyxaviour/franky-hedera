@@ -142,9 +142,10 @@ class WalletConnectWallet implements WalletInterface {
 
     // Purpose: build contract execute transaction and send to wallet for signing and execution
     // Returns: Promise<TransactionId | null>
-    async executeContractFunction(contractId: ContractId, functionName: string, functionParameters: ContractFunctionParameterBuilder, gasLimit: number) {
+    async executeContractFunction(contractId: ContractId, functionName: string, functionParameters: ContractFunctionParameterBuilder, gasLimit: number, value?: bigint) {
         const tx = new ContractExecuteTransaction()
             .setContractId(contractId)
+            .setPayableAmount(value ? value.toString() : "0")
             .setGas(gasLimit)
             .setFunction(functionName, functionParameters.buildHAPIParams());
 
