@@ -10,7 +10,7 @@ dataSources:
     source:
       address: "0x0cfdac1c25ec367344c3bee2444f0f8f5f06371d"
       abi: Franky
-      startBlock: 18902355
+      startBlock: 18903064
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
