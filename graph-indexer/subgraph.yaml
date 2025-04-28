@@ -8,9 +8,9 @@ dataSources:
     name: Franky
     network: testnet
     source:
-      address: "0xa2bbf7d20bb7e45969826599b0348f691f3ecafd"
+      address: "0xb862C06AEAEb0bBB2cA2ceE1EEdb17716ac73472"
       abi: Franky
-      startBlock: 18736371
+      startBlock: 18888948
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
