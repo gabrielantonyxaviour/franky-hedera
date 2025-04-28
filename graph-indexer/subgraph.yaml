@@ -4,13 +4,13 @@ indexerHints:
 schema:
   file: ./schema.graphql
 dataSources:
-  - kind: ethereum
+  - kind: ethereum/contract
     name: Franky
     network: testnet
     source:
-      address: "0xb862C06AEAEb0bBB2cA2ceE1EEdb17716ac73472"
+      address: "0x3b38be860f2158a669ea36e0739512162c5345e4"
       abi: Franky
-      startBlock: 18888948
+      startBlock: 18898355
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
