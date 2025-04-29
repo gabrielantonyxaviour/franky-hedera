@@ -321,9 +321,9 @@ export const DeviceVerification = () => {
                                                 });
 
                                                 const uploadResponse = await fetch('/api/pinata/json', {
-                                                    body: JSON.stringify({
+                                                    body: JSON.stringify({json:{
                                                         json: deviceMetadata
-                                                    }),
+                                                    }}),
                                                     method: "POST"
                                                 })
 

@@ -975,13 +975,13 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
+            body: JSON.stringify({json:{
               character: constructedCharacter,
               subname,
               secrets: ciphertext,
               secretsHash: dataToEncryptHash,
               avatarUrl
-            }),
+            }}),
           });
           const { url } = await characterConfigUrlRequest.json()
           characterConfigUrl = url

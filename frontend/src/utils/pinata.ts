@@ -7,17 +7,11 @@ export async function uploadImageToPinata(
         pinataJwt: process.env.PINATA_JWT,
         pinataGateway: "amethyst-impossible-ptarmigan-368.mypinata.cloud",
     });
-    // Upload to Pinata
-    const upload = await pinata.upload.file(file);
-    console.log("JSON Upload successful:", upload);
-    //   const data = await pinata.gateways.get(upload.cid);
-    //   console.log(data);
-    const url = await pinata.gateways.createSignedURL({
-        cid: upload.cid,
-        expires: 99999999999,
-    });
 
-    return url
+    const upload = await pinata.upload.public.file(file)
+    console.log("JSON Upload successful:", upload);
+   
+    return "https://amethyst-impossible-ptarmigan-368.mypinata.cloud/files/"+upload.cid
 }
 
 
@@ -28,24 +22,10 @@ export async function uploadJsonToPinata(
         pinataJwt: process.env.PINATA_JWT,
         pinataGateway: "amethyst-impossible-ptarmigan-368.mypinata.cloud",
     });
-
-    // Convert JSON object to string
-    const jsonString = JSON.stringify(jsonData, null, 2);
-
-    // Create a File object from the JSON string
-    const file = new File([jsonString], Math.floor(Math.random() * 100000000) + ".json", {
-        type: "application/json",
-    });
-
+    console.log("Uploading")
+    console.log(jsonData)
     // Upload to Pinata
-    const upload = await pinata.upload.file(file);
+    const upload = await pinata.upload.public.json(jsonData);
     console.log("JSON Upload successful:", upload);
-    //   const data = await pinata.gateways.get(upload.cid);
-    //   console.log(data);
-    const url = await pinata.gateways.createSignedURL({
-        cid: upload.cid,
-        expires: 99999999999,
-    });
-
-    return url
+    return "https://amethyst-impossible-ptarmigan-368.mypinata.cloud/files/"+upload.cid
 }
