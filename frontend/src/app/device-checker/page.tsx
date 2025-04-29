@@ -22,6 +22,15 @@ interface Device {
   reputationScore?: number;
   error?: string;
   reason?: string;
+  deviceMetadata?: string; // URL to device metadata
+  metadata?: {
+    ngrokUrl?: string;
+    deviceModel?: string;
+    ram?: string;
+    storage?: string;
+    cpu?: string;
+    [key: string]: any;
+  };
   consensusDetails?: {
     consensusMethod: string;
     topicId: string;
@@ -119,6 +128,14 @@ const DeviceCard = ({ device }: { device: Device }) => {
     return 'Unreliable';
   }
 
+  // Get ngrok URL from either direct ngrokLink or from metadata
+  const getNgrokUrl = () => {
+    if (device.metadata?.ngrokUrl) {
+      return device.metadata.ngrokUrl;
+    }
+    return device.ngrokLink || 'Not available';
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -152,7 +169,7 @@ const DeviceCard = ({ device }: { device: Device }) => {
             <FiServer className="w-4 h-4 mr-2 text-[#00FF88]" />
             <span className="text-sm">Ngrok Link:</span>
             <span className="ml-2 text-sm text-[#00FF88] truncate max-w-[200px]">
-              {device.ngrokLink || 'Not available'}
+              {getNgrokUrl()}
             </span>
           </div>
 
@@ -203,6 +220,26 @@ const DeviceCard = ({ device }: { device: Device }) => {
           </div>
         )}
       </div>
+
+      {device.metadata && device.metadata.deviceModel && (
+        <div className="mt-2 p-3 bg-gray-900/40 border border-gray-700 rounded-lg mb-4">
+          <p className="text-sm font-medium text-[#00FF88] mb-2">Device Specs:</p>
+          <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
+            {device.metadata.deviceModel && (
+              <div>Model: <span className="text-gray-300">{device.metadata.deviceModel}</span></div>
+            )}
+            {device.metadata.ram && (
+              <div>RAM: <span className="text-gray-300">{device.metadata.ram}</span></div>
+            )}
+            {device.metadata.storage && (
+              <div>Storage: <span className="text-gray-300">{device.metadata.storage}</span></div>
+            )}
+            {device.metadata.cpu && (
+              <div>CPU: <span className="text-gray-300">{device.metadata.cpu}</span></div>
+            )}
+          </div>
+        </div>
+      )}
 
       {device.consensusDetails && device.consensusDetails.topicId && (
         <div className="mt-2 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg">
@@ -330,6 +367,22 @@ const SearchForm = ({ onSearch, isLoading }: { onSearch: (address: string, numCh
   )
 }
 
+// Function to fetch device metadata from Pinata URL
+const fetchDeviceMetadata = async (metadataUrl: string) => {
+  try {
+    const response = await fetch(metadataUrl);
+    if (!response.ok) {
+      console.error(`Failed to fetch metadata: ${response.status}`);
+      return null;
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching device metadata:', error);
+    return null;
+  }
+};
+
 export default function DeviceCheckerPage() {
   const [devices, setDevices] = useState<Device[]>([])
   const [selectedDevices, setSelectedDevices] = useState<string[]>([])
@@ -382,7 +435,15 @@ export default function DeviceCheckerPage() {
       }
 
       const data = await response.json()
-      setDevices(data.results || [])
+      
+      // The API now includes metadata directly, so we don't need to fetch it separately
+      if (data.results && Array.isArray(data.results)) {
+        // Just set the devices directly, metadata is already included in the API response
+        setDevices(data.results)
+      } else {
+        // Handle empty results
+        setDevices([])
+      }
 
     } catch (err: any) {
       console.error('Error checking devices:', err)
@@ -441,7 +502,13 @@ export default function DeviceCheckerPage() {
       }
 
       const data = await response.json()
-      setDevices(data)
+      
+      // Set devices directly from the API response, which now includes metadata
+      if (data.results && Array.isArray(data.results)) {
+        setDevices(data.results)
+      } else {
+        setDevices([])
+      }
 
       // Refresh devices to show updated reputation after a short delay
       setTimeout(() => {
@@ -492,7 +559,13 @@ export default function DeviceCheckerPage() {
       }
 
       const data = await response.json()
-      setDevices(data)
+      
+      // Set devices directly from the API response, which now includes metadata
+      if (data.results && Array.isArray(data.results)) {
+        setDevices(data.results)
+      } else {
+        setDevices([])
+      }
 
       // Refresh devices to show updated reputation after a short delay
       setTimeout(() => {
@@ -636,7 +709,7 @@ export default function DeviceCheckerPage() {
                       className={`px-4 py-2 rounded-lg flex items-center text-sm ${
                         isLoading
                           ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
-                          : 'bg-purple-600 hover:bg-purple-700 text-white'
+                          : 'bg-[#00FF88] hover:bg-[#00FF88]/90 text-black'
                       } transition-colors`}
                     >
                       {isLoading ? (
@@ -662,7 +735,7 @@ export default function DeviceCheckerPage() {
                       className={`px-4 py-2 rounded-lg flex items-center text-sm ${
                         isLoading
                           ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
-                          : 'bg-green-600 hover:bg-green-700 text-white'
+                          : 'bg-[#00FF88] hover:bg-[#00FF88]/90 text-black'
                       } transition-colors`}
                     >
                       {isLoading ? (
@@ -688,7 +761,7 @@ export default function DeviceCheckerPage() {
                       className={`px-4 py-2 rounded-lg flex items-center text-sm ${
                         isLoading && selectedDevices.length === 0
                           ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
-                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                          : 'bg-[#00FF88] hover:bg-[#00FF88]/90 text-black'
                       } transition-colors`}
                     >
                       {isLoading && selectedDevices.length === 0 ? (

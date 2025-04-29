@@ -4,7 +4,7 @@ import { hcsService } from '@/lib/services/hcs-service';
 // Self checker configuration
 const SELF_CHECKER_ADDRESS = '0.0.5868472'; // Hedera account ID format
 const SELF_CHECKER_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-const DEVICES_API_URL = 'https://www.frankyagent.xyz/api/graph/devices';
+const DEVICES_API_URL = `${process.env.NEXTAUTH_URL}/api/graph/devices`;
 
 // Interface for test result
 interface TestResult {
@@ -14,10 +14,40 @@ interface TestResult {
   error?: string;
 }
 
+// Interface for device API response
+interface DeviceApiResponse {
+  __typename: string;
+  id: string;
+  owner: {
+    __typename: string;
+    id: string;
+  };
+  deviceMetadata: string; // Pinata URL to the metadata
+  hostingFee: string;
+  createdAt: string;
+  updatedAt: string;
+  agents: any[];
+  [key: string]: any;
+}
+
+// Interface for device metadata (from Pinata URL)
+interface DeviceMetadata {
+  deviceModel: string;
+  ram: string;
+  storage: string;
+  cpu: string;
+  owner: string;
+  deviceAddress: string;
+  ngrokUrl: string;
+  [key: string]: any;
+}
+
 // Interface for device info
 interface DeviceInfo {
   id: string;
-  ngrokLink?: string;
+  deviceMetadata: string; // Pinata URL
+  metadata?: DeviceMetadata; // Parsed metadata
+  ngrokUrl?: string; // Extracted from metadata
   agents?: any[];
   [key: string]: any;
 }
@@ -57,9 +87,33 @@ async function ensureSelfCheckerRegistered() {
 }
 
 /**
+ * Fetch and parse device metadata from Pinata URL
+ * @param metadataUrl The Pinata URL to fetch metadata from
+ * @returns Parsed metadata object
+ */
+async function fetchDeviceMetadata(metadataUrl: string): Promise<DeviceMetadata | null> {
+  try {
+    console.log(`Fetching device metadata from ${metadataUrl}`);
+    const response = await fetch(metadataUrl);
+    
+    if (!response.ok) {
+      console.error(`Failed to fetch metadata: ${response.status}`);
+      return null;
+    }
+    
+    const metadata = await response.json();
+    console.log('Fetched device metadata:', metadata);
+    return metadata;
+  } catch (error) {
+    console.error('Error fetching device metadata:', error);
+    return null;
+  }
+}
+
+/**
  * Perform a real device health check by testing its availability and performance
  * @param deviceId Device ID to check
- * @param deviceInfo Additional device info including ngrok link
+ * @param deviceInfo Additional device info including metadata URL
  * @returns Check results with actual metrics
  */
 async function checkDeviceHealth(deviceId: string, deviceInfo?: DeviceInfo): Promise<any> {
@@ -71,8 +125,29 @@ async function checkDeviceHealth(deviceId: string, deviceInfo?: DeviceInfo): Pro
   let errorRate = 1.0; // Default to 100% error rate
   
   try {
-    // Get ngrok link from device info if provided
-    let ngrokLink = deviceInfo?.ngrokLink;
+    // Get device metadata URL from device info if provided
+    let metadataUrl = deviceInfo?.deviceMetadata;
+    let ngrokLink: string | undefined;
+    
+    if (metadataUrl) {
+      // Fetch metadata from Pinata URL
+      const metadata = await fetchDeviceMetadata(metadataUrl);
+      
+      if (metadata) {
+        // Store metadata in device info for future use
+        if (deviceInfo) {
+          deviceInfo.metadata = metadata;
+        }
+        
+        // Get ngrok URL from metadata
+        ngrokLink = metadata.ngrokUrl;
+        
+        // Save ngrok URL to device info for convenience
+        if (deviceInfo) {
+          deviceInfo.ngrokUrl = ngrokLink;
+        }
+      }
+    }
     
     if (!ngrokLink) {
       console.warn(`No ngrok link available for device ${deviceId}`);
@@ -298,7 +373,7 @@ export async function POST(request: Request) {
     const providedDeviceAddresses = body.deviceAddresses;
     
     // Fetch all devices from the API
-    let allDevices: DeviceInfo[] = [];
+    let allDevices: DeviceApiResponse[] = [];
     let devicesToCheck: DeviceInfo[] = [];
     
     try {
@@ -312,16 +387,36 @@ export async function POST(request: Request) {
       allDevices = await response.json();
       console.log(`Found ${allDevices.length} devices in total`);
       
-      // If specific device addresses were provided, filter to those
+      // Map API response to DeviceInfo format and load metadata for each device
+      devicesToCheck = await Promise.all(allDevices.map(async (deviceResponse) => {
+        // Create a device info object from the API response, but exclude fields we explicitly set
+        const { id, deviceMetadata, agents, ...otherFields } = deviceResponse;
+        
+        const deviceInfo: DeviceInfo = {
+          id,
+          deviceMetadata,
+          agents,
+          ...otherFields  // Keep other fields
+        };
+        
+        // Fetch metadata if available
+        if (deviceMetadata) {
+          const metadata = await fetchDeviceMetadata(deviceMetadata);
+          if (metadata) {
+            deviceInfo.metadata = metadata;
+            deviceInfo.ngrokUrl = metadata.ngrokUrl;
+          }
+        }
+        
+        return deviceInfo;
+      }));
+      
+      // Filter to selected devices if provided
       if (Array.isArray(providedDeviceAddresses) && providedDeviceAddresses.length > 0) {
-        devicesToCheck = allDevices.filter(device => 
+        devicesToCheck = devicesToCheck.filter(device => 
           providedDeviceAddresses.includes(device.id)
         );
         console.log(`Filtered to ${devicesToCheck.length} specified devices`);
-      } else {
-        // Otherwise, check all devices
-        devicesToCheck = allDevices;
-        console.log(`No filter provided, checking all ${devicesToCheck.length} devices`);
       }
       
       if (devicesToCheck.length === 0) {
@@ -361,17 +456,23 @@ export async function POST(request: Request) {
           deviceAddress: deviceId,
           status: 'success',
           transactionId,
-          ngrokLink: device.ngrokLink || 'Not available',
+          ngrokLink: device.ngrokUrl || 'Not available',
+          deviceMetadata: device.deviceMetadata,
+          metadata: device.metadata,
           reputationScore: checkResults.reputationScore,
           successRate: checkResults.retrievalStats.successRate,
-          responseTime: checkResults.retrievalStats.averageResponseTime
+          responseTime: checkResults.retrievalStats.averageResponseTime,
+          retrievalStats: checkResults.retrievalStats,
+          checked: new Date().toISOString()
         };
       } catch (error: any) {
         console.error(`Error checking device ${device.id}:`, error);
         return {
           deviceAddress: device.id,
           status: 'error',
-          error: error.message || 'Unknown error'
+          deviceMetadata: device.deviceMetadata,
+          error: error.message || 'Unknown error',
+          checked: new Date().toISOString()
         };
       }
     }));

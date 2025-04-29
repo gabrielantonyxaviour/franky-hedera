@@ -652,8 +652,9 @@ update_metadata_with_address() {
         console.log('Derived EVM address:', evmAddress);
         
         // Update metadata with the EVM wallet address instead of account ID
-        metadata.walletAddress = evmAddress;
-        console.log('Updated walletAddress in metadata to EVM address');
+        // Ensure the EVM address has the 0x prefix
+        metadata.walletAddress = evmAddress.startsWith('0x') ? evmAddress : '0x' + evmAddress;
+        console.log('Updated walletAddress in metadata to EVM address:', metadata.walletAddress);
         
         // Also store the original accountId separately for reference
         metadata.accountId = accountId;
@@ -666,7 +667,7 @@ update_metadata_with_address() {
           storage: metadata.storage,
           os: metadata.os,
           accountId: accountId,
-          evmAddress: evmAddress,
+          evmAddress: metadata.walletAddress,
           timestamp: metadata.timestamp
         });
         
@@ -686,7 +687,7 @@ update_metadata_with_address() {
         // Save updated metadata back to the file
         fs.writeFileSync('$METADATA_FILE', JSON.stringify(metadata, null, 2));
         
-        console.log(\`SUCCESS: Updated metadata with EVM wallet address \${evmAddress} for account ID \${accountId}\`);
+        console.log(\`SUCCESS: Updated metadata with EVM wallet address \${metadata.walletAddress} for account ID \${accountId}\`);
       } catch (error) {
         console.error('ERROR updating metadata:', error.message);
         process.exit(1);
@@ -847,6 +848,12 @@ check_device_registration() {
       ACCOUNT_ID=$(grep "Account ID:" "$DEVICE_DETAILS_FILE" | cut -d' ' -f3)
       GRAPH_URL="${BASE_URL}${GRAPH_API_ENDPOINT}${ACCOUNT_ID}"
     else
+      # Ensure the EVM address has the 0x prefix
+      if [[ ! "$EVM_ADDRESS" =~ ^0x ]]; then
+        log_warning "EVM address missing 0x prefix. Adding prefix for proper format."
+        EVM_ADDRESS="0x${EVM_ADDRESS}"
+      fi
+      
       log_status "Using EVM address for device registration check: $EVM_ADDRESS"
       GRAPH_URL="${BASE_URL}${GRAPH_API_ENDPOINT}${EVM_ADDRESS}"
     fi
@@ -873,6 +880,11 @@ check_device_registration() {
     # Check if the response contains a device
     if [[ "$response" == *"\"device\":"* ]]; then
       log_success "Device registered successfully!"
+      # Extract device details to display
+      if [[ "$response" == *"\"id\":"* ]]; then
+        DEVICE_ID=$(echo "$response" | grep -o '"id":"[^"]*' | head -1 | sed 's/"id":"//g')
+        log_success "Registered device ID: $DEVICE_ID"
+      fi
       break
     else
       retry_count=$((retry_count + 1))

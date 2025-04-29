@@ -1,10 +1,46 @@
 import { NextResponse } from 'next/server';
 import { hcsService } from '@/lib/services/hcs-service';
 
+// Interface for device metadata (from Pinata URL)
+interface DeviceMetadata {
+  deviceModel: string;
+  ram: string;
+  storage: string;
+  cpu: string;
+  owner: string;
+  deviceAddress: string;
+  ngrokUrl: string;
+  [key: string]: any;
+}
+
+/**
+ * Fetch and parse device metadata from Pinata URL
+ * @param metadataUrl The Pinata URL to fetch metadata from
+ * @returns Parsed metadata object
+ */
+async function fetchDeviceMetadata(metadataUrl: string): Promise<DeviceMetadata | null> {
+  try {
+    console.log(`Fetching device metadata from ${metadataUrl}`);
+    const response = await fetch(metadataUrl);
+    
+    if (!response.ok) {
+      console.error(`Failed to fetch metadata: ${response.status}`);
+      return null;
+    }
+    
+    const metadata = await response.json();
+    console.log('Fetched device metadata:', metadata);
+    return metadata;
+  } catch (error) {
+    console.error('Error fetching device metadata:', error);
+    return null;
+  }
+}
+
 // Fetch devices from the graph API
 async function fetchDevices(limit: number) {
     try {
-        const response = await fetch('https://www.frankyagent.xyz/api/graph/devices');
+        const response = await fetch(`${process.env.NEXTAUTH_URL}/api/graph/devices`);
         if (!response.ok) {
             throw new Error(`Failed to fetch devices: ${response.status}`);
         }
@@ -50,11 +86,24 @@ export async function GET(request: Request) {
         // Get reputation data for each device from HCS
         const results = await Promise.all(devices.map(async (device: any) => {
             try {
+                // Fetch metadata if available
+                let metadata = null;
+                let ngrokUrl = device.ngrokLink;
+                
+                if (device.deviceMetadata) {
+                    metadata = await fetchDeviceMetadata(device.deviceMetadata);
+                    if (metadata && metadata.ngrokUrl) {
+                        ngrokUrl = metadata.ngrokUrl;
+                    }
+                }
+                
                 // If the device has no agents, skip it
                 if (!device.agents || device.agents.length === 0) {
                     return {
                         deviceAddress: device.id,
-                        ngrokLink: device.ngrokLink,
+                        ngrokLink: ngrokUrl,
+                        deviceMetadata: device.deviceMetadata,
+                        metadata: metadata,
                         status: 'skipped',
                         reason: 'No agents found for this device',
                         reputationScore: 0,
@@ -68,7 +117,9 @@ export async function GET(request: Request) {
                 if (reputationData.status === 'error' || reputationData.status === 'unknown') {
                     return {
                         deviceAddress: device.id,
-                        ngrokLink: device.ngrokLink,
+                        ngrokLink: ngrokUrl,
+                        deviceMetadata: device.deviceMetadata,
+                        metadata: metadata,
                         status: reputationData.status,
                         reason: reputationData.message,
                         reputationScore: 0,
@@ -79,7 +130,9 @@ export async function GET(request: Request) {
                 // Format the result
                 return {
                     deviceAddress: device.id,
-                    ngrokLink: device.ngrokLink,
+                    ngrokLink: ngrokUrl,
+                    deviceMetadata: device.deviceMetadata,
+                    metadata: metadata,
                     status: 'checked',
                     reputationScore: reputationData.reputationScore.score, 
                     retrievalStats: {
@@ -92,7 +145,7 @@ export async function GET(request: Request) {
                     consensusDetails: {
                         checkerCount: reputationData.reputationScore.checkerCount,
                         consensusMethod: reputationData.reputationScore.consensus,
-                        topicId: await hcsService.getDeviceTopicMapping(device.id)
+                        topicId: reputationData.topicId
                     },
                     checked: reputationData.lastChecked
                 };
@@ -101,6 +154,7 @@ export async function GET(request: Request) {
                 return {
                     deviceAddress: device.id,
                     ngrokLink: device.ngrokLink || 'unknown',
+                    deviceMetadata: device.deviceMetadata,
                     status: 'error',
                     error: error.message || 'Unknown error',
                     reputationScore: 0,

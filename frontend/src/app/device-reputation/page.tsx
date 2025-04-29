@@ -23,6 +23,16 @@ interface DeviceReputation {
   checked: string
   error?: string
   reputationDataUrl?: string | null
+  deviceMetadata?: string // Pinata URL
+  metadata?: {
+    ngrokUrl?: string
+    deviceModel?: string
+    ram?: string
+    storage?: string
+    cpu?: string
+    owner?: string
+    [key: string]: any
+  }
 }
 
 // Background component (reused from marketplace)
@@ -94,6 +104,14 @@ const ReputationCard = ({ device }: { device: DeviceReputation }) => {
     totalChecks: 0
   };
 
+  // Get ngrok URL from either direct ngrokLink or from metadata
+  const getNgrokUrl = () => {
+    if (device.metadata?.ngrokUrl) {
+      return device.metadata.ngrokUrl;
+    }
+    return device.ngrokLink || 'Not available';
+  }
+
   return (
     <motion.div
       className="p-6 rounded-xl border border-[#00FF88] border-opacity-30 bg-black/50 backdrop-blur-sm h-full flex flex-col"
@@ -153,9 +171,29 @@ const ReputationCard = ({ device }: { device: DeviceReputation }) => {
         <div className="flex items-start text-[#CCCCCC]">
           <FiCpu className="mr-2 text-[#00FF88] mt-1 flex-shrink-0" />
           <span className="text-sm break-all">
-            Endpoint: {device.ngrokLink}
+            Endpoint: {getNgrokUrl()}
           </span>
         </div>
+
+        {device.metadata && device.metadata.deviceModel && (
+          <div className="mt-4 p-3 bg-black/30 border border-gray-800 rounded-lg">
+            <p className="text-xs text-[#00FF88] mb-2 font-medium">Device Specs:</p>
+            <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
+              {device.metadata.deviceModel && (
+                <div>Model: <span className="text-gray-300">{device.metadata.deviceModel}</span></div>
+              )}
+              {device.metadata.ram && (
+                <div>RAM: <span className="text-gray-300">{device.metadata.ram}</span></div>
+              )}
+              {device.metadata.storage && (
+                <div>Storage: <span className="text-gray-300">{device.metadata.storage}</span></div>
+              )}
+              {device.metadata.cpu && (
+                <div>CPU: <span className="text-gray-300">{device.metadata.cpu}</span></div>
+              )}
+            </div>
+          </div>
+        )}
 
         {device.reputationDataUrl && (
           <div className="mt-4 text-sm">
@@ -189,20 +227,31 @@ export default function DeviceReputationPage() {
         }
         const data = await response.json()
         
-        // Ensure each device has the required data structure
-        const processedDevices = data.results.map((device: any) => ({
-          ...device,
-          retrievalStats: device.retrievalStats || {
-            successRate: 0,
-            averageResponseTime: 0,
-            totalChecks: 0
-          },
-          reputationScore: device.reputationScore || 0,
-          status: device.status || 'unknown',
-          checked: device.checked || new Date().toISOString()
-        }));
-        
-        setDevices(processedDevices)
+        // Process the device data
+        if (data.results && Array.isArray(data.results)) {
+          // Each device already has metadata and ngrokUrl from the API
+          const processedDevices = data.results.map((device: any) => ({
+            ...device,
+            // Ensure all required properties have default values
+            retrievalStats: device.retrievalStats || {
+              successRate: 0,
+              averageResponseTime: 0,
+              totalChecks: 0
+            },
+            reputationScore: device.reputationScore || 0,
+            status: device.status || 'unknown',
+            checked: device.checked || new Date().toISOString(),
+            // Use ngrokUrl from metadata if available, otherwise use the direct ngrokLink
+            ngrokLink: (device.metadata && device.metadata.ngrokUrl) 
+              ? device.metadata.ngrokUrl 
+              : (device.ngrokLink || 'Not available')
+          }));
+          
+          setDevices(processedDevices);
+        } else {
+          // Handle empty results
+          setDevices([]);
+        }
       } catch (err: any) {
         setError(err.message)
         console.error('Error fetching device data:', err)
@@ -253,4 +302,20 @@ export default function DeviceReputationPage() {
       </div>
     </div>
   )
-} 
+}
+
+// Function to fetch device metadata from Pinata URL
+const fetchDeviceMetadata = async (metadataUrl: string) => {
+  try {
+    const response = await fetch(metadataUrl);
+    if (!response.ok) {
+      console.error(`Failed to fetch metadata: ${response.status}`);
+      return null;
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching device metadata:', error);
+    return null;
+  }
+}; 
