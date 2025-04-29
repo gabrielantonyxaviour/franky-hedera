@@ -1017,11 +1017,13 @@ function CreateAgentContent({
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              character: constructedCharacter,
-              subname,
-              secrets: ciphertext,
-              secretsHash: dataToEncryptHash,
-              avatarUrl,
+              json: {
+                character: constructedCharacter,
+                subname,
+                secrets: ciphertext,
+                secretsHash: dataToEncryptHash,
+                avatarUrl,
+              },
             }),
           });
           const { url } = await characterConfigUrlRequest.json();
