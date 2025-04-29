@@ -997,7 +997,7 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
 
         console.log("Simulating contract call...");
         console.log("ARGS")
-        const cid = characterConfigUrl.split('/files/')[1].split('?')[0];
+        const cid = characterConfigUrl.split('/files/')[1];
         const args = [subname, cid, characterConfigUrl, deviceInfo.id, parseEther(perApiCallFee), isPublic];
         console.log(args)
         const params = new ContractFunctionParameterBuilder().addParam({
