@@ -72,8 +72,7 @@ function validateEnvironment(): void {
     "HEDERA_ACCOUNT_ID", 
     "HEDERA_PRIVATE_KEY",
     "OLLAMA_BASE_URL", 
-    "OLLAMA_MODEL",
-    "TEMP_AUTH_PRIVATE_KEY"
+    "OLLAMA_MODEL"
   ];
 
   requiredVars.forEach((varName) => {
@@ -190,16 +189,26 @@ async function initializeCharacter(characterIdentifier?: string): Promise<Charac
         logger.info('Character Init', `Character "${character.name}" loaded successfully!`);
         return character;
       } else {
-        logger.warn('Character Init', `Character not found with ID or name: ${characterIdentifier}, defaulting to first character`);
+        logger.warn('Character Init', `Character not found with ID or name: ${characterIdentifier}, defaulting to Franky character`);
       }
     }
     
-    // Default to first character if identifier not provided or not found
-    const defaultCharacter = characters[0];
-    logger.info('Character Init', `Loading default character: ${defaultCharacter}`);
-    const character = loadCharacter(defaultCharacter);
-    logger.info('Character Init', `Character "${character.name}" loaded successfully!`);
-    return character;
+    // Default to Franky character if identifier not provided or not found
+    const frankyCharacter = characters.find(file => file === 'franky.json');
+    
+    if (frankyCharacter) {
+      logger.info('Character Init', `Loading Franky character as default`);
+      const character = loadCharacter(frankyCharacter);
+      logger.info('Character Init', `Character "${character.name}" loaded successfully!`);
+      return character;
+    } else {
+      // If Franky character is not found, default to first character
+      const defaultCharacter = characters[0];
+      logger.warn('Character Init', `Franky character not found, loading default character: ${defaultCharacter}`);
+      const character = loadCharacter(defaultCharacter);
+      logger.info('Character Init', `Character "${character.name}" loaded successfully!`);
+      return character;
+    }
   } catch (error) {
     logger.error('Character Init', 'Error initializing character', error);
     return null;
@@ -515,36 +524,47 @@ async function getServerWalletPrivateKey(accountId: string): Promise<{ privateKe
       return { privateKey: null, error: "No server wallet configured for this account" };
     }
     
-    // 2. Create an ethers wallet for authentication
-    // Note: In a real implementation, you would need to get this private key securely
-    // For this demo, we're assuming it's available in the environment
-    if (!process.env.TEMP_AUTH_PRIVATE_KEY) {
-      logger.error('Server Wallet', 'Missing TEMP_AUTH_PRIVATE_KEY environment variable');
-      return { privateKey: null, error: "Auth key not available" };
+    // Use the device's private key from .env to create an authentication wallet
+    // This key should belong to a registered device in the Franky contract
+    if (!process.env.HEDERA_PRIVATE_KEY) {
+      logger.error('Server Wallet', 'Missing HEDERA_PRIVATE_KEY environment variable');
+      return { privateKey: null, error: "Device private key not available" };
     }
     
-    const ethersWallet = new ethers.Wallet(process.env.TEMP_AUTH_PRIVATE_KEY);
-    logger.debug('Server Wallet', 'Created authentication wallet', {
-      address: ethersWallet.address
-    });
-    
-    // 3. Decrypt the server wallet private key using Lit Protocol
-    const decryptionResult = await decryptServerWallet(
-      ethersWallet,
-      serverWallet.walletAddress,
-      serverWallet.encryptedPrivateKey,
-      serverWallet.privateKeyHash
-    );
-    
-    if (decryptionResult.error) {
-      logger.error('Server Wallet', 'Failed to decrypt server wallet', {
-        error: decryptionResult.error
+    try {
+      // Remove 0x prefix if present in the private key
+      let devicePrivateKey = process.env.HEDERA_PRIVATE_KEY;
+      if (devicePrivateKey.startsWith('0x')) {
+        devicePrivateKey = devicePrivateKey.substring(2);
+      }
+      
+      // Create the authentication wallet using the device's private key
+      const ethersWallet = new ethers.Wallet(devicePrivateKey);
+      logger.debug('Server Wallet', 'Created authentication wallet using device key', {
+        address: ethersWallet.address
       });
-      return { privateKey: null, error: `Decryption failed: ${decryptionResult.error}` };
+      
+      // 3. Decrypt the server wallet private key using Lit Protocol
+      const decryptionResult = await decryptServerWallet(
+        ethersWallet,
+        serverWallet.walletAddress,
+        serverWallet.encryptedPrivateKey,
+        serverWallet.privateKeyHash
+      );
+      
+      if (decryptionResult.error) {
+        logger.error('Server Wallet', 'Failed to decrypt server wallet', {
+          error: decryptionResult.error
+        });
+        return { privateKey: null, error: `Decryption failed: ${decryptionResult.error}` };
+      }
+      
+      logger.info('Server Wallet', 'Successfully decrypted server wallet private key');
+      return { privateKey: decryptionResult.decryptedData, error: null };
+    } catch (walletError) {
+      logger.error('Server Wallet', 'Failed to create authentication wallet using device key', walletError);
+      return { privateKey: null, error: `Failed to create authentication wallet: ${walletError instanceof Error ? walletError.message : String(walletError)}` };
     }
-    
-    logger.info('Server Wallet', 'Successfully decrypted server wallet private key');
-    return { privateKey: decryptionResult.decryptedData, error: null };
   } catch (error) {
     logger.error('Server Wallet', 'Error retrieving or decrypting server wallet', error);
     return { 
@@ -696,8 +716,16 @@ async function startServer() {
       logger.warn('API', 'Ollama is not available. Character mode will fall back to OpenAI.');
     }
     
-    // Initialize a default character
-    state.activeCharacter = await initializeCharacter();
+    // Initialize Franky as the default character
+    logger.info('API', 'Initializing Franky as the default character');
+    state.activeCharacter = await initializeCharacter('franky');
+    
+    if (!state.activeCharacter) {
+      logger.warn('API', 'Failed to load Franky character, will try to load any available character');
+      state.activeCharacter = await initializeCharacter();
+    }
+    
+    logger.info('API', `Active character set to: ${state.activeCharacter?.name || 'None'}`);
     
     // Create Express app
     const app = express();
@@ -726,10 +754,6 @@ async function startServer() {
       // Get the agent address from headers instead of character ID from body
       const agentAddress = req.headers['agent-address'] as string;
       
-      if (!agentAddress) {
-        return res.status(400).json({ error: 'agent-address header is required' });
-      }
-      
       // First get the server wallet private key to authenticate the user
       getServerWalletPrivateKey(accountId).then(async ({ privateKey, error: walletError }) => {
         if (walletError) {
@@ -745,16 +769,50 @@ async function startServer() {
         logger.info('API', 'Successfully retrieved server wallet private key', { accountId });
         
         try {
-          // Fetch agent details and character data
-          const { agent, character, feeInHbar, error: fetchError } = await fetchAgentAndCharacterData(agentAddress);
-          
-          if (fetchError || !character) {
-            return res.status(404).json({ error: fetchError || 'Failed to retrieve character data' });
-          }
-          
           // Create user client using the decrypted private key
           const userClient = createUserClient(accountId, privateKey);
           const userAccountId = AccountId.fromString(accountId);
+          
+          // Variable to hold the character and fee
+          let character: Character | null = null;
+          let feeInHbar = 0.1; // Default fee
+          
+          // Check if we have an agent address - if so, always use it
+          if (agentAddress) {
+            logger.info('API', `Agent address provided: ${agentAddress}, fetching agent details`);
+            
+            // Fetch agent details and character data
+            const { agent, character: agentCharacter, feeInHbar: agentFee, error: fetchError } = 
+              await fetchAgentAndCharacterData(agentAddress);
+            
+            if (fetchError || !agentCharacter) {
+              return res.status(404).json({ error: fetchError || 'Failed to retrieve character data' });
+            }
+            
+            // Use the character and fee from the agent
+            character = agentCharacter;
+            feeInHbar = agentFee;
+            
+            logger.info('API', `Using character "${character.name}" from agent ${agentAddress} with fee ${feeInHbar} HBAR`);
+          } else {
+            // No agent address provided, use default character
+            logger.info('API', 'No agent address provided, using Franky character');
+            
+            // First try to load Franky specifically
+            character = await initializeCharacter('franky');
+            
+            // If Franky couldn't be loaded, fall back to active character or initialize a new one
+            if (!character) {
+              logger.warn('API', 'Could not load Franky character, falling back to active character');
+              character = state.activeCharacter || await initializeCharacter();
+            }
+            
+            if (!character) {
+              return res.status(500).json({ error: 'Could not load default character' });
+            }
+            
+            logger.info('API', `Using character "${character.name}" with fee ${feeInHbar} HBAR`);
+          }
           
           // Create the HIP-991 agent for this user and character
           const hip991Agent = await initializeAgent(
@@ -764,14 +822,14 @@ async function startServer() {
             userAccountId,                         // User account ID
             userClient.operatorPublicKey,          // User public key
             character,                             // Character
-            feeInHbar                              // Dynamic fee from agent configuration
+            feeInHbar                              // Fee (from agent or default)
           );
           
           res.json({
             status: 'success',
             message: `Agent initialized with character ${character.name}`,
             agent: {
-              agentAddress,
+              agentAddress: agentAddress || 'local', // Use 'local' if no agent address was provided
               characterName: character.name,
               inboundTopicId: hip991Agent.inboundTopicId,
               outboundTopicId: hip991Agent.outboundTopicId,
