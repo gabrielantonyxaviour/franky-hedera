@@ -186,7 +186,7 @@ export default function AgentsPage() {
             >
               <div className="bg-black/30 backdrop-blur-sm border border-[#00FF88]/20 rounded-lg p-6 mb-6">
                 <h2 className="text-2xl font-bold text-white mb-2">Your Registered Agents</h2>
-                <p className="text-white/70">Here are all the agents you've registered on Filecoin.</p>
+                <p className="text-white/70">Here are all the agents you've registered.</p>
               </div>
 
               {agents.length === 0 ? (
