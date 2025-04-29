@@ -1,4 +1,4 @@
-export const FRANKY_ADDRESS = "0x0cfdac1c25ec367344c3bee2444f0f8f5f06371d";
+export const FRANKY_ADDRESS = "0x16CBC6Cb38D19B73A3b545109c70b2031d20EA37";
 export const FRANKY_IMPLEMENTATION =
   "0x2f2c723f79D40667E1f850Ec4f969BD08B143445";
 export const FRANKY_CONTRACT_ID = "0.0.5918696";
@@ -1086,4 +1086,4 @@ export const FRANKY_ABI = [
 ];
 
 export const FRANY_INDEXER_API =
-  "https://92a2-124-123-105-119.ngrok-free.app/subgraphs/name/graph-indexer";
+  "https://fdfb-124-123-105-119.ngrok-free.app/subgraphs/name/graph-indexer";
