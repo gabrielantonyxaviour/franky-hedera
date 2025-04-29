@@ -720,7 +720,7 @@ function SuccessModal({
                 rel="noopener noreferrer"
                 className="text-[#00FF88] hover:underline text-sm break-all"
               >
-                View on Filecoin Explorer
+                View on HEDERA Explorer
               </a>
             </div>
           )}
@@ -947,7 +947,7 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
 
       try {
         console.log("Preparing transaction");
-        toast.info("Uploading Avatar to Filecoin...", {
+        toast.info("Uploading Avatar to Pinata...", {
           description: "This will take some time..."
         });
 
@@ -1056,7 +1056,7 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
         // Simple error handling
         if (error.message?.includes("Request was aborted")) {
           setTransactionError(
-            "Transaction was aborted. Please ensure you are connected to Filecoin Calibration testnet and try again."
+            "Transaction was aborted. Please ensure you are connected to Hedera testnet and try again."
           );
         } else if (
           error.message?.includes("user rejected") ||
