@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Constants
-BASE_URL="https://frankyagent.xyz"
+BASE_URL="https://hedera.frankyagent.xyz"
 GRAPH_API_ENDPOINT="/api/graph/devices-by-wallet?address="
 DEVICE_DETAILS_FILE="Device_details.txt"
 METADATA_TOPIC_FILE="device_metadata_topic.txt"

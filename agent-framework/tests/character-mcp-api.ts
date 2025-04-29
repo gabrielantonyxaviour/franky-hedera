@@ -13,12 +13,13 @@ import { createHederaTools } from "../src";
 import { PrivateKey, Client, AccountId } from "@hashgraph/sdk";
 // Import Lit Protocol and ethers for wallet decryption
 import { ethers } from "ethers";
-import { decryptServerWallet } from "../../frontend/src/utils/lit";
+// Import local implementations
+import { decryptServerWallet } from "./lit-helpers";
 // Import contract constants
-import { FRANKY_ADDRESS, FRANKY_ABI } from "../../frontend/src/lib/constants";
+import { FRANKY_ADDRESS, FRANKY_ABI } from "./constants";
 // Import utilities
 import { createPublicClient, http } from "viem";
-import { hederaTestnet } from "viem/chains";
+import { hederaTestnet } from "./hedera-chain";
 // Import HIP-991 agent functionality
 import { 
   initializeAgent, 
@@ -138,7 +139,7 @@ async function initializeMCP() {
 
     // Start MCP server
     logger.info('MCP Init', 'Starting MCP server');
-    const mcpServer = new MCPServer(tools, 3000);
+    const mcpServer = new MCPServer(tools, 3001);
     await mcpServer.start();
     logger.info('MCP Init', `MCP server started at ${mcpServer.getUrl()}`);
 
