@@ -137,11 +137,48 @@ const pendingResponses = new Map<string, {
   timeout: NodeJS.Timeout
 }>();
 
-// Cache of message history
-const messageCache = new Map<string, TopicMessage>();
+// Cache of message history with TTL (time to live)
+interface CacheEntry<T> {
+  value: T;
+  timestamp: number;
+}
+
+const MESSAGE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+const messageCache = new Map<string, CacheEntry<TopicMessage>>();
+
+// Clean up old messages from cache periodically
+setInterval(() => {
+  const now = Date.now();
+  let removedCount = 0;
+  
+  for (const [id, entry] of messageCache.entries()) {
+    if (now - entry.timestamp > MESSAGE_CACHE_TTL) {
+      messageCache.delete(id);
+      removedCount++;
+    }
+  }
+  
+  if (removedCount > 0) {
+    logger.debug('HIP991', `Garbage collected ${removedCount} expired messages from cache`);
+  }
+}, 60 * 60 * 1000); // Run every hour
 
 // Keep track of last processed message ID per topic
 const lastProcessedMessageIds = new Map<string, string>();
+
+// Helper functions for working with the message cache
+function getMessageFromCache(id: string): TopicMessage | undefined {
+  const entry = messageCache.get(id);
+  return entry ? entry.value : undefined;
+}
+
+function setMessageInCache(id: string, message: TopicMessage): void {
+  messageCache.set(id, { value: message, timestamp: Date.now() });
+}
+
+function hasMessageInCache(id: string): boolean {
+  return messageCache.has(id);
+}
 
 /**
  * Creates a monetized HIP-991 topic for the user to post messages
@@ -240,39 +277,59 @@ function setupTopicPolling(
 ): void {
   logger.info('HIP991', `Setting up polling for inbound topic ${agent.inboundTopicId}`);
   
+  // Track the last consensus timestamp we've processed
+  let lastConsensusTimestamp: string | null = null;
+  
   // Poll for new messages every 5 seconds
   setInterval(async () => {
     try {
       const topicId = TopicId.fromString(agent.inboundTopicId);
-      const messages = await get_topic_messages(topicId, 'testnet');
+      
+      // Use timestamp filtering to only fetch messages newer than the last one processed
+      // This is more reliable than just checking message IDs
+      const messages = await get_topic_messages(
+        topicId, 
+        'testnet',
+        lastConsensusTimestamp ? parseFloat(lastConsensusTimestamp) : undefined
+      );
       
       if (messages.length === 0) {
         return;
       }
 
-      // Get the most recent message
-      const latestMessage = messages[0]; // Messages are returned in desc order
-      
-      // Convert message contents to string
-      const messageContent = Buffer.from(latestMessage.message).toString();
-
-      console.log(messageContent);
-      const parsed = JSON.parse(messageContent) as TopicMessage;
-      
-      // Check if we've already processed this message
-      const lastProcessedId = lastProcessedMessageIds.get(agent.inboundTopicId);
-      if (lastProcessedId === parsed.id) {
-        return;
+      // Process messages in chronological order (oldest first)
+      // This ensures messages are handled in the order they were sent
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const message = messages[i];
+        
+        // Update our consensus timestamp tracker with the latest one
+        if (!lastConsensusTimestamp || message.consensus_timestamp > lastConsensusTimestamp) {
+          lastConsensusTimestamp = message.consensus_timestamp;
+        }
+        
+        // Convert message contents to string
+        const messageContent = Buffer.from(message.message).toString();
+        
+        try {
+          const parsed = JSON.parse(messageContent) as TopicMessage;
+          
+          // Check if this is a duplicate message (already processed)
+          if (hasMessageInCache(parsed.id)) {
+            // logger.debug('HIP991', `Skipping already processed message ${parsed.id}`);
+            continue;
+          }
+          
+          logger.info('HIP991', `Received new message from user ${agent.userId}`, { messageId: parsed.id });
+          
+          // Process the message
+          await processUserMessage(serverClient, serverKey, agent, parsed);
+          
+          // Update the last processed message ID
+          lastProcessedMessageIds.set(agent.inboundTopicId, parsed.id);
+        } catch (parseError) {
+          logger.error('HIP991', `Error parsing message: ${messageContent}`, parseError);
+        }
       }
-      
-      logger.info('HIP991', `Received new message from user ${agent.userId}`, { messageId: parsed.id });
-      
-      // Process the message
-      await processUserMessage(serverClient, serverKey, agent, parsed);
-      
-      // Update the last processed message ID
-      lastProcessedMessageIds.set(agent.inboundTopicId, parsed.id);
-      
     } catch (error) {
       logger.error('HIP991', `Error polling inbound topic ${agent.inboundTopicId}`, error);
     }
@@ -365,6 +422,18 @@ async function processUserMessage(
       return;
     }
     
+    // Check if this is a duplicate message (already processed)
+    if (hasMessageInCache(message.id)) {
+      logger.warn('HIP991', `Duplicate message detected: ${message.id}, skipping processing`);
+      return;
+    }
+
+    // Check if a response for this message has already been sent
+    if (hasMessageInCache(message.response_id)) {
+      logger.warn('HIP991', `Response for message ${message.id} already exists, skipping processing`);
+      return;
+    }
+    
     logger.info('HIP991', `Processing user message: ${message.id}`, { 
       prompt: message.prompt.substring(0, 50) + (message.prompt.length > 50 ? '...' : ''),
       responseId: message.response_id
@@ -373,8 +442,8 @@ async function processUserMessage(
     // Update agent timestamp
     agent.lastMessageTimestamp = new Date();
     
-    // Store message in cache
-    messageCache.set(message.id, message);
+    // Store message in cache BEFORE processing to prevent duplicate processing
+    setMessageInCache(message.id, message);
     
     // Generate response using the character
     const response = await generateResponse(message.prompt, agent.character);
@@ -391,7 +460,7 @@ async function processUserMessage(
     await sendAgentResponse(serverClient, serverKey, agent, responseMessage);
     
     // Store response in cache
-    messageCache.set(message.response_id, responseMessage);
+    setMessageInCache(message.response_id, responseMessage);
     
     // If there's a pending promise for this response, resolve it
     const pending = pendingResponses.get(message.response_id);
@@ -400,15 +469,17 @@ async function processUserMessage(
       pending.resolve(response);
       pendingResponses.delete(message.response_id);
     }
+
+    logger.info('HIP991', `Successfully processed message ${message.id} with response ${message.response_id}`);
   } catch (error) {
-    logger.error('HIP991', 'Error processing user message', error);
+    logger.error('HIP991', `Error processing user message ${message.id}`, error);
     
     // If there's a pending promise, reject it
-    const pending = pendingResponses.get(message.response_id);
+    const pending = pendingResponses.get(message.response_id!);
     if (pending) {
       clearTimeout(pending.timeout);
       pending.reject(error);
-      pendingResponses.delete(message.response_id);
+      pendingResponses.delete(message.response_id!);
     }
   }
 }
@@ -549,7 +620,7 @@ export async function sendUserMessage(
  * Get a stored message by its ID
  */
 export function getMessage(messageId: string): TopicMessage | undefined {
-  return messageCache.get(messageId);
+  return getMessageFromCache(messageId);
 }
 
 /**
