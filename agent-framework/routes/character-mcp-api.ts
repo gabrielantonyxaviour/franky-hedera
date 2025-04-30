@@ -233,14 +233,13 @@ async function processInput(userInput: string): Promise<string> {
 // Retrieves and decrypts the server wallet private key
 async function getServerWalletPrivateKey(accountId: string): Promise<{ privateKey: string | null; error: string | null }> {
   // HARDCODED FOR TESTING: Return a fixed private key value directly
-  logger.info('Server Wallet', 'BYPASS: Returning hardcoded private key for testing');
-  return { 
-    privateKey: '380c56cf5607c879be45c358b81b60a769e0e8d9064dd7c4ad9fdc0e1cbe7d14', 
-    error: null 
-  };
+  // logger.info('Server Wallet', 'BYPASS: Returning hardcoded private key for testing');
+  // return { 
+  //   privateKey: '', 
+  //   error: null 
+  // };
   
-  // Original implementation commented out for reference
-  /*
+
   try {
     logger.info('Server Wallet', `Fetching server wallet for account: ${accountId}`);
     
@@ -318,7 +317,7 @@ async function getServerWalletPrivateKey(accountId: string): Promise<{ privateKe
       error: `Error retrieving or decrypting server wallet: ${error instanceof Error ? error.message : String(error)}` 
     };
   }
-  */
+
 }
 
 // Create a Hedera client for the user with the given private key
