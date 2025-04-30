@@ -495,6 +495,15 @@ async function processInput(userInput: string): Promise<string> {
 
 // Retrieves and decrypts the server wallet private key
 async function getServerWalletPrivateKey(accountId: string): Promise<{ privateKey: string | null; error: string | null }> {
+  // HARDCODED FOR TESTING: Return a fixed private key value directly
+  logger.info('Server Wallet', 'BYPASS: Returning hardcoded private key for testing');
+  return { 
+    privateKey: '380c56cf5607c879be45c358b81b60a769e0e8d9064dd7c4ad9fdc0e1cbe7d14', 
+    error: null 
+  };
+  
+  // Original implementation commented out for reference
+  /*
   try {
     logger.info('Server Wallet', `Fetching server wallet for account: ${accountId}`);
     
@@ -572,14 +581,44 @@ async function getServerWalletPrivateKey(accountId: string): Promise<{ privateKe
       error: `Error retrieving or decrypting server wallet: ${error instanceof Error ? error.message : String(error)}` 
     };
   }
+  */
 }
 
 // Create a Hedera client for the user with the given private key
-function createUserClient(accountId: string, privateKey: string): Client {
+async function createUserClient(accountIdOrEvmAddress: string, privateKey: string): Promise<Client> {
   try {
-    const userAccountId = AccountId.fromString(accountId);
-    const userPrivateKey = PrivateKey.fromStringECDSA(privateKey);
-    return Client.forTestnet().setOperator(userAccountId, userPrivateKey);
+    // Check if the input looks like an EVM address
+    if (accountIdOrEvmAddress.startsWith('0x')) {
+      // Handle EVM address by getting the account ID from the mirror node
+      const evmAddress = accountIdOrEvmAddress;
+      
+      try {
+        // Use the mirror node API to get the account ID
+        const response = await fetch(`https://testnet.mirrornode.hedera.com/api/v1/accounts/${evmAddress}`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to get account ID for EVM address: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        const hederaAccountId = data.account;
+        
+        logger.debug('HIP991', `Resolved EVM address ${evmAddress} to Hedera account ID ${hederaAccountId}`);
+        
+        // Now create the client with the resolved account ID
+        const userAccountId = AccountId.fromString(hederaAccountId);
+        const userPrivateKey = PrivateKey.fromStringECDSA(privateKey);
+        return Client.forTestnet().setOperator(userAccountId, userPrivateKey);
+      } catch (error) {
+        logger.error('HIP991', `Error resolving EVM address ${evmAddress}`, error);
+        throw new Error(`Error resolving EVM address: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    } else {
+      // Handle regular Hedera account ID (no changes to this path)
+      const userAccountId = AccountId.fromString(accountIdOrEvmAddress);
+      const userPrivateKey = PrivateKey.fromStringECDSA(privateKey);
+      return Client.forTestnet().setOperator(userAccountId, userPrivateKey);
+    }
   } catch (error) {
     logger.error('HIP991', 'Error creating user client', error);
     throw new Error(`Error creating user client: ${error instanceof Error ? error.message : String(error)}`);
@@ -770,8 +809,30 @@ async function startServer() {
         
         try {
           // Create user client using the decrypted private key
-          const userClient = createUserClient(accountId, privateKey);
-          const userAccountId = AccountId.fromString(accountId);
+          const userClient = await createUserClient(accountId, privateKey);
+          // Check if accountId is an EVM address, if so, get the Hedera account ID from mirror node
+          let userAccountId;
+          if (accountId.startsWith('0x')) {
+            try {
+              // Use the mirror node API to get the account ID
+              const response = await fetch(`https://testnet.mirrornode.hedera.com/api/v1/accounts/${accountId}`);
+              
+              if (!response.ok) {
+                throw new Error(`Failed to get account ID for EVM address: ${response.statusText}`);
+              }
+              
+              const data = await response.json();
+              const hederaAccountId = data.account;
+              
+              logger.debug('API', `Resolved EVM address ${accountId} to Hedera account ID ${hederaAccountId}`);
+              userAccountId = AccountId.fromString(hederaAccountId);
+            } catch (error) {
+              logger.error('API', `Error resolving EVM address ${accountId}`, error);
+              throw new Error(`Error resolving EVM address: ${error instanceof Error ? error.message : String(error)}`);
+            }
+          } else {
+            userAccountId = AccountId.fromString(accountId);
+          }
           
           // Variable to hold the character and fee
           let character: Character | null = null;
@@ -866,70 +927,114 @@ async function startServer() {
         return res.status(400).json({ error: 'account-id header is required' });
       }
       
-      // Check if this user has an active agent
-      if (!hasActiveAgent(accountId)) {
-        return res.status(400).json({ 
-          error: 'No active agent initialized. Please initialize an agent first using the /initialize endpoint.' 
-        });
+      // Resolve EVM address to Hedera account ID if needed
+      let resolvedAccountId = accountId;
+      
+      // Convert EVM address to Hedera account ID before checking agent existence
+      if (accountId.startsWith('0x')) {
+        try {
+          // Use the mirror node API to get the account ID
+          fetch(`https://testnet.mirrornode.hedera.com/api/v1/accounts/${accountId}`)
+            .then(async response => {
+              if (!response.ok) {
+                logger.error('API', `Failed to get account ID for EVM address: ${response.statusText}`);
+                return res.status(400).json({ 
+                  error: `Failed to get account ID for EVM address: ${response.statusText}` 
+                });
+              }
+              
+              const data = await response.json();
+              resolvedAccountId = data.account;
+              
+              logger.debug('API', `Resolved EVM address ${accountId} to Hedera account ID ${resolvedAccountId}`);
+              
+              // Continue with the resolved account ID
+              continueWithResolvedAccountId(resolvedAccountId);
+            })
+            .catch(error => {
+              logger.error('API', `Error resolving EVM address ${accountId}`, error);
+              return res.status(500).json({ 
+                error: `Error resolving EVM address: ${error instanceof Error ? error.message : String(error)}` 
+              });
+            });
+        } catch (error) {
+          logger.error('API', `Error processing EVM address ${accountId}`, error);
+          return res.status(500).json({ 
+            error: `Error processing EVM address: ${error instanceof Error ? error.message : String(error)}` 
+          });
+        }
+      } else {
+        // Regular account ID, continue immediately
+        continueWithResolvedAccountId(resolvedAccountId);
       }
       
-      // First get the server wallet private key
-      getServerWalletPrivateKey(accountId).then(async ({ privateKey, error }) => {
-        if (error) {
-          logger.error('API', 'Error getting server wallet', { accountId, error });
-          return res.status(401).json({ error: `Server wallet access error: ${error}` });
+      // Function to continue processing with the resolved account ID
+      function continueWithResolvedAccountId(resolvedAccountId: string) {
+        // Check if this user has an active agent with the resolved account ID
+        if (!hasActiveAgent(resolvedAccountId)) {
+          return res.status(400).json({ 
+            error: 'No active agent initialized. Please initialize an agent first using the /initialize endpoint.' 
+          });
         }
         
-        if (!privateKey) {
-          logger.error('API', 'No private key returned', { accountId });
-          return res.status(404).json({ error: 'Server wallet not found or not accessible' });
-        }
-        
-        logger.info('API', 'Successfully retrieved server wallet private key', { accountId });
-        
-        try {
-          // Create user client using the decrypted private key
-          const userClient = createUserClient(accountId, privateKey);
-          
-          // Get the agent for this user
-          const agent = getAgentByUserId(accountId);
-          if (!agent) {
-            return res.status(400).json({ 
-              error: 'No active agent found. Please initialize an agent first using the /initialize endpoint.' 
-            });
+        // First get the server wallet private key
+        getServerWalletPrivateKey(accountId).then(async ({ privateKey, error }) => {
+          if (error) {
+            logger.error('API', 'Error getting server wallet', { accountId, error });
+            return res.status(401).json({ error: `Server wallet access error: ${error}` });
           }
           
-          // Send the message to the agent's inbound topic
-          const { messageId, responseId, responsePromise } = await sendUserMessage(
-            userClient,
-            agent,
-            message
-          );
+          if (!privateKey) {
+            logger.error('API', 'No private key returned', { accountId });
+            return res.status(404).json({ error: 'Server wallet not found or not accessible' });
+          }
           
-          // Return immediately with the message IDs
-          res.json({
-            status: 'success',
-            message: 'Message sent successfully',
-            messageId,
-            responseId,
-            outboundTopicId: agent.outboundTopicId,
-            characterName: agent.character.name
-          });
+          logger.info('API', 'Successfully retrieved server wallet private key', { accountId });
           
-          // The response will be processed asynchronously by the agent
-          // The user can retrieve it with the /viewresponse endpoint
-        } catch (error) {
-          logger.error('API', 'Error sending message', error);
+          try {
+            // Create user client using the decrypted private key
+            const userClient = await createUserClient(accountId, privateKey);
+            
+            // Get the agent for this user using the resolved account ID
+            const agent = getAgentByUserId(resolvedAccountId);
+            if (!agent) {
+              return res.status(400).json({ 
+                error: 'No active agent found. Please initialize an agent first using the /initialize endpoint.' 
+              });
+            }
+            
+            // Send the message to the agent's inbound topic
+            const { messageId, responseId, responsePromise } = await sendUserMessage(
+              userClient,
+              agent,
+              message
+            );
+            
+            // Return immediately with the message IDs
+            res.json({
+              status: 'success',
+              message: 'Message sent successfully',
+              messageId,
+              responseId,
+              outboundTopicId: agent.outboundTopicId,
+              characterName: agent.character.name
+            });
+            
+            // The response will be processed asynchronously by the agent
+            // The user can retrieve it with the /viewresponse endpoint
+          } catch (error) {
+            logger.error('API', 'Error sending message', error);
+            res.status(500).json({ 
+              error: `Error sending message: ${error instanceof Error ? error.message : String(error)}` 
+            });
+          }
+        }).catch(error => {
+          logger.error('API', 'Unexpected error in server wallet retrieval', error);
           res.status(500).json({ 
-            error: `Error sending message: ${error instanceof Error ? error.message : String(error)}` 
+            error: `Unexpected error retrieving server wallet: ${error instanceof Error ? error.message : String(error)}` 
           });
-        }
-      }).catch(error => {
-        logger.error('API', 'Unexpected error in server wallet retrieval', error);
-        res.status(500).json({ 
-          error: `Unexpected error retrieving server wallet: ${error instanceof Error ? error.message : String(error)}` 
         });
-      });
+      }
     });
     
     // Get response endpoint
@@ -947,24 +1052,68 @@ async function startServer() {
         return res.status(400).json({ error: 'account-id header is required' });
       }
       
-      // Check if this user has an active agent
-      if (!hasActiveAgent(accountId)) {
-        return res.status(400).json({ 
-          error: 'No active agent initialized. Please initialize an agent first.' 
+      // Resolve EVM address to Hedera account ID if needed
+      let resolvedAccountId = accountId;
+      
+      // Convert EVM address to Hedera account ID before checking agent existence
+      if (accountId.startsWith('0x')) {
+        try {
+          // Use the mirror node API to get the account ID
+          fetch(`https://testnet.mirrornode.hedera.com/api/v1/accounts/${accountId}`)
+            .then(async response => {
+              if (!response.ok) {
+                logger.error('API', `Failed to get account ID for EVM address: ${response.statusText}`);
+                return res.status(400).json({ 
+                  error: `Failed to get account ID for EVM address: ${response.statusText}` 
+                });
+              }
+              
+              const data = await response.json();
+              resolvedAccountId = data.account;
+              
+              logger.debug('API', `Resolved EVM address ${accountId} to Hedera account ID ${resolvedAccountId}`);
+              
+              // Continue with the resolved account ID
+              continueWithResolvedAccountId(resolvedAccountId);
+            })
+            .catch(error => {
+              logger.error('API', `Error resolving EVM address ${accountId}`, error);
+              return res.status(500).json({ 
+                error: `Error resolving EVM address: ${error instanceof Error ? error.message : String(error)}` 
+              });
+            });
+        } catch (error) {
+          logger.error('API', `Error processing EVM address ${accountId}`, error);
+          return res.status(500).json({ 
+            error: `Error processing EVM address: ${error instanceof Error ? error.message : String(error)}` 
+          });
+        }
+      } else {
+        // Regular account ID, continue immediately
+        continueWithResolvedAccountId(resolvedAccountId);
+      }
+      
+      // Function to continue processing with the resolved account ID
+      function continueWithResolvedAccountId(resolvedAccountId: string) {
+        // Check if this user has an active agent with the resolved account ID
+        if (!hasActiveAgent(resolvedAccountId)) {
+          return res.status(400).json({ 
+            error: 'No active agent initialized. Please initialize an agent first.' 
+          });
+        }
+        
+        // Get the message from the cache
+        const message = getMessage(messageId);
+        
+        if (!message) {
+          return res.status(404).json({ error: 'Message not found' });
+        }
+        
+        res.json({
+          status: 'success',
+          message
         });
       }
-      
-      // Get the message from the cache
-      const message = getMessage(messageId);
-      
-      if (!message) {
-        return res.status(404).json({ error: 'Message not found' });
-      }
-      
-      res.json({
-        status: 'success',
-        message
-      });
     });
     
     // Destruct/cleanup agent endpoint
@@ -976,29 +1125,73 @@ async function startServer() {
         return res.status(400).json({ error: 'account-id header is required' });
       }
       
-      // Check if this user has an active agent
-      if (!hasActiveAgent(accountId)) {
-        return res.status(400).json({ 
-          error: 'No active agent to destruct.' 
-        });
+      // Resolve EVM address to Hedera account ID if needed
+      let resolvedAccountId = accountId;
+      
+      // Convert EVM address to Hedera account ID before checking agent existence
+      if (accountId.startsWith('0x')) {
+        try {
+          // Use the mirror node API to get the account ID
+          fetch(`https://testnet.mirrornode.hedera.com/api/v1/accounts/${accountId}`)
+            .then(async response => {
+              if (!response.ok) {
+                logger.error('API', `Failed to get account ID for EVM address: ${response.statusText}`);
+                return res.status(400).json({ 
+                  error: `Failed to get account ID for EVM address: ${response.statusText}` 
+                });
+              }
+              
+              const data = await response.json();
+              resolvedAccountId = data.account;
+              
+              logger.debug('API', `Resolved EVM address ${accountId} to Hedera account ID ${resolvedAccountId}`);
+              
+              // Continue with the resolved account ID
+              continueWithResolvedAccountId(resolvedAccountId);
+            })
+            .catch(error => {
+              logger.error('API', `Error resolving EVM address ${accountId}`, error);
+              return res.status(500).json({ 
+                error: `Error resolving EVM address: ${error instanceof Error ? error.message : String(error)}` 
+              });
+            });
+        } catch (error) {
+          logger.error('API', `Error processing EVM address ${accountId}`, error);
+          return res.status(500).json({ 
+            error: `Error processing EVM address: ${error instanceof Error ? error.message : String(error)}` 
+          });
+        }
+      } else {
+        // Regular account ID, continue immediately
+        continueWithResolvedAccountId(resolvedAccountId);
       }
       
-      // Destroy the agent
-      destroyAgent(state.serverClient!, accountId).then(success => {
-        if (success) {
-          res.json({
-            status: 'success',
-            message: 'Agent destroyed successfully'
+      // Function to continue processing with the resolved account ID
+      function continueWithResolvedAccountId(resolvedAccountId: string) {
+        // Check if this user has an active agent with the resolved account ID
+        if (!hasActiveAgent(resolvedAccountId)) {
+          return res.status(400).json({ 
+            error: 'No active agent to destruct.' 
           });
-        } else {
-          res.status(500).json({ error: 'Failed to destroy agent' });
         }
-      }).catch(error => {
-        logger.error('API', 'Error destroying agent', error);
-        res.status(500).json({ 
-          error: `Error destroying agent: ${error instanceof Error ? error.message : String(error)}` 
+        
+        // Destroy the agent using the resolved account ID
+        destroyAgent(state.serverClient!, resolvedAccountId).then(success => {
+          if (success) {
+            res.json({
+              status: 'success',
+              message: 'Agent destroyed successfully'
+            });
+          } else {
+            res.status(500).json({ error: 'Failed to destroy agent' });
+          }
+        }).catch(error => {
+          logger.error('API', 'Error destroying agent', error);
+          res.status(500).json({ 
+            error: `Error destroying agent: ${error instanceof Error ? error.message : String(error)}` 
+          });
         });
-      });
+      }
     });
     
     // List available characters
@@ -1021,47 +1214,92 @@ async function startServer() {
         return res.status(400).json({ error: 'account-id header is required' });
       }
       
-      // Check the server wallet status
-      publicClient.readContract({
-        address: FRANKY_ADDRESS as `0x${string}`,
-        abi: FRANKY_ABI,
-        functionName: "serverWalletsMapping",
-        args: [accountId]
-      }).then((serverWalletData) => {
-        // Cast the result to match our ServerWallet interface
-        const serverWallet = serverWalletData as unknown as {
-          owner: string;
-          walletAddress: string;
-          encryptedPrivateKey: string;
-          privateKeyHash: string;
-        };
-        
-        const isConfigured = serverWallet.walletAddress && 
-                             serverWallet.walletAddress !== '0x0000000000000000000000000000000000000000';
-        
-        // Check if user has an active agent
-        const hasAgent = hasActiveAgent(accountId);
-        const agent = getAgentByUserId(accountId);
-        
-        res.json({
-          accountId,
-          serverWalletConfigured: isConfigured,
-          serverWalletAddress: isConfigured ? serverWallet.walletAddress : null,
-          hasEncryptedKey: isConfigured && serverWallet.encryptedPrivateKey ? true : false,
-          hasActiveAgent: hasAgent,
-          agentInfo: hasAgent && agent ? {
-            characterName: agent.character.name,
-            characterId: agent.character.id,
-            inboundTopicId: agent.inboundTopicId,
-            outboundTopicId: agent.outboundTopicId
-          } : null
+      // Resolve EVM address to Hedera account ID if needed
+      let resolvedAccountId = accountId;
+      
+      // Convert EVM address to Hedera account ID before checking agent existence
+      if (accountId.startsWith('0x')) {
+        try {
+          // Use the mirror node API to get the account ID
+          fetch(`https://testnet.mirrornode.hedera.com/api/v1/accounts/${accountId}`)
+            .then(async response => {
+              if (!response.ok) {
+                logger.error('API', `Failed to get account ID for EVM address: ${response.statusText}`);
+                return res.status(400).json({ 
+                  error: `Failed to get account ID for EVM address: ${response.statusText}` 
+                });
+              }
+              
+              const data = await response.json();
+              resolvedAccountId = data.account;
+              
+              logger.debug('API', `Resolved EVM address ${accountId} to Hedera account ID ${resolvedAccountId}`);
+              
+              // Continue with the resolved account ID
+              continueWithResolvedAccountId(resolvedAccountId);
+            })
+            .catch(error => {
+              logger.error('API', `Error resolving EVM address ${accountId}`, error);
+              return res.status(500).json({ 
+                error: `Error resolving EVM address: ${error instanceof Error ? error.message : String(error)}` 
+              });
+            });
+        } catch (error) {
+          logger.error('API', `Error processing EVM address ${accountId}`, error);
+          return res.status(500).json({ 
+            error: `Error processing EVM address: ${error instanceof Error ? error.message : String(error)}` 
+          });
+        }
+      } else {
+        // Regular account ID, continue immediately
+        continueWithResolvedAccountId(resolvedAccountId);
+      }
+      
+      // Function to continue processing with the resolved account ID
+      function continueWithResolvedAccountId(resolvedAccountId: string) {
+        // Check the server wallet status using original accountId (for blockchain query)
+        publicClient.readContract({
+          address: FRANKY_ADDRESS as `0x${string}`,
+          abi: FRANKY_ABI,
+          functionName: "serverWalletsMapping",
+          args: [accountId]
+        }).then((serverWalletData) => {
+          // Cast the result to match our ServerWallet interface
+          const serverWallet = serverWalletData as unknown as {
+            owner: string;
+            walletAddress: string;
+            encryptedPrivateKey: string;
+            privateKeyHash: string;
+          };
+          
+          const isConfigured = serverWallet.walletAddress && 
+                              serverWallet.walletAddress !== '0x0000000000000000000000000000000000000000';
+          
+          // Check if user has an active agent using the resolved account ID
+          const hasAgent = hasActiveAgent(resolvedAccountId);
+          const agent = getAgentByUserId(resolvedAccountId);
+          
+          res.json({
+            accountId,
+            resolvedAccountId,
+            serverWalletConfigured: isConfigured,
+            serverWalletAddress: isConfigured ? serverWallet.walletAddress : null,
+            hasEncryptedKey: isConfigured && serverWallet.encryptedPrivateKey ? true : false,
+            hasActiveAgent: hasAgent,
+            agentInfo: hasAgent && agent ? {
+              characterName: agent.character.name,
+              characterId: agent.character.id,
+              inboundTopicId: agent.inboundTopicId,
+              outboundTopicId: agent.outboundTopicId
+            } : null
+          });
+        }).catch((error) => {
+          logger.error('API', 'Error checking server wallet status', error);
+          res.status(500).json({ 
+            error: `Error checking server wallet status: ${error instanceof Error ? error.message : String(error)}`
+          });
         });
-      }).catch((error) => {
-        logger.error('API', 'Error checking server wallet status', error);
-        res.status(500).json({ 
-          error: `Error checking server wallet status: ${error instanceof Error ? error.message : String(error)}`
-        });
-      });
+      }
     });
     
     // Start the server
