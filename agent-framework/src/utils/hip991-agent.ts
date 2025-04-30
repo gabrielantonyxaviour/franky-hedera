@@ -13,6 +13,8 @@ import {
 import { Character } from "../types";
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "./logger";
+import { get_topic_messages } from "../tools/queries/hcs/get_topic_messages";
+import { MCPOpenAIClient } from "./mcp-openai";
 
 // Interface for the agent instance
 export interface HIP991Agent {
@@ -34,6 +36,93 @@ export interface TopicMessage {
   timestamp: number;
 }
 
+// Interface for MCP state
+interface MCPState {
+  openAIClient?: MCPOpenAIClient;
+  ollamaAvailable: boolean;
+}
+
+// Global MCP state
+let mcpState: MCPState = {
+  ollamaAvailable: false
+};
+
+// Function to initialize MCP state
+export async function initializeMCPState(openAIClient: MCPOpenAIClient, ollamaAvailable: boolean) {
+  mcpState = {
+    openAIClient,
+    ollamaAvailable
+  };
+}
+
+// Helper function to create character prompt
+function createCharacterPrompt(character: Character, prompt: string): string {
+  return `You are roleplaying as ${character.name}. ${character.description}\n\nUser: ${prompt}`;
+}
+
+// Wrapper for queryOllama to use our fallback model and limit response length
+async function queryOllamaWithFallback(prompt: string, character?: Character): Promise<string> {
+  const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
+  const modelToUse = process.env.OLLAMA_FALLBACK_MODEL || process.env.OLLAMA_MODEL || 'qwen2.5:3b';
+  
+  logger.info('API', `Using Ollama model: ${modelToUse}`);
+  
+  const formattedPrompt = character 
+    ? createCharacterPrompt(character, prompt)
+    : prompt;
+  
+  try {
+    const response = await fetch(`${ollamaBaseUrl}/api/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: modelToUse,
+        prompt: formattedPrompt,
+        stream: false,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.error('API', `HTTP error ${response.status}`, {
+        errorText,
+        status: response.status
+      });
+      throw new Error(`Ollama API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json() as { response: string };
+    let ollamaResponse = data.response;
+    
+    if (ollamaResponse.length > 512) {
+      logger.info('API', `Limiting Ollama response from ${ollamaResponse.length} to 512 characters`);
+      ollamaResponse = ollamaResponse.substring(0, 509) + '...';
+    }
+    
+    return ollamaResponse;
+  } catch (error) {
+    logger.error('API', 'Error querying Ollama', error);
+    throw error;
+  }
+}
+
+// Function to detect if input requires blockchain tools
+function enhancedToolDetection(userInput: string): boolean {
+  const blockchainKeywords = [
+    'token', 'nft', 'transaction', 'transfer', 'balance', 'account',
+    'smart contract', 'hedera', 'hbar', 'hash', 'block', 'wallet',
+    'send', 'receive', 'crypto', 'blockchain', 'ledger', 'consensus',
+    'node', 'network', 'fee', 'gas', 'mint', 'burn', 'deploy'
+  ];
+
+  const lowercaseInput = userInput.toLowerCase();
+  return blockchainKeywords.some(keyword => 
+    lowercaseInput.includes(keyword.toLowerCase())
+  );
+}
+
 // Keeps track of active agent instances
 const activeAgents = new Map<string, HIP991Agent>();
 
@@ -46,6 +135,9 @@ const pendingResponses = new Map<string, {
 
 // Cache of message history
 const messageCache = new Map<string, TopicMessage>();
+
+// Keep track of last processed message ID per topic
+const lastProcessedMessageIds = new Map<string, string>();
 
 /**
  * Creates a monetized HIP-991 topic for the user to post messages
@@ -135,6 +227,55 @@ export async function createResponseTopic(
 }
 
 /**
+ * Set up polling for the inbound topic to receive user messages
+ */
+function setupTopicPolling(
+  serverClient: Client,
+  serverKey: PrivateKey,
+  agent: HIP991Agent
+): void {
+  logger.info('HIP991', `Setting up polling for inbound topic ${agent.inboundTopicId}`);
+  
+  // Poll for new messages every 5 seconds
+  setInterval(async () => {
+    try {
+      const topicId = TopicId.fromString(agent.inboundTopicId);
+      const messages = await get_topic_messages(topicId, 'testnet');
+      
+      if (messages.length === 0) {
+        return;
+      }
+
+      // Get the most recent message
+      const latestMessage = messages[0]; // Messages are returned in desc order
+      
+      // Convert message contents to string
+      const messageContent = Buffer.from(latestMessage.message).toString();
+
+      console.log(messageContent);
+      const parsed = JSON.parse(messageContent) as TopicMessage;
+      
+      // Check if we've already processed this message
+      const lastProcessedId = lastProcessedMessageIds.get(agent.inboundTopicId);
+      if (lastProcessedId === parsed.id) {
+        return;
+      }
+      
+      logger.info('HIP991', `Received new message from user ${agent.userId}`, { messageId: parsed.id });
+      
+      // Process the message
+      await processUserMessage(serverClient, serverKey, agent, parsed);
+      
+      // Update the last processed message ID
+      lastProcessedMessageIds.set(agent.inboundTopicId, parsed.id);
+      
+    } catch (error) {
+      logger.error('HIP991', `Error polling inbound topic ${agent.inboundTopicId}`, error);
+    }
+  }, 5000); // Poll every 5 seconds
+}
+
+/**
  * Initialize a new agent instance for a user with a specific character
  */
 export async function initializeAgent(
@@ -163,7 +304,7 @@ export async function initializeAgent(
       serverKey,
       userAccountId,
       userPublicKey,
-      fee, // Pass the fee parameter
+      fee,
       `${character.name} Inbound Topic for ${userId}`
     );
     
@@ -188,8 +329,8 @@ export async function initializeAgent(
     // Store agent instance
     activeAgents.set(userId, agent);
     
-    // Set up topic subscriptions
-    setupTopicSubscriptions(serverClient, serverKey, agent);
+    // Set up topic polling instead of subscriptions
+    setupTopicPolling(serverClient, serverKey, agent);
     
     logger.info('HIP991', 'Agent initialized successfully', {
       userId,
@@ -203,55 +344,6 @@ export async function initializeAgent(
     logger.error('HIP991', 'Error initializing agent', error);
     throw error;
   }
-}
-
-/**
- * Set up subscription to the inbound topic to receive user messages
- */
-function setupTopicSubscriptions(
-  serverClient: Client,
-  serverKey: PrivateKey,
-  agent: HIP991Agent
-): void {
-  logger.info('HIP991', `Setting up subscription for inbound topic ${agent.inboundTopicId}`);
-  
-  // Keep track of the last processed sequence number as a string
-  let lastProcessedSequence = "0";
-  
-  // Subscribe to the inbound topic
-  const topicId = TopicId.fromString(agent.inboundTopicId);
-  
-  new TopicMessageQuery()
-    .setTopicId(topicId)
-    .subscribe(
-      serverClient, 
-      (message) => {
-        // Skip if we've already processed this message
-        const currentSequence = message.sequenceNumber.toString();
-        if (currentSequence <= lastProcessedSequence && lastProcessedSequence !== "0") {
-          return;
-        }
-        
-        lastProcessedSequence = currentSequence;
-        
-        try {
-          // Convert message contents to string
-          const messageContent = Buffer.from(message.contents).toString();
-          const parsed = JSON.parse(messageContent) as TopicMessage;
-          logger.info('HIP991', `Received message from user ${agent.userId}`, { messageId: parsed.id });
-          
-          // Process the message
-          processUserMessage(serverClient, serverKey, agent, parsed).catch(error => {
-            logger.error('HIP991', 'Error processing user message', error);
-          });
-        } catch (error) {
-          logger.error('HIP991', 'Error processing inbound message', error);
-        }
-      },
-      (error) => {
-        logger.error('HIP991', `Error in topic subscription for ${agent.inboundTopicId}`, error);
-      }
-    );
 }
 
 /**
@@ -280,10 +372,72 @@ async function processUserMessage(
     // Store message in cache
     messageCache.set(message.id, message);
     
-    // Generate agent's response based on the prompt and character
-    // In a real implementation, we would use OpenAI or another model here
-    // For now, we'll create a simple response
-    const response = `${agent.character.name}: I've received your message "${message.prompt}". This is a placeholder response.`;
+    // Generate response using MCP or Ollama
+    let response: string;
+    const requiresTools = enhancedToolDetection(message.prompt);
+    
+    if (requiresTools && mcpState.openAIClient) {
+      logger.info('HIP991', 'Using MCP for blockchain-related query');
+      try {
+        const { response: mcpResponse, toolCalls } = await mcpState.openAIClient.generateResponse(message.prompt);
+        
+        if (toolCalls.length > 0) {
+          logger.info('HIP991', `Executing tools: ${toolCalls.map(tc => tc.name).join(', ')}`);
+          const toolResults = await mcpState.openAIClient.executeTools(toolCalls);
+          
+          response = await mcpState.openAIClient.generateFollowUp(
+            message.prompt, 
+            toolResults, 
+            undefined, 
+            agent.character.name
+          );
+        } else {
+          response = `${agent.character.name}: ${mcpResponse}`;
+        }
+      } catch (error) {
+        logger.error('HIP991', 'Error using MCP', error);
+        response = `Sorry, I encountered an error processing your query: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    } else if (mcpState.ollamaAvailable) {
+      logger.info('HIP991', 'Using Ollama for simple query');
+      try {
+        const ollamaResponse = await queryOllamaWithFallback(message.prompt, agent.character);
+        response = `${agent.character.name}: ${ollamaResponse}`;
+      } catch (error) {
+        logger.error('HIP991', 'Error with Ollama', error);
+        
+        if (mcpState.openAIClient) {
+          logger.info('HIP991', 'Falling back to OpenAI');
+          try {
+            const { response: openAIResponse } = await mcpState.openAIClient.generateResponse(
+              message.prompt,
+              `You are roleplaying as ${agent.character.name}. ${agent.character.description}`
+            );
+            response = `${agent.character.name}: ${openAIResponse}`;
+          } catch (fallbackError) {
+            logger.error('HIP991', 'Error with OpenAI fallback', fallbackError);
+            response = `Sorry, I encountered an error generating a response: ${error instanceof Error ? error.message : String(error)}`;
+          }
+        } else {
+          response = `Sorry, I encountered an error generating a response: ${error instanceof Error ? error.message : String(error)}`;
+        }
+      }
+    } else if (mcpState.openAIClient) {
+      logger.info('HIP991', 'Using OpenAI for response (Ollama not available)');
+      try {
+        const { response: openAIResponse } = await mcpState.openAIClient.generateResponse(
+          message.prompt,
+          `You are roleplaying as ${agent.character.name}. ${agent.character.description}`
+        );
+        response = `${agent.character.name}: ${openAIResponse}`;
+      } catch (error) {
+        logger.error('HIP991', 'Error with OpenAI', error);
+        response = `Sorry, I encountered an error generating a response: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    } else {
+      logger.error('HIP991', 'No response generation service available');
+      response = `${agent.character.name}: Sorry, I'm unable to generate responses at the moment. Please try again later.`;
+    }
     
     // Create response message
     const responseMessage: TopicMessage = {

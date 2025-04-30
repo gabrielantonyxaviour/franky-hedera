@@ -34,7 +34,7 @@ export const get_topic_messages = async (
                 throw new Error(`HTTP error! status: ${response.status}. Message: ${response.statusText}`);
             }
 
-            const data: HCSMessageApiResponse = await response.json();
+            const data = await response.json() as HCSMessageApiResponse;
 
             array.push(...data.messages);
 

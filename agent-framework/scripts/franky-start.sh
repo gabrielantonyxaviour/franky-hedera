@@ -333,7 +333,7 @@ create_hedera_wallet() {
           const createAccountTx = new AccountCreateTransaction()
             .setKey(newPublicKey)
             .setAlias(newPublicKey.toEvmAddress())
-            .setInitialBalance(new Hbar(500));
+            .setInitialBalance(new Hbar(50));
             
           // Execute the transaction
           const txResponse = await createAccountTx.execute(client);
