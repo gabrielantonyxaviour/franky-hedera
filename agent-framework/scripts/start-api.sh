@@ -102,7 +102,7 @@ fi
 
 # Run the API server
 echo -e "${GREEN}Starting API server on ${API_HOST}:${API_PORT}...${NC}"
-API_PORT=${API_PORT} API_HOST=${API_HOST} npx ts-node --transpile-only tests/character-mcp-api.ts
+API_PORT=${API_PORT} API_HOST=${API_HOST} npx ts-node --transpile-only routes/character-mcp-api.ts
 
 # This part will only execute if the server exits normally
 cleanup 

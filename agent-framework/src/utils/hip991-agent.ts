@@ -15,6 +15,7 @@ import { v4 as uuidv4 } from "uuid";
 import { logger } from "./logger";
 import { get_topic_messages } from "../tools/queries/hcs/get_topic_messages";
 import { MCPOpenAIClient } from "./mcp-openai";
+import { generateResponse } from "./response-generator";
 
 // Interface for the agent instance
 export interface HIP991Agent {
@@ -40,18 +41,21 @@ export interface TopicMessage {
 interface MCPState {
   openAIClient?: MCPOpenAIClient;
   ollamaAvailable: boolean;
+  activeCharacter?: Character | null;
 }
 
 // Global MCP state
 let mcpState: MCPState = {
-  ollamaAvailable: false
+  ollamaAvailable: false,
+  activeCharacter: null
 };
 
 // Function to initialize MCP state
-export async function initializeMCPState(openAIClient: MCPOpenAIClient, ollamaAvailable: boolean) {
+export async function initializeMCPState(openAIClient: MCPOpenAIClient, ollamaAvailable: boolean, character: Character) {
   mcpState = {
     openAIClient,
-    ollamaAvailable
+    ollamaAvailable,
+    activeCharacter: character
   };
 }
 
@@ -372,72 +376,8 @@ async function processUserMessage(
     // Store message in cache
     messageCache.set(message.id, message);
     
-    // Generate response using MCP or Ollama
-    let response: string;
-    const requiresTools = enhancedToolDetection(message.prompt);
-    
-    if (requiresTools && mcpState.openAIClient) {
-      logger.info('HIP991', 'Using MCP for blockchain-related query');
-      try {
-        const { response: mcpResponse, toolCalls } = await mcpState.openAIClient.generateResponse(message.prompt);
-        
-        if (toolCalls.length > 0) {
-          logger.info('HIP991', `Executing tools: ${toolCalls.map(tc => tc.name).join(', ')}`);
-          const toolResults = await mcpState.openAIClient.executeTools(toolCalls);
-          
-          response = await mcpState.openAIClient.generateFollowUp(
-            message.prompt, 
-            toolResults, 
-            undefined, 
-            agent.character.name
-          );
-        } else {
-          response = `${agent.character.name}: ${mcpResponse}`;
-        }
-      } catch (error) {
-        logger.error('HIP991', 'Error using MCP', error);
-        response = `Sorry, I encountered an error processing your query: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    } else if (mcpState.ollamaAvailable) {
-      logger.info('HIP991', 'Using Ollama for simple query');
-      try {
-        const ollamaResponse = await queryOllamaWithFallback(message.prompt, agent.character);
-        response = `${agent.character.name}: ${ollamaResponse}`;
-      } catch (error) {
-        logger.error('HIP991', 'Error with Ollama', error);
-        
-        if (mcpState.openAIClient) {
-          logger.info('HIP991', 'Falling back to OpenAI');
-          try {
-            const { response: openAIResponse } = await mcpState.openAIClient.generateResponse(
-              message.prompt,
-              `You are roleplaying as ${agent.character.name}. ${agent.character.description}`
-            );
-            response = `${agent.character.name}: ${openAIResponse}`;
-          } catch (fallbackError) {
-            logger.error('HIP991', 'Error with OpenAI fallback', fallbackError);
-            response = `Sorry, I encountered an error generating a response: ${error instanceof Error ? error.message : String(error)}`;
-          }
-        } else {
-          response = `Sorry, I encountered an error generating a response: ${error instanceof Error ? error.message : String(error)}`;
-        }
-      }
-    } else if (mcpState.openAIClient) {
-      logger.info('HIP991', 'Using OpenAI for response (Ollama not available)');
-      try {
-        const { response: openAIResponse } = await mcpState.openAIClient.generateResponse(
-          message.prompt,
-          `You are roleplaying as ${agent.character.name}. ${agent.character.description}`
-        );
-        response = `${agent.character.name}: ${openAIResponse}`;
-      } catch (error) {
-        logger.error('HIP991', 'Error with OpenAI', error);
-        response = `Sorry, I encountered an error generating a response: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    } else {
-      logger.error('HIP991', 'No response generation service available');
-      response = `${agent.character.name}: Sorry, I'm unable to generate responses at the moment. Please try again later.`;
-    }
+    // Generate response using the character
+    const response = await generateResponse(message.prompt, agent.character);
     
     // Create response message
     const responseMessage: TopicMessage = {
@@ -543,7 +483,7 @@ export async function sendUserMessage(
   userClient: Client,
   agent: HIP991Agent,
   prompt: string,
-  timeoutMs: number = 30000
+  timeoutMs: number = 300000
 ): Promise<{ messageId: string, responseId: string, responsePromise: Promise<string> }> {
   return new Promise(async (resolve, reject) => {
     try {

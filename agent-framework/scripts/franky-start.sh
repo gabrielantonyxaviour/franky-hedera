@@ -945,7 +945,7 @@ start_api_server() {
   log_status "Launching character-mcp-api server..."
   
   # Start the API server using ts-node directly
-  npx ts-node --transpile-only tests/character-mcp-api.ts > "$API_LOG_FILE" 2>&1 &
+  npx ts-node --transpile-only routes/character-mcp-api.ts > "$API_LOG_FILE" 2>&1 &
   API_PID=$!
   
   # Wait a moment for startup

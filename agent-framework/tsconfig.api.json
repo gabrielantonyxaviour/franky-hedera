@@ -10,6 +10,6 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["tests/character-mcp-api.ts"],
+  "include": ["routes/character-mcp-api.ts"],
   "exclude": ["node_modules"]
 } 

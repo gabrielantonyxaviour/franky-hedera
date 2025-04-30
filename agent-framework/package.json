@@ -4,8 +4,8 @@
   "description": "Agent framework for Franky with server wallet integration",
   "main": "index.js",
   "scripts": {
-    "start": "ts-node tests/character-mcp-api.ts",
-    "dev": "nodemon --watch src --watch tests --exec ts-node tests/character-mcp-api.ts",
+    "start": "ts-node routes/character-mcp-api.ts",
+    "dev": "nodemon --watch src --watch routes --exec ts-node routes/character-mcp-api.ts",
     "test": "jest"
   },
   "dependencies": {
