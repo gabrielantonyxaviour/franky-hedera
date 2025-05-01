@@ -1,87 +1,86 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
+import { supabase } from "@/lib/supabase";
+import { NextResponse } from "next/server";
 
 export interface Agent {
-  id: string
-  name: string
-  subname: string
-  description: string
-  personality: string
-  scenario: string
-  first_mes: string
-  mes_example: string
-  creator_comment: string
-  tags: string[]
-  talkativeness: number
-  is_favorite: boolean
-  device_address: string
-  owner_address: string
-  per_api_call_fee: string
-  is_public: boolean
-  tools: string[]
-  tx_hash: string
-  created_at: string
+  id: string;
+  name: string;
+  subname: string;
+  description: string;
+  personality: string;
+  scenario: string;
+  first_mes: string;
+  mes_example: string;
+  creator_comment: string;
+  tags: string[];
+  talkativeness: number;
+  is_favorite: boolean;
+  device_address: string;
+  owner_address: string;
+  per_api_call_fee: string;
+  is_public: boolean;
+  tools: string[];
+  tx_hash: string;
+  created_at: string;
 }
 
 // GET /api/db/agents - Get all agents
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const address = searchParams.get('address')
-  const subname = searchParams.get('subname')
-  
-  const supabase = createRouteHandlerClient({ cookies })
-  
+  const { searchParams } = new URL(request.url);
+  const address = searchParams.get("address");
+  const subname = searchParams.get("subname");
+
   try {
     if (subname) {
       // Get agent by subname
       const { data, error } = await supabase
-        .from('agents')
-        .select('*')
-        .eq('subname', subname.toLowerCase())
-        .single()
+        .from("agents")
+        .select("*")
+        .eq("subname", subname.toLowerCase())
+        .single();
 
-      if (error) throw error
-      
-      return NextResponse.json(transformAgentData(data))
+      if (error) throw error;
+
+      return NextResponse.json(transformAgentData(data));
     }
 
     if (address) {
       // Get agent by device or owner address
       const { data, error } = await supabase
-        .from('agents')
-        .select('*')
-        .or(`device_address.eq.${address.toLowerCase()},owner_address.eq.${address.toLowerCase()}`)
+        .from("agents")
+        .select("*")
+        .or(
+          `device_address.eq.${address.toLowerCase()},owner_address.eq.${address.toLowerCase()}`
+        );
 
-      if (error) throw error
-      
-      return NextResponse.json(data.map(transformAgentData))
+      if (error) throw error;
+
+      return NextResponse.json(data.map(transformAgentData));
     }
 
     // Get all agents
     const { data, error } = await supabase
-      .from('agents')
-      .select('*')
-      .order('created_at', { ascending: false })
+      .from("agents")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-    if (error) throw error
+    if (error) throw error;
 
-    return NextResponse.json(data.map(transformAgentData))
-
+    return NextResponse.json(data.map(transformAgentData));
   } catch (error) {
     if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 })
+    return NextResponse.json(
+      { error: "An unknown error occurred" },
+      { status: 500 }
+    );
   }
 }
 
 // POST /api/db/agents - Create new agent record
 export async function POST(request: Request) {
-  const supabase = createRouteHandlerClient({ cookies })
-  
   try {
-    const json = await request.json()
+    const json = await request.json();
     const {
       name,
       subname,
@@ -99,11 +98,11 @@ export async function POST(request: Request) {
       per_api_call_fee,
       is_public,
       tools,
-      tx_hash
-    } = json
+      tx_hash,
+    } = json;
 
     const { data, error } = await supabase
-      .from('agents')
+      .from("agents")
       .insert([
         {
           name,
@@ -123,21 +122,23 @@ export async function POST(request: Request) {
           is_public,
           tools,
           tx_hash,
-          created_at: new Date().toISOString()
-        }
+          created_at: new Date().toISOString(),
+        },
       ])
       .select()
-      .single()
+      .single();
 
-    if (error) throw error
+    if (error) throw error;
 
-    return NextResponse.json(transformAgentData(data))
-
+    return NextResponse.json(transformAgentData(data));
   } catch (error) {
     if (error instanceof Error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 })
+    return NextResponse.json(
+      { error: "An unknown error occurred" },
+      { status: 500 }
+    );
   }
 }
 
@@ -162,6 +163,6 @@ function transformAgentData(data: Agent) {
     isPublic: data.is_public,
     tools: data.tools,
     txHash: data.tx_hash,
-    createdAt: data.created_at
-  }
-} 
+    createdAt: data.created_at,
+  };
+}
