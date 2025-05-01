@@ -1112,6 +1112,39 @@ function CreateAgentContent({
           }
         );
 
+        // Additional step: Save to Supabase (non-blocking)
+        try {
+          await fetch('/api/db/agents', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: constructedCharacter.name,
+              subname: subname,
+              description: constructedCharacter.description,
+              personality: constructedCharacter.personality,
+              scenario: constructedCharacter.scenario,
+              first_mes: constructedCharacter.first_mes,
+              mes_example: constructedCharacter.mes_example,
+              creator_comment: constructedCharacter.creatorcomment,
+              tags: constructedCharacter.tags,
+              talkativeness: constructedCharacter.talkativeness,
+              is_favorite: constructedCharacter.fav,
+              device_address: deviceInfo.id.toLowerCase(),
+              owner_address: accountId?.toLowerCase() || '',
+              per_api_call_fee: perApiCallFee,
+              is_public: isPublic,
+              tools: selectedTools.map(tool => tool.id),
+              metadata_url: characterConfigUrl,
+              tx_hash: hash.toString()
+            }),
+          })
+        } catch (dbError) {
+          // Log but don't affect main flow
+          console.warn('Failed to save to database (non-critical):', dbError)
+        }
+
         setTransactionHash(hash);
       } catch (error: any) {
         console.error("Transaction signing error:", error);
