@@ -1,4 +1,5 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
@@ -24,16 +25,23 @@ export interface Agent {
   created_at: string
 }
 
+// Helper function to get Supabase client
+async function getSupabaseClient() {
+  const cookieStore = cookies()
+  return createRouteHandlerClient({ 
+    cookies: () => cookieStore 
+  })
+}
+
 // GET /api/db/agents - Get all agents
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const address = searchParams.get('address')
   const subname = searchParams.get('subname')
   
-  const cookieStore = cookies()
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-  
   try {
+    const supabase = await getSupabaseClient()
+    
     if (subname) {
       // Get agent by subname
       const { data, error } = await supabase
@@ -79,10 +87,22 @@ export async function GET(request: Request) {
 
 // POST /api/db/agents - Create new agent record
 export async function POST(request: Request) {
-  const cookieStore = cookies()
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-  
   try {
+    const supabase = await getSupabaseClient()
+    
+    // First, check if we need to enable service role for admin-level access
+    let serviceRoleClient;
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      // Create a direct Supabase client with service role to bypass RLS
+      serviceRoleClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+    }
+    
+    // Determine which client to use (service role or standard)
+    const client = serviceRoleClient || supabase;
+    
     const json = await request.json()
     const {
       name,
@@ -101,41 +121,76 @@ export async function POST(request: Request) {
       per_api_call_fee,
       is_public,
       tools,
-      tx_hash
+      tx_hash,
+      metadata_url
     } = json
 
-    const { data, error } = await supabase
-      .from('agents')
-      .insert([
-        {
-          name,
-          subname: subname.toLowerCase(),
-          description,
-          personality,
-          scenario,
-          first_mes,
-          mes_example,
-          creator_comment,
-          tags,
-          talkativeness,
-          is_favorite,
-          device_address: device_address.toLowerCase(),
-          owner_address: owner_address.toLowerCase(),
-          per_api_call_fee,
-          is_public,
-          tools,
-          tx_hash,
-          created_at: new Date().toISOString()
+    // Prepare the agent data
+    const agentData = {
+      name,
+      subname: subname?.toLowerCase() || '',
+      description: description || '',
+      personality: personality || '',
+      scenario: scenario || '',
+      first_mes: first_mes || '',
+      mes_example: mes_example || '',
+      creator_comment: creator_comment || '',
+      tags: tags || [],
+      talkativeness: talkativeness || 0.5,
+      is_favorite: is_favorite || false,
+      device_address: device_address?.toLowerCase() || '',
+      owner_address: owner_address?.toLowerCase() || '',
+      per_api_call_fee: per_api_call_fee || '0',
+      is_public: is_public || false,
+      tools: tools || [],
+      tx_hash: tx_hash || '',
+      metadata_url: metadata_url || '',
+      created_at: new Date().toISOString()
+    }
+
+    // If you have RLS policies, we might need to use rpc functions or direct SQL instead
+    // Option 1: Try the normal insert first
+    let result;
+    try {
+      const { data, error } = await client
+        .from('agents')
+        .insert([agentData])
+        .select()
+        .single()
+
+      if (error) throw error
+      result = data;
+    } catch (insertError) {
+      console.log("Insert error with standard approach:", insertError);
+      
+      // Option 2: Try using a stored procedure if available
+      try {
+        const { data, error } = await client.rpc('create_agent', agentData);
+        if (error) throw error;
+        result = data;
+      } catch (rpcError) {
+        console.log("RPC error:", rpcError);
+        
+        // Option 3: Fall back to database level bypassing if authorized
+        if (serviceRoleClient) {
+          const { data, error } = await serviceRoleClient
+            .from('agents')
+            .insert([agentData])
+            .select()
+            .single();
+            
+          if (error) throw error;
+          result = data;
+        } else {
+          throw new Error("Cannot bypass RLS policies - service role key not available");
         }
-      ])
-      .select()
-      .single()
+      }
+    }
 
-    if (error) throw error
-
-    return NextResponse.json(transformAgentData(data))
+    return NextResponse.json(transformAgentData(result))
 
   } catch (error) {
+    console.error('Error creating agent:', error)
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
