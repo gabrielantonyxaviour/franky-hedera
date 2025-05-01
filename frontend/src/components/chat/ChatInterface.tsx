@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { v4 as uuidv4 } from 'uuid'
 import { FiCopy, FiCheck, FiSmartphone, FiTerminal, FiDownload, FiServer } from 'react-icons/fi'
 import Link from 'next/link'
+import DeviceSelector from './DeviceSelector'
 
 type MessageRole = 'user' | 'assistant'
 
@@ -244,175 +245,183 @@ export default function ChatInterface({
       className="w-full"
     >
       {isOpen && (
-        <><div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full"
-          style={{
-            background:
-              "radial-gradient(circle at center, rgba(0,255,136,0.2) 0%, transparent 70%)",
-          }}
-        />
-
-          <div className="flex flex-col w-full max-w-3xl h-full px-4 pt-20 pb-8 mx-auto">
-            {messages.length === 0 ? (
-              <div className="flex flex-col flex-1 items-center justify-center">
-                <h1 className="text-4xl font-semibold text-white mb-12">What can I help with?</h1>
-                <div className="w-full max-w-[800px]">
-                  <div className="relative shadow-[0_0_10px_rgba(0,255,136,0.15)] rounded-2xl">
-                    <textarea
-                      rows={1}
-                      placeholder="Ask anything"
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      className="w-full py-3.5 pl-4 pr-14 rounded-2xl border border-[#00FF88]/30 bg-black/50 text-white resize-none focus:outline-none focus:border-[#00FF88]/50"
-                      disabled={isLoading}
-                      style={{ minHeight: '56px', maxHeight: '200px', height: 'auto' }}
-                    />
-                    <div className="absolute right-2 bottom-2.5 flex space-x-2">
-                      <button
-                        onClick={handleSend}
-                        disabled={!input.trim() || isLoading}
-                        className={`p-1.5 rounded-full bg-black ${!input.trim() || isLoading ? 'opacity-40 cursor-not-allowed' : 'opacity-100'}`}
-                      >
-                        {isLoading ? (
-                          <svg className="w-5 h-5 animate-spin text-white" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                        ) : (
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M7 11L12 6L17 11M12 18V7" stroke="#00FF88" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" transform="rotate(90 12 12)"></path>
-                          </svg>
-                        )}
-                      </button>
+        <>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full" style={{ background: 'radial-gradient(circle, rgba(0,255,136,0.1) 0%, rgba(0,255,136,0) 70%)' }} />
+          <div className="relative z-10 max-w-4xl mx-auto p-6">
+            <div className="flex justify-between items-center mb-6">
+              <DeviceSelector />
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="flex flex-col w-full max-w-3xl h-full px-4 pt-20 pb-8 mx-auto">
+              {messages.length === 0 ? (
+                <div className="flex flex-col flex-1 items-center justify-center">
+                  <h1 className="text-4xl font-semibold text-white mb-12">What can I help with?</h1>
+                  <div className="w-full max-w-[800px]">
+                    <div className="relative shadow-[0_0_10px_rgba(0,255,136,0.15)] rounded-2xl">
+                      <textarea
+                        rows={1}
+                        placeholder="Ask anything"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        className="w-full py-3.5 pl-4 pr-14 rounded-2xl border border-[#00FF88]/30 bg-black/50 text-white resize-none focus:outline-none focus:border-[#00FF88]/50"
+                        disabled={isLoading}
+                        style={{ minHeight: '56px', maxHeight: '200px', height: 'auto' }}
+                      />
+                      <div className="absolute right-2 bottom-2.5 flex space-x-2">
+                        <button
+                          onClick={handleSend}
+                          disabled={!input.trim() || isLoading}
+                          className={`p-1.5 rounded-full bg-black ${!input.trim() || isLoading ? 'opacity-40 cursor-not-allowed' : 'opacity-100'}`}
+                        >
+                          {isLoading ? (
+                            <svg className="w-5 h-5 animate-spin text-white" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                          ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M7 11L12 6L17 11M12 18V7" stroke="#00FF88" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" transform="rotate(90 12 12)"></path>
+                            </svg>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <>
-                {/* Messages display */}
-                <div className="flex-1 overflow-y-auto pb-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className="mb-6"
-                    >
-                      <div className="flex">
-                        <div className="flex items-start max-w-3xl">
-                          <div className="flex-shrink-0 mr-4">
-                            {message.role === 'assistant' ? (
-                              <div className="h-8 w-8 rounded-full flex items-center justify-center">
-                                <Image src="/logo.png" alt="Franky Logo" width={32} height={32} className="rounded-full" />
-                              </div>
-                            ) : (
-                              <div className="h-8 w-8 rounded-full flex items-center justify-center">
-                                <Image src="/you.png" alt="You" width={32} height={32} className="rounded-full" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="space-y-1">
-                            <p className="font-semibold text-sm text-white text-left">
-                              {message.role === 'assistant' ? 'Franky AI' : 'You'}
-                            </p>
-                            <div className="prose text-[#AAAAAA] text-left">
-                              {message.content}
+              ) : (
+                <>
+                  {/* Messages display */}
+                  <div className="flex-1 overflow-y-auto pb-4">
+                    {messages.map((message) => (
+                      <div
+                        key={message.id}
+                        className="mb-6"
+                      >
+                        <div className="flex">
+                          <div className="flex items-start max-w-3xl">
+                            <div className="flex-shrink-0 mr-4">
+                              {message.role === 'assistant' ? (
+                                <div className="h-8 w-8 rounded-full flex items-center justify-center">
+                                  <Image src="/logo.png" alt="Franky Logo" width={32} height={32} className="rounded-full" />
+                                </div>
+                              ) : (
+                                <div className="h-8 w-8 rounded-full flex items-center justify-center">
+                                  <Image src="/you.png" alt="You" width={32} height={32} className="rounded-full" />
+                                </div>
+                              )}
                             </div>
-
-                            {/* Display deploy device information if this message should show it */}
-                            {message.showDeployDeviceInfo && (
-                              <DeployDeviceInfo />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {isLoading && (
-                    <div className="mb-6">
-                      <div className="flex">
-                        <div className="flex items-start max-w-3xl">
-                          <div className="flex-shrink-0 mr-4">
-                          <div className="h-8 w-8 rounded-full flex items-center justify-center">
-                                <Image src="/logo.png" alt="Franky Logo" width={32} height={32} className="rounded-full" />
+                            <div className="space-y-1">
+                              <p className="font-semibold text-sm text-white text-left">
+                                {message.role === 'assistant' ? 'Franky AI' : 'You'}
+                              </p>
+                              <div className="prose text-[#AAAAAA] text-left">
+                                {message.content}
                               </div>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="font-semibold text-sm text-white">Franky AI</p>
-                            <div className="flex space-x-2">
-                              {[0, 1, 2].map((dot) => (
-                                <motion.div
-                                  key={dot}
-                                  className="w-2 h-2 rounded-full bg-[#00FF88]"
-                                  animate={{
-                                    opacity: [0.3, 1, 0.3],
-                                    scale: [0.8, 1.2, 0.8]
-                                  }}
-                                  transition={{
-                                    duration: 1.5,
-                                    repeat: Infinity,
-                                    delay: dot * 0.2
-                                  }}
-                                />
-                              ))}
+
+                              {/* Display deploy device information if this message should show it */}
+                              {message.showDeployDeviceInfo && (
+                                <DeployDeviceInfo />
+                              )}
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    ))}
 
-                  <div ref={messagesEndRef} />
-                </div>
+                    {isLoading && (
+                      <div className="mb-6">
+                        <div className="flex">
+                          <div className="flex items-start max-w-3xl">
+                            <div className="flex-shrink-0 mr-4">
+                            <div className="h-8 w-8 rounded-full flex items-center justify-center">
+                                  <Image src="/logo.png" alt="Franky Logo" width={32} height={32} className="rounded-full" />
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="font-semibold text-sm text-white">Franky AI</p>
+                              <div className="flex space-x-2">
+                                {[0, 1, 2].map((dot) => (
+                                  <motion.div
+                                    key={dot}
+                                    className="w-2 h-2 rounded-full bg-[#00FF88]"
+                                    animate={{
+                                      opacity: [0.3, 1, 0.3],
+                                      scale: [0.8, 1.2, 0.8]
+                                    }}
+                                    transition={{
+                                      duration: 1.5,
+                                      repeat: Infinity,
+                                      delay: dot * 0.2
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
-                {/* Chat input when conversation is active */}
-                <div className="w-full max-w-3xl mt-4">
-                  <div className="relative shadow-[0_0_10px_rgba(0,255,136,0.15)] rounded-2xl">
-                    <textarea
-                      rows={1}
-                      placeholder="Send a message"
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      className="w-full py-3.5 pl-4 pr-14 rounded-md border border-[#00FF88]/30 bg-black/50 text-white resize-none focus:outline-none focus:border-[#00FF88]/50"
-                      disabled={isLoading}
-                      style={{ minHeight: '56px', maxHeight: '200px', height: 'auto' }}
-                    />
-                    <div className="absolute right-2 bottom-3">
-                      <button
-                        onClick={handleSend}
-                        disabled={!input.trim() || isLoading}
-                        className={`p-1.5 rounded-md bg-[#00FF88] hover:bg-[#00FF88]/80 transition-colors ${!input.trim() || isLoading ? 'opacity-40 cursor-not-allowed' : 'opacity-100'}`}
-                      >
-                        {isLoading ? (
-                          <svg className="w-5 h-5 animate-spin text-black" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                        ) : (
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M7 11L12 6L17 11M12 18V7" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" transform="rotate(90 12 12)"></path>
-                          </svg>
-                        )}
-                      </button>
-                    </div>
+                    <div ref={messagesEndRef} />
                   </div>
 
-                </div>
+                  {/* Chat input when conversation is active */}
+                  <div className="w-full max-w-3xl mt-4">
+                    <div className="relative shadow-[0_0_10px_rgba(0,255,136,0.15)] rounded-2xl">
+                      <textarea
+                        rows={1}
+                        placeholder="Send a message"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        className="w-full py-3.5 pl-4 pr-14 rounded-md border border-[#00FF88]/30 bg-black/50 text-white resize-none focus:outline-none focus:border-[#00FF88]/50"
+                        disabled={isLoading}
+                        style={{ minHeight: '56px', maxHeight: '200px', height: 'auto' }}
+                      />
+                      <div className="absolute right-2 bottom-3">
+                        <button
+                          onClick={handleSend}
+                          disabled={!input.trim() || isLoading}
+                          className={`p-1.5 rounded-md bg-[#00FF88] hover:bg-[#00FF88]/80 transition-colors ${!input.trim() || isLoading ? 'opacity-40 cursor-not-allowed' : 'opacity-100'}`}
+                        >
+                          {isLoading ? (
+                            <svg className="w-5 h-5 animate-spin text-black" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                          ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M7 11L12 6L17 11M12 18V7" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" transform="rotate(90 12 12)"></path>
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
 
-              </>
-            )}
-          </div>
-          <div className="mt-12 flex flex-col md:flex-row justify-center gap-6">
-            <motion.button
-              className="py-2 px-4 text-[#00FF88] hover:text-white border border-[#00FF88]/30 rounded-lg transition-colors duration-300"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={onClose}
-            >
-              ←  Go Back
-            </motion.button>
+                  </div>
+
+                </>
+              )}
+            </div>
+            <div className="mt-12 flex flex-col md:flex-row justify-center gap-6">
+              <motion.button
+                className="py-2 px-4 text-[#00FF88] hover:text-white border border-[#00FF88]/30 rounded-lg transition-colors duration-300"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={onClose}
+              >
+                ←  Go Back
+              </motion.button>
+            </div>
           </div>
         </>
       )}
