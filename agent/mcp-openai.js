@@ -34,21 +34,36 @@ CRITICALLY IMPORTANT INSTRUCTIONS FOR TOOL USAGE:
 2. For character creation specifically, once you have all required information, you MUST use:
    "I'll use the create_character tool with these parameters: {"name": "Name", "description": "Description", "personality": "Personality", "scenario": "Scenario", "first_mes": "First message", "mes_example": "Example message", "creator_notes": "Creator notes", "system_prompt": "System prompt"}"
 
-3. For character searching, when asked about ANY character or to find ANY character, you MUST use:
+3. For Franky agent creation, ask the user for ALL required information and then use:
+   "I'll use the create_franky_agent tool with these parameters: {"subdomain": "agent-name", "name": "Name", "description": "Description", "personality": "Personality", "scenario": "Scenario", "first_mes": "First message", "mes_example": "Example message", "creator_notes": "Creator notes", "system_prompt": "System prompt", "perApiCallFee": 100, "isPublic": false}"
+   NOTE: UUID and input/output topics will be automatically generated, you don't need to ask for them!
+
+4. For character searching, when asked about ANY character or to find ANY character, you MUST use:
    "I'll use the find_character tool with these parameters: {"search_term": "any term"}"
    NOTE: find_character now returns ALL characters from the topic regardless of search term!
 
-4. For listing all characters, when asked to show all characters or browse characters, you MUST use:
+5. For listing all characters, when asked to show all characters or browse characters, you MUST use:
    "I'll use the list_all_characters tool with these parameters: {}"
 
-5. DO NOT improvise or make up your own response format. The exact format above is required for the tool to work.
+6. DO NOT improvise or make up your own response format. The exact format above is required for the tool to work.
 
-6. DO NOT claim you have created or found a character without using the appropriate tool with the exact format above.
+7. DO NOT claim you have created or found a character without using the appropriate tool with the exact format above.
 
-7. When you use the find_character tool, you MUST analyze all the character data returned and answer questions about ANY character using that data.
+8. When a user asks to create an agent (as opposed to a character), always use the create_franky_agent tool, NOT the create_character tool. These are different processes.
+
+9. When using the create_franky_agent tool, you MUST collect EVERY ONE of these required fields from the user before executing the tool:
+   - subdomain: A unique name for the agent's domain (suggest using agent- prefix and user's desired name)
+   - name, description, personality, scenario, first_mes, mes_example, creator_notes, system_prompt: Character details
+   - perApiCallFee: Fee per API call in tinybars (ALWAYS ASK the user for this value, do not default to 100)
+   - isPublic: Whether the agent is public (true) or private (false) (ALWAYS ASK the user for this value, do not default to false)
+   NOTE: UUID and input/output topic IDs will be automatically generated!
+
+IMPORTANT: You MUST ALWAYS explicitly ask the user for perApiCallFee and isPublic values. DO NOT assume default values.
 
 Example of CORRECT responses:
 - "I'll use the create_character tool with these parameters: {"name": "Alice", "description": "A tall woman with blue eyes", "personality": "Friendly and outgoing", "scenario": "In a coffee shop", "first_mes": "Hello, nice to meet you!", "mes_example": "How are you today?", "creator_notes": "Speaks formally", "system_prompt": "You are Alice, a friendly barista."}"
+
+- "I'll use the create_franky_agent tool with these parameters: {"subdomain": "agent-alice", "name": "Alice", "description": "A tall woman with blue eyes", "personality": "Friendly and outgoing", "scenario": "In a coffee shop", "first_mes": "Hello, nice to meet you!", "mes_example": "How are you today?", "creator_notes": "Speaks formally", "system_prompt": "You are Alice, a friendly barista.", "perApiCallFee": 100, "isPublic": false}"
 
 - "I'll use the find_character tool with these parameters: {"search_term": "any term"}"
 
@@ -70,6 +85,23 @@ Example of INCORRECT response (DO NOT DO THIS):
   "creator_notes": "Creator notes",
   "system_prompt": "System instructions"
 }
+
+To create a Franky agent (sends to contract instead of topic):
+{
+  "subdomain": "agent-name",
+  "name": "Character name",
+  "description": "Physical appearance",
+  "personality": "Personality traits",
+  "scenario": "Background setting",
+  "first_mes": "First message",
+  "mes_example": "Example message",
+  "creator_notes": "Creator notes",
+  "system_prompt": "System instructions",
+  "perApiCallFee": 100, (YOU MUST ASK for this value)
+  "isPublic": false (YOU MUST ASK for this value)
+}
+Note: UUID and input/output topics will be generated automatically!
+IMPORTANT: Always explicitly ask the user for perApiCallFee and isPublic values.
 
 You can also perform addition: {"a": 5, "b": 3}`;
   }

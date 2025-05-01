@@ -185,12 +185,19 @@ export default function ChatInterface({
         }, 1000)
       } else {
         // Regular API call for other questions
-        const response = await fetch('https://franky-1.onrender.com/chat', {
+        const response = await fetch('http://localhost:4000/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ message: input })
+          body: JSON.stringify({ 
+            message: input,
+            secrets: "sYZg5Kl5w+qhEW/J9AeVmKK+dgQqqE8VMeAZxaRsWgXnybl0ZXjDoQkdjkT9cCVYZMSTewKCrR6VEE8TEL1OQ+mi4gZQKOD9mHLoZP+1wQ5IvpEfAtn7BV1G/YOFhg5x3pKYMGYyX3fl17kaHBX4scnFcajezkZ69Uix1aQAM3Wtw8/RoYDohNaJxOZoWO0OlXnwhE/iyS5WAg==",
+            secretsHash: "sdbweudbwudcbubcueibciuedbci",
+            avatarUrl: "https://amethyst-impossible-ptarmigan-368.mypinata.cloud/files/your_avatar_cid",
+            deviceAddress: "0x7339b922a04ad2c0ddd9887e5f043a65759543b8",
+            perApiCallFee: "1000000000000000"
+          })
         })
 
         if (!response.ok) {

@@ -30,7 +30,8 @@ export async function GET(request: Request) {
   const address = searchParams.get('address')
   const subname = searchParams.get('subname')
   
-  const supabase = createRouteHandlerClient({ cookies })
+  const cookieStore = cookies()
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
   
   try {
     if (subname) {
@@ -78,7 +79,8 @@ export async function GET(request: Request) {
 
 // POST /api/db/agents - Create new agent record
 export async function POST(request: Request) {
-  const supabase = createRouteHandlerClient({ cookies })
+  const cookieStore = cookies()
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
   
   try {
     const json = await request.json()
