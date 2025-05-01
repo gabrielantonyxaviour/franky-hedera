@@ -1299,7 +1299,7 @@ async function startServer() {
             address: FRANKY_ADDRESS as `0x${string}`,
             abi: FRANKY_ABI,
             functionName: "serverWalletsMapping",
-            args: [accountId],
+            args: [accountId.toLowerCase()],
           })
           .then((serverWallet) => {
             const walletAddress = serverWallet[0];
