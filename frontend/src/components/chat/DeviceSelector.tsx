@@ -53,33 +53,7 @@ export default function DeviceSelector() {
           throw new Error("Failed to fetch devices");
         }
 
-        const { data } = await response.json();
-
-        // Process devices and fetch metadata
-        const processedDevices = await Promise.all(
-          data.devices.map(async (device: any) => {
-            let metadata;
-            if (device.deviceMetadata.startsWith("http")) {
-              const metadataResponse = await fetch(device.deviceMetadata);
-              metadata = await metadataResponse.json();
-            } else {
-              try {
-                metadata = JSON.parse(device.deviceMetadata);
-              } catch {
-                metadata = {};
-              }
-            }
-
-            return {
-              id: device.id,
-              deviceModel: metadata.deviceModel || "Unknown Device",
-              ram: metadata.ram || "N/A",
-              storage: metadata.storage || "N/A",
-              cpu: metadata.cpu || "N/A",
-              hostingFee: device.hostingFee,
-            };
-          })
-        );
+        const processedDevices = await response.json();
 
         setDevices(processedDevices);
         if (processedDevices.length > 0) {
