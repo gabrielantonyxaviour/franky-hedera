@@ -321,9 +321,9 @@ export const DeviceVerification = () => {
                                                 });
 
                                                 const uploadResponse = await fetch('/api/pinata/json', {
-                                                    body: JSON.stringify({
+                                                    body: JSON.stringify({json:{
                                                         json: deviceMetadata
-                                                    }),
+                                                    }}),
                                                     method: "POST"
                                                 })
 
@@ -382,6 +382,29 @@ export const DeviceVerification = () => {
                                                         }
                                                     }
                                                 });
+
+                                                // Additional step: Save to Supabase (non-blocking)
+                                                try {
+                                                    await fetch('/api/db/devices', {
+                                                        method: 'POST',
+                                                        headers: {
+                                                            'Content-Type': 'application/json',
+                                                        },
+                                                        body: JSON.stringify({
+                                                            deviceModel: deviceDetails.deviceModel,
+                                                            ram: deviceDetails.ram,
+                                                            storage: deviceDetails.storage,
+                                                            cpu: deviceDetails.cpu || '',
+                                                            ngrokUrl: deviceDetails.ngrokLink,
+                                                            walletAddress: deviceDetails.walletAddress,
+                                                            hostingFee: hostingFee,
+                                                            txHash: response.toString()
+                                                        }),
+                                                    })
+                                                } catch (dbError) {
+                                                    // Log but don't affect main flow
+                                                    console.warn('Failed to save to database:', dbError)
+                                                }
 
                                                 setTransactionHash(response);
                                             } else {

@@ -47,7 +47,7 @@ export default function Header() {
         const formattedBalance = formatEther(fetchedBalance)
         if (parseFloat(formattedBalance) < 1) {
           toast.info("Funding wallet", {
-            description: "Your wallet balance is low to use Franky. Funding with 5 tFIL",
+            description: "Your wallet balance is low to use Franky. Funding with 5 HBAR",
           });
           const tx = await faucetWalletClient.sendTransaction({
             to: accountId as `0x${string}`,

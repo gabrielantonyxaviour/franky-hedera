@@ -13,6 +13,9 @@ import {
 import { Character } from "../types";
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "./logger";
+import { get_topic_messages } from "../tools/queries/hcs/get_topic_messages";
+import { MCPOpenAIClient } from "./mcp-openai";
+import { generateResponse } from "./response-generator";
 
 // Interface for the agent instance
 export interface HIP991Agent {
@@ -34,6 +37,96 @@ export interface TopicMessage {
   timestamp: number;
 }
 
+// Interface for MCP state
+interface MCPState {
+  openAIClient?: MCPOpenAIClient;
+  ollamaAvailable: boolean;
+  activeCharacter?: Character | null;
+}
+
+// Global MCP state
+let mcpState: MCPState = {
+  ollamaAvailable: false,
+  activeCharacter: null
+};
+
+// Function to initialize MCP state
+export async function initializeMCPState(openAIClient: MCPOpenAIClient, ollamaAvailable: boolean, character: Character) {
+  mcpState = {
+    openAIClient,
+    ollamaAvailable,
+    activeCharacter: character
+  };
+}
+
+// Helper function to create character prompt
+function createCharacterPrompt(character: Character, prompt: string): string {
+  return `You are roleplaying as ${character.name}. ${character.description}\n\nUser: ${prompt}`;
+}
+
+// Wrapper for queryOllama to use our fallback model and limit response length
+async function queryOllamaWithFallback(prompt: string, character?: Character): Promise<string> {
+  const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
+  const modelToUse = process.env.OLLAMA_FALLBACK_MODEL || process.env.OLLAMA_MODEL || 'qwen2.5:3b';
+  
+  logger.info('API', `Using Ollama model: ${modelToUse}`);
+  
+  const formattedPrompt = character 
+    ? createCharacterPrompt(character, prompt)
+    : prompt;
+  
+  try {
+    const response = await fetch(`${ollamaBaseUrl}/api/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: modelToUse,
+        prompt: formattedPrompt,
+        stream: false,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.error('API', `HTTP error ${response.status}`, {
+        errorText,
+        status: response.status
+      });
+      throw new Error(`Ollama API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json() as { response: string };
+    let ollamaResponse = data.response;
+    
+    if (ollamaResponse.length > 512) {
+      logger.info('API', `Limiting Ollama response from ${ollamaResponse.length} to 512 characters`);
+      ollamaResponse = ollamaResponse.substring(0, 509) + '...';
+    }
+    
+    return ollamaResponse;
+  } catch (error) {
+    logger.error('API', 'Error querying Ollama', error);
+    throw error;
+  }
+}
+
+// Function to detect if input requires blockchain tools
+function enhancedToolDetection(userInput: string): boolean {
+  const blockchainKeywords = [
+    'token', 'nft', 'transaction', 'transfer', 'balance', 'account',
+    'smart contract', 'hedera', 'hbar', 'hash', 'block', 'wallet',
+    'send', 'receive', 'crypto', 'blockchain', 'ledger', 'consensus',
+    'node', 'network', 'fee', 'gas', 'mint', 'burn', 'deploy'
+  ];
+
+  const lowercaseInput = userInput.toLowerCase();
+  return blockchainKeywords.some(keyword => 
+    lowercaseInput.includes(keyword.toLowerCase())
+  );
+}
+
 // Keeps track of active agent instances
 const activeAgents = new Map<string, HIP991Agent>();
 
@@ -44,8 +137,48 @@ const pendingResponses = new Map<string, {
   timeout: NodeJS.Timeout
 }>();
 
-// Cache of message history
-const messageCache = new Map<string, TopicMessage>();
+// Cache of message history with TTL (time to live)
+interface CacheEntry<T> {
+  value: T;
+  timestamp: number;
+}
+
+const MESSAGE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+const messageCache = new Map<string, CacheEntry<TopicMessage>>();
+
+// Clean up old messages from cache periodically
+setInterval(() => {
+  const now = Date.now();
+  let removedCount = 0;
+  
+  for (const [id, entry] of messageCache.entries()) {
+    if (now - entry.timestamp > MESSAGE_CACHE_TTL) {
+      messageCache.delete(id);
+      removedCount++;
+    }
+  }
+  
+  if (removedCount > 0) {
+    logger.debug('HIP991', `Garbage collected ${removedCount} expired messages from cache`);
+  }
+}, 60 * 60 * 1000); // Run every hour
+
+// Keep track of last processed message ID per topic
+const lastProcessedMessageIds = new Map<string, string>();
+
+// Helper functions for working with the message cache
+function getMessageFromCache(id: string): TopicMessage | undefined {
+  const entry = messageCache.get(id);
+  return entry ? entry.value : undefined;
+}
+
+function setMessageInCache(id: string, message: TopicMessage): void {
+  messageCache.set(id, { value: message, timestamp: Date.now() });
+}
+
+function hasMessageInCache(id: string): boolean {
+  return messageCache.has(id);
+}
 
 /**
  * Creates a monetized HIP-991 topic for the user to post messages
@@ -135,6 +268,75 @@ export async function createResponseTopic(
 }
 
 /**
+ * Set up polling for the inbound topic to receive user messages
+ */
+function setupTopicPolling(
+  serverClient: Client,
+  serverKey: PrivateKey,
+  agent: HIP991Agent
+): void {
+  logger.info('HIP991', `Setting up polling for inbound topic ${agent.inboundTopicId}`);
+  
+  // Track the last consensus timestamp we've processed
+  let lastConsensusTimestamp: string | null = null;
+  
+  // Poll for new messages every 5 seconds
+  setInterval(async () => {
+    try {
+      const topicId = TopicId.fromString(agent.inboundTopicId);
+      
+      // Use timestamp filtering to only fetch messages newer than the last one processed
+      // This is more reliable than just checking message IDs
+      const messages = await get_topic_messages(
+        topicId, 
+        'testnet',
+        lastConsensusTimestamp ? parseFloat(lastConsensusTimestamp) : undefined
+      );
+      
+      if (messages.length === 0) {
+        return;
+      }
+
+      // Process messages in chronological order (oldest first)
+      // This ensures messages are handled in the order they were sent
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const message = messages[i];
+        
+        // Update our consensus timestamp tracker with the latest one
+        if (!lastConsensusTimestamp || message.consensus_timestamp > lastConsensusTimestamp) {
+          lastConsensusTimestamp = message.consensus_timestamp;
+        }
+        
+        // Convert message contents to string
+        const messageContent = Buffer.from(message.message).toString();
+        
+        try {
+          const parsed = JSON.parse(messageContent) as TopicMessage;
+          
+          // Check if this is a duplicate message (already processed)
+          if (hasMessageInCache(parsed.id)) {
+            // logger.debug('HIP991', `Skipping already processed message ${parsed.id}`);
+            continue;
+          }
+          
+          logger.info('HIP991', `Received new message from user ${agent.userId}`, { messageId: parsed.id });
+          
+          // Process the message
+          await processUserMessage(serverClient, serverKey, agent, parsed);
+          
+          // Update the last processed message ID
+          lastProcessedMessageIds.set(agent.inboundTopicId, parsed.id);
+        } catch (parseError) {
+          logger.error('HIP991', `Error parsing message: ${messageContent}`, parseError);
+        }
+      }
+    } catch (error) {
+      logger.error('HIP991', `Error polling inbound topic ${agent.inboundTopicId}`, error);
+    }
+  }, 5000); // Poll every 5 seconds
+}
+
+/**
  * Initialize a new agent instance for a user with a specific character
  */
 export async function initializeAgent(
@@ -163,7 +365,7 @@ export async function initializeAgent(
       serverKey,
       userAccountId,
       userPublicKey,
-      fee, // Pass the fee parameter
+      fee,
       `${character.name} Inbound Topic for ${userId}`
     );
     
@@ -188,8 +390,8 @@ export async function initializeAgent(
     // Store agent instance
     activeAgents.set(userId, agent);
     
-    // Set up topic subscriptions
-    setupTopicSubscriptions(serverClient, serverKey, agent);
+    // Set up topic polling instead of subscriptions
+    setupTopicPolling(serverClient, serverKey, agent);
     
     logger.info('HIP991', 'Agent initialized successfully', {
       userId,
@@ -203,55 +405,6 @@ export async function initializeAgent(
     logger.error('HIP991', 'Error initializing agent', error);
     throw error;
   }
-}
-
-/**
- * Set up subscription to the inbound topic to receive user messages
- */
-function setupTopicSubscriptions(
-  serverClient: Client,
-  serverKey: PrivateKey,
-  agent: HIP991Agent
-): void {
-  logger.info('HIP991', `Setting up subscription for inbound topic ${agent.inboundTopicId}`);
-  
-  // Keep track of the last processed sequence number as a string
-  let lastProcessedSequence = "0";
-  
-  // Subscribe to the inbound topic
-  const topicId = TopicId.fromString(agent.inboundTopicId);
-  
-  new TopicMessageQuery()
-    .setTopicId(topicId)
-    .subscribe(
-      serverClient, 
-      (message) => {
-        // Skip if we've already processed this message
-        const currentSequence = message.sequenceNumber.toString();
-        if (currentSequence <= lastProcessedSequence && lastProcessedSequence !== "0") {
-          return;
-        }
-        
-        lastProcessedSequence = currentSequence;
-        
-        try {
-          // Convert message contents to string
-          const messageContent = Buffer.from(message.contents).toString();
-          const parsed = JSON.parse(messageContent) as TopicMessage;
-          logger.info('HIP991', `Received message from user ${agent.userId}`, { messageId: parsed.id });
-          
-          // Process the message
-          processUserMessage(serverClient, serverKey, agent, parsed).catch(error => {
-            logger.error('HIP991', 'Error processing user message', error);
-          });
-        } catch (error) {
-          logger.error('HIP991', 'Error processing inbound message', error);
-        }
-      },
-      (error) => {
-        logger.error('HIP991', `Error in topic subscription for ${agent.inboundTopicId}`, error);
-      }
-    );
 }
 
 /**
@@ -269,6 +422,18 @@ async function processUserMessage(
       return;
     }
     
+    // Check if this is a duplicate message (already processed)
+    if (hasMessageInCache(message.id)) {
+      logger.warn('HIP991', `Duplicate message detected: ${message.id}, skipping processing`);
+      return;
+    }
+
+    // Check if a response for this message has already been sent
+    if (hasMessageInCache(message.response_id)) {
+      logger.warn('HIP991', `Response for message ${message.id} already exists, skipping processing`);
+      return;
+    }
+    
     logger.info('HIP991', `Processing user message: ${message.id}`, { 
       prompt: message.prompt.substring(0, 50) + (message.prompt.length > 50 ? '...' : ''),
       responseId: message.response_id
@@ -277,13 +442,11 @@ async function processUserMessage(
     // Update agent timestamp
     agent.lastMessageTimestamp = new Date();
     
-    // Store message in cache
-    messageCache.set(message.id, message);
+    // Store message in cache BEFORE processing to prevent duplicate processing
+    setMessageInCache(message.id, message);
     
-    // Generate agent's response based on the prompt and character
-    // In a real implementation, we would use OpenAI or another model here
-    // For now, we'll create a simple response
-    const response = `${agent.character.name}: I've received your message "${message.prompt}". This is a placeholder response.`;
+    // Generate response using the character
+    const response = await generateResponse(message.prompt, agent.character);
     
     // Create response message
     const responseMessage: TopicMessage = {
@@ -297,7 +460,7 @@ async function processUserMessage(
     await sendAgentResponse(serverClient, serverKey, agent, responseMessage);
     
     // Store response in cache
-    messageCache.set(message.response_id, responseMessage);
+    setMessageInCache(message.response_id, responseMessage);
     
     // If there's a pending promise for this response, resolve it
     const pending = pendingResponses.get(message.response_id);
@@ -306,15 +469,17 @@ async function processUserMessage(
       pending.resolve(response);
       pendingResponses.delete(message.response_id);
     }
+
+    logger.info('HIP991', `Successfully processed message ${message.id} with response ${message.response_id}`);
   } catch (error) {
-    logger.error('HIP991', 'Error processing user message', error);
+    logger.error('HIP991', `Error processing user message ${message.id}`, error);
     
     // If there's a pending promise, reject it
-    const pending = pendingResponses.get(message.response_id);
+    const pending = pendingResponses.get(message.response_id!);
     if (pending) {
       clearTimeout(pending.timeout);
       pending.reject(error);
-      pendingResponses.delete(message.response_id);
+      pendingResponses.delete(message.response_id!);
     }
   }
 }
@@ -389,7 +554,7 @@ export async function sendUserMessage(
   userClient: Client,
   agent: HIP991Agent,
   prompt: string,
-  timeoutMs: number = 30000
+  timeoutMs: number = 300000
 ): Promise<{ messageId: string, responseId: string, responsePromise: Promise<string> }> {
   return new Promise(async (resolve, reject) => {
     try {
@@ -455,7 +620,7 @@ export async function sendUserMessage(
  * Get a stored message by its ID
  */
 export function getMessage(messageId: string): TopicMessage | undefined {
-  return messageCache.get(messageId);
+  return getMessageFromCache(messageId);
 }
 
 /**

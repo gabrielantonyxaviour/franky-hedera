@@ -230,7 +230,7 @@ export default function MarketplacePage() {
 
           return {
             id: device.id,
-            deviceModel: metadata.deviceModal ?? 'Samsung Galaxy S23',
+            deviceModel: metadata.deviceModel ?? 'Samsung Galaxy S23',
             ram: metadata.ram ?? '8GB',
             storage: metadata.storage ?? '128GB',
             cpu: metadata.cpu ?? 'Snapdragon 8 Gen 2',

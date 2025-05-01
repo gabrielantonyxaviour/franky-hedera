@@ -12,32 +12,38 @@ import {
   FiImage,
 } from "react-icons/fi";
 import { normalize } from "viem/ens";
-import { createPublicClient, formatEther, http, parseEther, stringToBytes } from "viem";
+import {
+  createPublicClient,
+  formatEther,
+  http,
+  parseEther,
+  stringToBytes,
+} from "viem";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { publicClient } from "@/lib/utils";
 import { FRANKY_CONTRACT_ID } from "@/lib/constants";
 import { mainnet } from "viem/chains";
 import { useWalletInterface } from "@/hooks/use-wallet-interface";
-import { ContractId,ContractExecuteTransaction} from "@hashgraph/sdk";
+import { ContractId, ContractExecuteTransaction } from "@hashgraph/sdk";
 import { ContractFunctionParameterBuilder } from "@/utils/param-builder";
 import { WalletInterface } from "@/types/wallet-interface";
 import { encryptEnv } from "@/utils/lit";
 
 interface Device {
-  id: string
-  deviceModel: string
-  ram: string
-  storage: string
-  cpu: string
-  ngrokUrl: string
-  walletAddress: string
-  hostingFee: string
-  agentCount: number
-  status: 'Active' | 'Inactive'
-  lastActive: string
-  txHash: string
-  registeredAt: string
+  id: string;
+  deviceModel: string;
+  ram: string;
+  storage: string;
+  cpu: string;
+  ngrokUrl: string;
+  walletAddress: string;
+  hostingFee: string;
+  agentCount: number;
+  status: "Active" | "Inactive";
+  lastActive: string;
+  txHash: string;
+  registeredAt: string;
 }
 
 interface Tool {
@@ -120,10 +126,11 @@ function ConstructionZone({
           <div
             key={tool.id}
             onClick={() => onToolToggle(tool.id)}
-            className={`p-4 rounded-lg border cursor-pointer transition-all duration-300 ${isSelected
-              ? "bg-[#00FF88]/20 border-[#00FF88] shadow-lg shadow-[#00FF88]/10"
-              : "bg-black/30 border-[#00FF88]/20 hover:bg-[#00FF88]/10"
-              }`}
+            className={`p-4 rounded-lg border cursor-pointer transition-all duration-300 ${
+              isSelected
+                ? "bg-[#00FF88]/20 border-[#00FF88] shadow-lg shadow-[#00FF88]/10"
+                : "bg-black/30 border-[#00FF88]/20 hover:bg-[#00FF88]/10"
+            }`}
           >
             <div className="flex items-center">
               <span className="text-2xl mr-3">{tool.icon}</span>
@@ -347,16 +354,25 @@ function SecretsEditor({
         value={secrets}
         onChange={(e) => setSecrets(e.target.value)}
         placeholder="{
-        'LILYPAD_TOKEN' : 'absjckbjfewnlkdjcbjqjbcqa',
         'PRIVATE_KEY' : 'bewbfaalb7cf87qwngo8ewg8wn8g98cwgnmwc'
         }"
         className="w-full h-64 p-3 rounded-lg bg-black/50 border border-[#00FF88]/30 focus:border-[#00FF88] focus:outline-none text-white font-mono text-sm"
       />
       <div className="mt-3 text-xs text-gray-400">
-        <p>• Your secrets will be encrypted using Lit Protocol before storage</p>
-        <p>• They will be stored alongside your character data in the Pinata bucket</p>
-        <p>• They will only be accessible by your agent with proper authentication</p>
-        <p className="text-[#00FF88] mt-1">• Sensitive API keys will never be stored in plaintext</p>
+        <p>
+          • Your secrets will be encrypted using Lit Protocol before storage
+        </p>
+        <p>
+          • They will be stored alongside your character data in the Pinata
+          bucket
+        </p>
+        <p>
+          • They will only be accessible by your agent with proper
+          authentication
+        </p>
+        <p className="text-[#00FF88] mt-1">
+          • Sensitive API keys will never be stored in plaintext
+        </p>
       </div>
     </div>
   );
@@ -481,7 +497,7 @@ function ConfirmationModal({
   perApiCallFee,
   isPublic,
   isEncrypting,
-  isUploading
+  isUploading,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -588,8 +604,7 @@ function ConfirmationModal({
                 {isPublic ? "Public" : "Private"}
               </p>
               <p className="text-white">
-                <span className="text-gray-400">Network:</span>{" "}
-                Hedera Testnet
+                <span className="text-gray-400">Network:</span> Hedera Testnet
               </p>
             </div>
           </div>
@@ -600,11 +615,15 @@ function ConfirmationModal({
               <div className="flex items-center">
                 <div className="animate-spin h-4 w-4 mr-2 border-2 border-[#00FF88] border-t-transparent rounded-full"></div>
                 <p className="text-[#00FF88] text-sm">
-                  {isEncrypting ? 'Encrypting secrets with Lit Protocol...' : 'Uploading character data to Pinata...'}
+                  {isEncrypting
+                    ? "Encrypting secrets with Lit Protocol..."
+                    : "Uploading character data to Pinata..."}
                 </p>
               </div>
               <p className="text-xs text-gray-400 mt-1">
-                {isEncrypting ? 'Securing your API keys before storage' : 'Storing character data with encrypted secrets'}
+                {isEncrypting
+                  ? "Securing your API keys before storage"
+                  : "Storing character data with encrypted secrets"}
               </p>
             </div>
           )}
@@ -655,7 +674,9 @@ function SuccessModal({
     router.push("/");
   };
 
-  const explorerUrl = transactionHash ? `https://hashscan.io/testnet/tx/${transactionHash}` : "";
+  const explorerUrl = transactionHash
+    ? `https://hashscan.io/testnet/tx/${transactionHash}`
+    : "";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
@@ -741,10 +762,14 @@ function SuccessModal({
 }
 
 // Client component that uses useSearchParams
-function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
-  deviceAddress: string
-  walletInterface: any
-  accountId: string | null
+function CreateAgentContent({
+  deviceAddress,
+  walletInterface,
+  accountId,
+}: {
+  deviceAddress: string;
+  walletInterface: any;
+  accountId: string | null;
 }) {
   const [selectedTools, setSelectedTools] = useState<Tool[]>([]);
   const [agentName, setAgentName] = useState("");
@@ -787,9 +812,9 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [hydrated, setHydrated] = useState(false);
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [deviceInfo, setDeviceInfo] = useState<Device | null>(null)
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [deviceInfo, setDeviceInfo] = useState<Device | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
   useEffect(() => {
@@ -798,24 +823,33 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
 
   useEffect(() => {
     if (!hydrated) return;
-    if(!deviceAddress) return;
+    if (!deviceAddress) return;
     (async function () {
       try {
-        const fetchedDeviceRequest = await fetch('/api/graph/devices-by-wallet?address=' + deviceAddress.toLocaleLowerCase())
-        const devices = await fetchedDeviceRequest.json()
-        console.log("Devices by wallet")
-        console.log(devices)
-        if (devices.length == 0) throw Error("Device does not exist")
-        const deviceMetadataRequest = await fetch(`${devices[0].deviceMetadata}`)
-        const deviceMetadata = await deviceMetadataRequest.json()
-        setDeviceInfo({...devices[0], ...deviceMetadata, agentCount: devices[0].agents.length})
+        const fetchedDeviceRequest = await fetch(
+          "/api/graph/devices-by-wallet?address=" +
+            deviceAddress.toLocaleLowerCase()
+        );
+        const devices = await fetchedDeviceRequest.json();
+        console.log("Devices by wallet");
+        console.log(devices);
+        if (devices.length == 0) throw Error("Device does not exist");
+        const deviceMetadataRequest = await fetch(
+          `${devices[0].deviceMetadata}`
+        );
+        const deviceMetadata = await deviceMetadataRequest.json();
+        setDeviceInfo({
+          ...devices[0],
+          ...deviceMetadata,
+          agentCount: devices[0].agents.length,
+        });
       } catch (e) {
-        console.log(e)
-        setError('Device does not exist')
+        console.log(e);
+        setError("Device does not exist");
       }
-      setLoading(false)
-    })()
-  }, [hydrated, deviceAddress])
+      setLoading(false);
+    })();
+  }, [hydrated, deviceAddress]);
 
   // Handle tool selection
   const handleToolToggle = (toolId: string) => {
@@ -898,7 +932,9 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
     }
 
     if (!deviceInfo?.id) {
-      toast.error("No device selected. Please select a device from the marketplace.");
+      toast.error(
+        "No device selected. Please select a device from the marketplace."
+      );
       return;
     }
 
@@ -926,11 +962,11 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
 
   // Update handleConfirmCreateAgent to include avatar and secrets
   async function handleConfirmCreateAgent() {
-    
     if (
       !deviceInfo?.id ||
       !isNameAvailable ||
-      !constructedCharacter || !walletInterface
+      !constructedCharacter ||
+      !walletInterface
     ) {
       toast.error("Missing required information to create agent");
       return;
@@ -949,26 +985,30 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
       try {
         console.log("Preparing transaction");
         toast.info("Uploading Avatar to Filecoin...", {
-          description: "This will take some time..."
+          description: "This will take some time...",
         });
 
         const formData = new FormData();
-        const customFileName = `avatar-${Date.now()}.${avatarFile.name.split('.').pop()}`;
+        const customFileName = `avatar-${Date.now()}.${avatarFile.name
+          .split(".")
+          .pop()}`;
         formData.append("file", avatarFile, customFileName);
         const avatarUrlRequest = await fetch(`/api/pinata/image`, {
           method: "POST",
           body: formData,
         });
-        const { url: avatarUrl } = await avatarUrlRequest.json()
-        console.log(avatarUrl)
-        console.log('Uploading character data to Pinata with encrypted secrets...');
+        const { url: avatarUrl } = await avatarUrlRequest.json();
+        console.log(avatarUrl);
+        console.log(
+          "Uploading character data to Pinata with encrypted secrets..."
+        );
         let characterConfigUrl = "";
         toast.info("Encrypting .env with Lit Protocol", {
-          description: "Your secrets can be decrypted only by the Device"
+          description: "Your secrets can be decrypted only by the Device",
         });
-        const {ciphertext, dataToEncryptHash} = await encryptEnv(secrets)
+        const { ciphertext, dataToEncryptHash } = await encryptEnv(secrets);
         toast.info("Uploading character data to Pinata", {
-          description: "This will take some time..."
+          description: "This will take some time...",
         });
         try {
           const characterConfigUrlRequest = await fetch(`/api/pinata/json`, {
@@ -977,49 +1017,62 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              character: constructedCharacter,
-              subname,
-              secrets: ciphertext,
-              secretsHash: dataToEncryptHash,
-              avatarUrl
+              json: {
+                character: constructedCharacter,
+                subname,
+                secrets: ciphertext,
+                secretsHash: dataToEncryptHash,
+                avatarUrl,
+              },
             }),
           });
-          const { url } = await characterConfigUrlRequest.json()
-          characterConfigUrl = url
-          console.log('✅ Character data with encrypted secrets available at Pinata: ', characterConfigUrl);
+          const { url } = await characterConfigUrlRequest.json();
+          characterConfigUrl = url;
+          console.log(
+            "✅ Character data with encrypted secrets available at Pinata: ",
+            characterConfigUrl
+          );
           setIsUploading(false);
         } catch (error) {
-          console.error('Error in Pinata upload process:', error);
-          toast.error('Error uploading character data. Please try again.');
+          console.error("Error in Pinata upload process:", error);
+          toast.error("Error uploading character data. Please try again.");
           setIsUploading(false);
           setShowConfirmModal(false);
           return;
         }
 
         console.log("Simulating contract call...");
-        console.log("ARGS")
-        const cid = characterConfigUrl.split('/files/')[1].split('?')[0];
-        const args = [subname, cid, characterConfigUrl, deviceInfo.id, parseEther(perApiCallFee), isPublic];
-        console.log(args)
-        const params = new ContractFunctionParameterBuilder().addParam({
-          type: "string",
-          name: "subdomain",
-          value: subname
-        })
+        console.log("ARGS");
+        const cid = characterConfigUrl.split("/files/")[1].split("?")[0];
+        const args = [
+          subname,
+          cid,
+          characterConfigUrl,
+          deviceInfo.id,
+          parseEther(perApiCallFee),
+          isPublic,
+        ];
+        console.log(args);
+        const params = new ContractFunctionParameterBuilder()
+          .addParam({
+            type: "string",
+            name: "subdomain",
+            value: subname,
+          })
           .addParam({
             type: "string",
             name: "characterConfig",
-            value: [characterConfigUrl]
+            value: [characterConfigUrl],
           })
           .addParam({
             type: "string",
             name: "metadata",
-            value: [cid]
+            value: [cid],
           })
           .addParam({
             type: "address",
             name: "deviceAddress",
-            value: deviceInfo.id.toLowerCase()
+            value: deviceInfo.id.toLowerCase(),
           })
           .addParam({
             type: "uint256",
@@ -1029,26 +1082,68 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
           .addParam({
             type: "bool",
             name: "isPublic",
-            value: isPublic
-          })
-        const hash = await walletInterface.executeContractFunction(ContractId.fromString(FRANKY_CONTRACT_ID), "createAgent", params, 1_000_000, deviceInfo.hostingFee)
+            value: isPublic,
+          });
+        const hash = await walletInterface.executeContractFunction(
+          ContractId.fromString(FRANKY_CONTRACT_ID),
+          "createAgent",
+          params,
+          1_000_000,
+          deviceInfo.hostingFee
+        );
         console.log("Transaction sent, hash:", hash);
 
-        toast.promise(publicClient.waitForTransactionReceipt({
-          hash,
-        }), {
-          loading: "Waiting for confirmation...",
-          success: (data) => {
-            console.log("Transaction confirmed, receipt:", data);
-            return `Transaction confirmed! `;
-          },
-          action: {
-            label: "View Tx",
-            onClick: () => {
-              window.open(`https://hashscan.io/testnet/tx/${hash}`, "_blank");
-            }
+        toast.promise(
+          publicClient.waitForTransactionReceipt({
+            hash,
+          }),
+          {
+            loading: "Waiting for confirmation...",
+            success: (data) => {
+              console.log("Transaction confirmed, receipt:", data);
+              return `Transaction confirmed! `;
+            },
+            action: {
+              label: "View Tx",
+              onClick: () => {
+                window.open(`https://hashscan.io/testnet/tx/${hash}`, "_blank");
+              },
+            },
           }
-        });
+        );
+
+        // Additional step: Save to Supabase (non-blocking)
+        try {
+          await fetch('/api/db/agents', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: constructedCharacter.name,
+              subname: subname,
+              description: constructedCharacter.description,
+              personality: constructedCharacter.personality,
+              scenario: constructedCharacter.scenario,
+              first_mes: constructedCharacter.first_mes,
+              mes_example: constructedCharacter.mes_example,
+              creator_comment: constructedCharacter.creatorcomment,
+              tags: constructedCharacter.tags,
+              talkativeness: constructedCharacter.talkativeness,
+              is_favorite: constructedCharacter.fav,
+              device_address: deviceInfo.id.toLowerCase(),
+              owner_address: accountId?.toLowerCase() || '',
+              per_api_call_fee: perApiCallFee,
+              is_public: isPublic,
+              tools: selectedTools.map(tool => tool.id),
+              metadata_url: characterConfigUrl,
+              tx_hash: hash.toString()
+            }),
+          })
+        } catch (dbError) {
+          // Log but don't affect main flow
+          console.warn('Failed to save to database (non-critical):', dbError)
+        }
 
         setTransactionHash(hash);
       } catch (error: any) {
@@ -1121,10 +1216,7 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
               <div className="flex items-center">
                 <span className="text-xs text-gray-400">Device Address: </span>
                 <span className="text-xs text-[#00FF88] ml-2">
-                  {`${deviceInfo.id.slice(
-                    0,
-                    6
-                  )}...${deviceInfo.id.slice(-4)}`}
+                  {`${deviceInfo.id.slice(0, 6)}...${deviceInfo.id.slice(-4)}`}
                 </span>
               </div>
             </div>
@@ -1149,12 +1241,13 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
                   value={agentName}
                   onChange={(e) => setAgentName(e.target.value)}
                   placeholder="my-agent-name"
-                  className={`w-full p-3 rounded-lg bg-black/50 border focus:outline-none focus:ring-1 ${isNameAvailable
-                    ? "border-[#00FF88]/30 focus:border-[#00FF88] focus:ring-[#00FF88]"
-                    : nameError
+                  className={`w-full p-3 rounded-lg bg-black/50 border focus:outline-none focus:ring-1 ${
+                    isNameAvailable
+                      ? "border-[#00FF88]/30 focus:border-[#00FF88] focus:ring-[#00FF88]"
+                      : nameError
                       ? "border-red-500/30 focus:border-red-500 focus:ring-red-500"
                       : "border-[#00FF88]/30 focus:border-[#00FF88] focus:ring-[#00FF88]"
-                    }`}
+                  }`}
                 />
                 {agentName && (
                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -1221,10 +1314,9 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
                 <p className="text-[#00FF88] font-medium">Wallet connected</p>
                 <p className="text-xs text-gray-400">
                   {accountId
-                    ? `${accountId.substring(
-                      0,
-                      6
-                    )}...${accountId.substring(accountId.length - 4)}`
+                    ? `${accountId.substring(0, 6)}...${accountId.substring(
+                        accountId.length - 4
+                      )}`
                     : ""}
                 </p>
               </div>
@@ -1330,7 +1422,6 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
                   </div>
                 </label>
               </div>
-
             </div>
           </div>
         </motion.div>
@@ -1346,15 +1437,12 @@ function CreateAgentContent({ deviceAddress, walletInterface, accountId }: {
           {
             <button
               onClick={handleCreateAgent}
-              disabled={
-                !constructedCharacter ||
-                isUploading ||
-                agentCreated
-              }
+              disabled={!constructedCharacter || isUploading || agentCreated}
               className={`px-8 py-4 rounded-lg transition-all duration-300 shadow-lg shadow-emerald-900/30 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed
-                ${uploadUrl
-                  ? "bg-[#00FF88]/30 border border-[#00FF88] text-white"
-                  : "bg-gradient-to-r from-[#00FF88]/20 to-emerald-500/20 border border-[#00FF88] text-[#00FF88] hover:from-[#00FF88]/30 hover:to-emerald-500/30"
+                ${
+                  uploadUrl
+                    ? "bg-[#00FF88]/30 border border-[#00FF88] text-white"
+                    : "bg-gradient-to-r from-[#00FF88]/20 to-emerald-500/20 border border-[#00FF88] text-[#00FF88] hover:from-[#00FF88]/30 hover:to-emerald-500/30"
                 } 
                 ${isUploading ? "animate-pulse" : ""}`}
             >
@@ -1432,27 +1520,35 @@ function LoadingFallback() {
   );
 }
 
-export default function CreateAgentPage({ params }: {
+export default function CreateAgentPage({
+  params,
+}: {
   params: Promise<{
-    address: string
-  }>
+    address: string;
+  }>;
 }) {
-  const [address, setAddress] = useState<string>('');
-  const {walletInterface, accountId} = useWalletInterface()
+  const [address, setAddress] = useState<string>("");
+  const { walletInterface, accountId } = useWalletInterface();
 
   useEffect(() => {
     const fetchData = async () => {
       const fetcgedparams = await params;
-      console.log(fetcgedparams)
+      console.log(fetcgedparams);
       setAddress(fetcgedparams.address);
     };
-    fetchData()
+    fetchData();
   }, []);
 
   return (
     <main className="min-h-screen pb-20">
       <Suspense fallback={<LoadingFallback />}>
-       {address && <CreateAgentContent deviceAddress={address} walletInterface={walletInterface} accountId={accountId} />}
+        {address && (
+          <CreateAgentContent
+            deviceAddress={address}
+            walletInterface={walletInterface}
+            accountId={accountId}
+          />
+        )}
       </Suspense>
     </main>
   );

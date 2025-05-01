@@ -4,8 +4,8 @@
   "description": "Agent framework for Franky with server wallet integration",
   "main": "index.js",
   "scripts": {
-    "start": "ts-node tests/character-mcp-api.ts",
-    "dev": "nodemon --watch src --watch tests --exec ts-node tests/character-mcp-api.ts",
+    "start": "ts-node routes/character-mcp-api.ts",
+    "dev": "nodemon --watch src --watch routes --exec ts-node routes/character-mcp-api.ts",
     "test": "jest"
   },
   "dependencies": {
@@ -14,10 +14,12 @@
     "@langchain/langgraph": "^0.2.34",
     "@langchain/ollama": "^0.2.0",
     "@langchain/openai": "^0.3.16",
-    "@lit-protocol/auth-helpers": "^3.0.30",
-    "@lit-protocol/constants": "^3.0.30",
-    "@lit-protocol/encryption": "^3.0.30",
-    "@lit-protocol/lit-node-client": "^3.0.30",
+    "@lit-protocol/accs-schemas": "^0.0.24",
+    "@lit-protocol/auth-helpers": "^7.1.1",
+    "@lit-protocol/constants": "^7.1.1",
+    "@lit-protocol/contracts": "^0.0.90",
+    "@lit-protocol/encryption": "^7.1.1",
+    "@lit-protocol/lit-node-client": "^7.1.1",
     "@types/uuid": "^10.0.0",
     "axios": "^1.8.4",
     "bignumber.js": "^9.1.2",
@@ -26,12 +28,14 @@
     "dotenv": "^16.3.1",
     "ethers": "^5.7.2",
     "express": "^4.18.2",
-    "node-fetch": "^2.6.7",
+    "isows": "^1.0.6",
+    "node-fetch": "^2.7.0",
     "openai": "^4.95.1",
     "qrcode-terminal": "^0.12.0",
     "systeminformation": "^5.25.11",
     "uuid": "^11.1.0",
-    "viem": "^1.19.9"
+    "viem": "^1.19.9",
+    "ws": "^8.18.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.13",
