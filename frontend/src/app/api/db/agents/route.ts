@@ -33,8 +33,6 @@ export async function GET(request: Request) {
   const subname = searchParams.get("subname");
 
   try {
-    const supabase = await getSupabaseClient();
-
     if (subname) {
       console.log(`Fetching agent by subname: ${subname}`);
       // Get agent by subname
