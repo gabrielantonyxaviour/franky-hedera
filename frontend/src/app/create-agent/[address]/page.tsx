@@ -832,24 +832,24 @@ function CreateAgentContent({
         );
         const device = await fetchedDeviceRequest.json();
         console.log("Device from Supabase:", device);
-        
+
         if (!device || device.error) throw Error("Device does not exist");
-        
+
         // Transform Supabase response to match existing format
         setDeviceInfo({
           id: device.walletAddress,
           deviceModel: device.deviceModel,
           ram: device.ram,
           storage: device.storage,
-          cpu: device.cpu || '',
+          cpu: device.cpu || "",
           ngrokUrl: device.ngrokUrl,
           walletAddress: device.walletAddress,
           hostingFee: device.hostingFee,
           agentCount: device.agentCount || 0,
-          status: device.status || 'Active',
+          status: device.status || "Active",
           lastActive: device.lastActive,
           txHash: device.txHash,
-          registeredAt: device.registeredAt
+          registeredAt: device.registeredAt,
         });
       } catch (e) {
         console.log(e);
@@ -1100,6 +1100,32 @@ function CreateAgentContent({
           deviceInfo.hostingFee
         );
         console.log("Transaction sent, hash:", hash);
+
+        const createAgentRequest = await fetch(`/api/db/agents`, {
+          method: "POST",
+          body: JSON.stringify({
+            name: agentName,
+            subname: agentName.toLowerCase(),
+            description: constructedCharacter.description,
+            personality: constructedCharacter.personality,
+            scenario: constructedCharacter.scenario,
+            first_mes: constructedCharacter.first_mes,
+            mes_example: constructedCharacter.mes_example,
+            creator_comment: constructedCharacter.creatorcomment,
+            tags: constructedCharacter.tags,
+            talkativeness: constructedCharacter.talkativeness,
+            is_favorite: constructedCharacter.fav,
+            device_address: deviceInfo.id.toLowerCase(),
+            owner_address: accountId?.toLowerCase(),
+            per_api_call_fee: perApiCallFee,
+            is_public: isPublic,
+            tools: selectedTools.map((tool) => tool.id),
+            tx_hash: hash,
+          }),
+        });
+
+        const createAgentResponse = await createAgentRequest.json();
+        console.log("Agent created:", createAgentResponse);
 
         toast.promise(
           publicClient.waitForTransactionReceipt({

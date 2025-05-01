@@ -7,7 +7,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import ChatInterface from "@/components/chat/ChatInterface";
 
-
 // Simple glow button
 const GlowButton = ({
   children,
@@ -67,7 +66,9 @@ const OptionCard = ({
       transition={{ duration: 0.3 }}
       onClick={onClick}
     >
-      <div className="text-4xl flex w-full justify-center  mb-4 text-[#00FF88]">{icon}</div>
+      <div className="text-4xl flex w-full justify-center  mb-4 text-[#00FF88]">
+        {icon}
+      </div>
       <h3 className="text-xl font-bold mb-2 bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
         {title}
       </h3>
@@ -89,7 +90,7 @@ export default function Home() {
   }, []);
 
   if (!mounted) {
-    return <div></div>
+    return <div></div>;
   }
 
   return (
@@ -125,7 +126,13 @@ export default function Home() {
           >
             {/* Logo and Site Name */}
             <div className="flex items-center justify-center mb-16 space-x-4">
-              <Image src={"/logo.png"} alt="Logo" width={50} height={50} className="rounded-full select-none" />
+              <Image
+                src={"/logo.png"}
+                alt="Logo"
+                width={50}
+                height={50}
+                className="rounded-full select-none"
+              />
               <h2 className="text-2xl font-bold bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
                 frankyagent.xyz
               </h2>
@@ -163,7 +170,7 @@ export default function Home() {
                   </svg>
                 }
                 onClick={() => {
-                  router.push("/deploy-device")
+                  router.push("/deploy-device");
                 }}
               />
               <OptionCard
@@ -218,7 +225,7 @@ export default function Home() {
                   </svg>
                 }
                 onClick={() => {
-                  router.push("/agent-marketplace")
+                  router.push("/agent-marketplace");
                 }}
               />
             </div>
@@ -229,11 +236,16 @@ export default function Home() {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setGetStarted(false)}
               >
-                ←  Go Back
+                ← Go Back
               </motion.button>
             </div>
           </motion.div>
-        ) : <ChatInterface isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />}
+        ) : (
+          <ChatInterface
+            isOpen={isChatOpen}
+            onClose={() => setIsChatOpen(false)}
+          />
+        )}
       </div>
     </section>
   );

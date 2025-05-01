@@ -1,7 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { FiServer, FiChevronDown, FiDollarSign, FiUpload, FiImage, FiCopy, FiKey, FiLock } from 'react-icons/fi';
-import { formatEther } from 'viem';
+import { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
+import {
+  FiServer,
+  FiChevronDown,
+  FiDollarSign,
+  FiUpload,
+  FiImage,
+  FiCopy,
+  FiKey,
+  FiLock,
+} from "react-icons/fi";
+import { formatEther } from "viem";
 
 interface Device {
   id: string;
@@ -21,7 +30,7 @@ export default function DeviceSelector() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [pinataUrl, setPinataUrl] = useState<string | null>(null);
-  const [secrets, setSecrets] = useState<string>('');
+  const [secrets, setSecrets] = useState<string>("");
   const [isEncrypting, setIsEncrypting] = useState(false);
   const [encryptionResult, setEncryptionResult] = useState<{
     ciphertext: string;
@@ -33,13 +42,15 @@ export default function DeviceSelector() {
   useEffect(() => {
     const fetchDevices = async () => {
       try {
-        const response = await fetch('https://92a2-124-123-105-119.ngrok-free.app/subgraphs/name/graph-indexer', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            query: `
+        const response = await fetch(
+          "https://92a2-124-123-105-119.ngrok-free.app/subgraphs/name/graph-indexer",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              query: `
               query {
                 devices {
                   id
@@ -47,21 +58,22 @@ export default function DeviceSelector() {
                   hostingFee
                 }
               }
-            `
-          })
-        });
+            `,
+            }),
+          }
+        );
 
         if (!response.ok) {
-          throw new Error('Failed to fetch devices');
+          throw new Error("Failed to fetch devices");
         }
 
         const { data } = await response.json();
-        
+
         // Process devices and fetch metadata
         const processedDevices = await Promise.all(
           data.devices.map(async (device: any) => {
             let metadata;
-            if (device.deviceMetadata.startsWith('http')) {
+            if (device.deviceMetadata.startsWith("http")) {
               const metadataResponse = await fetch(device.deviceMetadata);
               metadata = await metadataResponse.json();
             } else {
@@ -74,11 +86,11 @@ export default function DeviceSelector() {
 
             return {
               id: device.id,
-              deviceModel: metadata.deviceModel || 'Unknown Device',
-              ram: metadata.ram || 'N/A',
-              storage: metadata.storage || 'N/A',
-              cpu: metadata.cpu || 'N/A',
-              hostingFee: device.hostingFee
+              deviceModel: metadata.deviceModel || "Unknown Device",
+              ram: metadata.ram || "N/A",
+              storage: metadata.storage || "N/A",
+              cpu: metadata.cpu || "N/A",
+              hostingFee: device.hostingFee,
             };
           })
         );
@@ -88,7 +100,9 @@ export default function DeviceSelector() {
           setSelectedDevice(processedDevices[0]);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch devices');
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch devices"
+        );
       } finally {
         setIsLoading(false);
       }
@@ -97,7 +111,9 @@ export default function DeviceSelector() {
     fetchDevices();
   }, []);
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -117,8 +133,8 @@ export default function DeviceSelector() {
   };
 
   const uploadImage = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      setUploadError('Please upload an image file');
+    if (!file.type.startsWith("image/")) {
+      setUploadError("Please upload an image file");
       return;
     }
 
@@ -128,22 +144,24 @@ export default function DeviceSelector() {
 
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append("file", file);
 
-      const response = await fetch('http://localhost:3000/api/pinata/image', {
-        method: 'POST',
+      const response = await fetch("http://localhost:3000/api/pinata/image", {
+        method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error('Failed to upload image');
+        throw new Error("Failed to upload image");
       }
 
       const data = await response.json();
       setImageUrl(data.url);
       setPinataUrl(data.url);
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Failed to upload image');
+      setUploadError(
+        err instanceof Error ? err.message : "Failed to upload image"
+      );
     } finally {
       setIsUploading(false);
     }
@@ -158,35 +176,37 @@ export default function DeviceSelector() {
 
     try {
       // Parse secrets from text input
-      const secretsObj = secrets.split('\n').reduce((acc, line) => {
-        const [key, value] = line.split('=').map(s => s.trim());
+      const secretsObj = secrets.split("\n").reduce((acc, line) => {
+        const [key, value] = line.split("=").map((s) => s.trim());
         if (key && value) {
           acc[key] = value;
         }
         return acc;
       }, {} as Record<string, string>);
 
-      const response = await fetch('http://localhost:3000/api/lit/encrypt', {
-        method: 'POST',
+      const response = await fetch("http://localhost:3000/api/lit/encrypt", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          secrets: secretsObj
-        })
+          secrets: secretsObj,
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to encrypt secrets');
+        throw new Error("Failed to encrypt secrets");
       }
 
       const data = await response.json();
       setEncryptionResult({
         ciphertext: data.ciphertext,
-        dataToEncryptHash: data.dataToEncryptHash
+        dataToEncryptHash: data.dataToEncryptHash,
       });
     } catch (err) {
-      setEncryptionError(err instanceof Error ? err.message : 'Failed to encrypt secrets');
+      setEncryptionError(
+        err instanceof Error ? err.message : "Failed to encrypt secrets"
+      );
     } finally {
       setIsEncrypting(false);
     }
@@ -202,11 +222,7 @@ export default function DeviceSelector() {
   }
 
   if (error) {
-    return (
-      <div className="text-red-500">
-        Error: {error}
-      </div>
-    );
+    return <div className="text-red-500">Error: {error}</div>;
   }
 
   return (
@@ -215,9 +231,9 @@ export default function DeviceSelector() {
         <div className="flex items-center space-x-4">
           <div className="relative">
             <select
-              value={selectedDevice?.id || ''}
+              value={selectedDevice?.id || ""}
               onChange={(e) => {
-                const device = devices.find(d => d.id === e.target.value);
+                const device = devices.find((d) => d.id === e.target.value);
                 setSelectedDevice(device || null);
               }}
               className="appearance-none bg-black/50 border border-[#00FF88]/30 rounded-lg px-4 py-2 pr-8 text-white focus:outline-none focus:border-[#00FF88]"
@@ -236,17 +252,20 @@ export default function DeviceSelector() {
               <div className="flex items-center space-x-2 text-sm text-gray-400">
                 <span>Device Address:</span>
                 <span className="text-[#00FF88] font-mono">
-                  {`${selectedDevice.id.slice(0, 6)}...${selectedDevice.id.slice(-4)}`}
+                  {`${selectedDevice.id.slice(
+                    0,
+                    6
+                  )}...${selectedDevice.id.slice(-4)}`}
                 </span>
               </div>
-              
+
               <div className="flex items-center space-x-2 text-sm text-gray-400">
                 <FiDollarSign className="text-[#00FF88]" />
                 <span>Hosting Fee:</span>
                 <span className="text-[#00FF88]">
-                  {parseInt(selectedDevice.hostingFee) > 0 
-                    ? `${formatEther(BigInt(selectedDevice.hostingFee))} HBAR` 
-                    : 'Free'}
+                  {parseInt(selectedDevice.hostingFee) > 0
+                    ? `${formatEther(BigInt(selectedDevice.hostingFee))} HBAR`
+                    : "Free"}
                 </span>
               </div>
             </div>
@@ -271,14 +290,12 @@ export default function DeviceSelector() {
               disabled={isEncrypting || !secrets.trim()}
               className="w-full mt-2 px-3 py-1.5 bg-[#00FF88] text-black rounded text-sm font-medium hover:bg-[#00FF88]/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isEncrypting ? 'Encrypting...' : 'Encrypt Secrets'}
+              {isEncrypting ? "Encrypting..." : "Encrypt Secrets"}
             </button>
           </div>
 
           {encryptionError && (
-            <div className="mt-2 text-red-500 text-xs">
-              {encryptionError}
-            </div>
+            <div className="mt-2 text-red-500 text-xs">{encryptionError}</div>
           )}
 
           {encryptionResult && (
@@ -288,10 +305,15 @@ export default function DeviceSelector() {
                   <FiKey className="text-[#00FF88]" />
                   <span>Hash:</span>
                   <span className="text-[#00FF88] font-mono">
-                    {encryptionResult.dataToEncryptHash.slice(0, 8)}...{encryptionResult.dataToEncryptHash.slice(-8)}
+                    {encryptionResult.dataToEncryptHash.slice(0, 8)}...
+                    {encryptionResult.dataToEncryptHash.slice(-8)}
                   </span>
                   <button
-                    onClick={() => navigator.clipboard.writeText(encryptionResult.dataToEncryptHash)}
+                    onClick={() =>
+                      navigator.clipboard.writeText(
+                        encryptionResult.dataToEncryptHash
+                      )
+                    }
                     className="text-[#00FF88] hover:text-white transition-colors"
                     title="Copy full hash"
                   >
@@ -302,10 +324,13 @@ export default function DeviceSelector() {
                   <FiLock className="text-[#00FF88]" />
                   <span>Ciphertext:</span>
                   <span className="text-[#00FF88] font-mono">
-                    {encryptionResult.ciphertext.slice(0, 8)}...{encryptionResult.ciphertext.slice(-8)}
+                    {encryptionResult.ciphertext.slice(0, 8)}...
+                    {encryptionResult.ciphertext.slice(-8)}
                   </span>
                   <button
-                    onClick={() => navigator.clipboard.writeText(encryptionResult.ciphertext)}
+                    onClick={() =>
+                      navigator.clipboard.writeText(encryptionResult.ciphertext)
+                    }
                     className="text-[#00FF88] hover:text-white transition-colors"
                     title="Copy full ciphertext"
                   >
@@ -313,13 +338,23 @@ export default function DeviceSelector() {
                   </button>
                 </div>
               </div>
-              
+
               {/* Full values in collapsible section */}
               <details className="group">
                 <summary className="flex items-center space-x-1 text-xs text-gray-400 cursor-pointer hover:text-gray-300">
                   <span>Show full values</span>
-                  <svg className="w-3 h-3 transform group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <svg
+                    className="w-3 h-3 transform group-open:rotate-180 transition-transform"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
                   </svg>
                 </summary>
                 <div className="mt-2 space-y-2">
@@ -357,7 +392,7 @@ export default function DeviceSelector() {
             accept="image/*"
             onChange={handleFileChange}
           />
-          
+
           {isUploading ? (
             <div className="flex flex-col items-center space-y-2">
               <div className="animate-spin">
@@ -367,18 +402,24 @@ export default function DeviceSelector() {
             </div>
           ) : imageUrl ? (
             <div className="flex flex-col items-center space-y-2">
-              <img 
-                src={imageUrl} 
-                alt="Uploaded" 
+              <img
+                src={imageUrl}
+                alt="Uploaded"
                 className="max-h-32 rounded-lg"
               />
-              <span className="text-[#00FF88] text-sm">Image uploaded successfully!</span>
+              <span className="text-[#00FF88] text-sm">
+                Image uploaded successfully!
+              </span>
             </div>
           ) : (
             <div className="flex flex-col items-center space-y-2">
               <FiImage className="w-8 h-8 text-[#00FF88]" />
-              <span className="text-gray-400">Click or drag to upload an image</span>
-              <span className="text-gray-500 text-xs">Supports: JPG, PNG, GIF</span>
+              <span className="text-gray-400">
+                Click or drag to upload an image
+              </span>
+              <span className="text-gray-500 text-xs">
+                Supports: JPG, PNG, GIF
+              </span>
             </div>
           )}
         </div>
@@ -416,4 +457,4 @@ export default function DeviceSelector() {
       </div>
     </div>
   );
-} 
+}
