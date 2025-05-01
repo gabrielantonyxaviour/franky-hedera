@@ -42,26 +42,12 @@ export default function DeviceSelector() {
   useEffect(() => {
     const fetchDevices = async () => {
       try {
-        const response = await fetch(
-          "https://92a2-124-123-105-119.ngrok-free.app/subgraphs/name/graph-indexer",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              query: `
-              query {
-                devices {
-                  id
-                  deviceMetadata
-                  hostingFee
-                }
-              }
-            `,
-            }),
-          }
-        );
+        const response = await fetch("/api/db/devices", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
 
         if (!response.ok) {
           throw new Error("Failed to fetch devices");
