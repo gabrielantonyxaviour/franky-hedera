@@ -472,6 +472,22 @@ class HederaAgentKit {
       };
     }
   }
+
+  /**
+   * Get the private key object for this account
+   * @returns {PrivateKey} Private key object
+   */
+  getPrivateKeyObj() {
+    return this.privateKeyObj;
+  }
+
+  /**
+   * Get the raw private key string
+   * @returns {string} Private key string
+   */
+  getRawPrivateKey() {
+    return this.privateKey;
+  }
 }
 
 module.exports = HederaAgentKit; 

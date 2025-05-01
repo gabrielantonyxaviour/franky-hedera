@@ -2,6 +2,7 @@
  * Tool class for implementing MCP-compatible tools
  */
 const axios = require('axios');
+const uuid = require('uuid');
 
 class Tool {
   constructor(name, description) {
@@ -338,6 +339,293 @@ Example usage:
 }
 
 /**
+ * Class to store and manage dynamic values from requests
+ */
+class RequestValues {
+  constructor() {
+    this.secrets = null;
+    this.secretsHash = null;
+    this.avatarUrl = null;
+    this.deviceAddress = null;
+    this.perApiCallFee = null;
+  }
+
+  updateValues(secrets, secretsHash, avatarUrl, deviceAddress, perApiCallFee) {
+    this.secrets = secrets;
+    this.secretsHash = secretsHash;
+    this.avatarUrl = avatarUrl;
+    this.deviceAddress = deviceAddress || "0x7339b922a04ad2c0ddd9887e5f043a65759543b8"; // Default device address
+    this.perApiCallFee = perApiCallFee || "1000000000000000"; // Default to 0.001 ETH in wei
+    console.log('Updated request values:', {
+      secrets: secrets ? '*** (hidden) ***' : null,
+      secretsHash: secretsHash ? '*** (hidden) ***' : null,
+      avatarUrl,
+      deviceAddress: this.deviceAddress,
+      perApiCallFee: this.perApiCallFee
+    });
+  }
+
+  getValues() {
+    return {
+      secrets: this.secrets || "encrypted_secrets_here",
+      secretsHash: this.secretsHash || "hash_of_encrypted_secrets",
+      avatarUrl: this.avatarUrl || "https://amethyst-impossible-ptarmigan-368.mypinata.cloud/files/your_avatar_cid",
+      deviceAddress: this.deviceAddress || "0x7339b922a04ad2c0ddd9887e5f043a65759543b8",
+      perApiCallFee: this.perApiCallFee || "1000000000000000"
+    };
+  }
+}
+
+// Create a singleton instance
+const requestValues = new RequestValues();
+
+/**
+ * Franky Agent creation tool
+ */
+class CreateFrankyAgentTool extends Tool {
+  constructor(hederaKit) {
+    super("create_franky_agent", 
+      `Create a Franky agent by submitting character data to the Franky contract.
+Inputs (input is a JSON string):
+subdomain: string, the agent's subdomain name,
+name: string, the character's name,
+description: string, physical appearance description,
+personality: string, the character's personality traits,
+scenario: string, background setting/scenario for the character,
+first_mes: string, the first message the character should say,
+mes_example: string, example messages from this character,
+creator_notes: string, notes from the creator,
+system_prompt: string, system instructions for the character,
+perApiCallFee: number, fee per API call in tinybars (REQUIRED),
+isPublic: boolean, whether the agent is public or private (REQUIRED)
+Example usage:
+'{"subdomain": "agent-x", "name": "Agent X", "description": "A mysterious figure", "personality": "Cool and calm", "scenario": "On a mission", "first_mes": "Hello.", "mes_example": "I'm here for the mission.", "creator_notes": "Blend into any environment", "system_prompt": "You are Agent X.", "perApiCallFee": 100, "isPublic": false}'`);
+      
+    this.hederaKit = hederaKit;
+    this.frankyContractId = process.env.FRANKY_CONTRACT_ID || "0.0.5918696"; // Default Franky contract ID
+    console.log("CreateFrankyAgentTool initialized with contract ID:", this.frankyContractId);
+  }
+  
+  // Generate a UUID
+  generateUUID() {
+    return uuid.v4();
+  }
+  
+  // Create input and output topics for this agent
+  async createAgentTopics(agentName) {
+    try {
+      console.log(`Creating input and output topics for agent "${agentName}"`);
+      
+      // Create input topic
+      const inputTopicName = `${agentName} input topic`;
+      const inputTopicResult = await this.hederaKit.createTopic(inputTopicName);
+      const inputTopicId = inputTopicResult.topicId;
+      console.log(`Created input topic: ${inputTopicId}`);
+      
+      // Create output topic
+      const outputTopicName = `${agentName} output topic`;
+      const outputTopicResult = await this.hederaKit.createTopic(outputTopicName);
+      const outputTopicId = outputTopicResult.topicId;
+      console.log(`Created output topic: ${outputTopicId}`);
+      
+      return {
+        inputTopicId,
+        outputTopicId
+      };
+    } catch (error) {
+      console.error(`Error creating topics for agent: ${error.message}`);
+      throw error;
+    }
+  }
+
+  // Execute contract call to create agent on the blockchain
+  async executeContractCall(subname, characterConfigUrl, cid, deviceAddress, perApiCallFee, isPublic) {
+    try {
+      const { 
+        ContractId, 
+        ContractExecuteTransaction,
+        ContractFunctionParameters,
+        Hbar
+      } = require("@hashgraph/sdk");
+
+      console.log("===== CONTRACT EXECUTION - STARTING =====");
+      console.log("PREPARING CONTRACT CALL with parameters:");
+      console.log({
+        contractId: this.frankyContractId,
+        subname,
+        characterConfigUrl,
+        cid,
+        deviceAddress: deviceAddress.toLowerCase(),
+        perApiCallFee,
+        isPublic
+      });
+
+      // Create contract parameters
+      const contractParams = new ContractFunctionParameters()
+        .addString(subname)
+        .addString(characterConfigUrl)
+        .addString(cid)
+        .addAddress(deviceAddress.toLowerCase()) 
+        .addUint256(perApiCallFee)
+        .addBool(isPublic);
+      
+      console.log("CONTRACT PARAMETERS CREATED");
+
+      // Create the transaction
+      const transaction = new ContractExecuteTransaction()
+        .setContractId(ContractId.fromString(this.frankyContractId))
+        .setFunction("createAgent", contractParams)
+        .setGas(1_000_000)
+        .setPayableAmount(new Hbar(1)); // Send 1 HBAR
+      
+      console.log("TRANSACTION PREPARED");
+      
+      // Sign and execute the transaction
+      console.log("EXECUTING CONTRACT TRANSACTION...");
+      const txResponse = await transaction.execute(this.hederaKit.client);
+      console.log("CONTRACT TRANSACTION EXECUTED with ID:", txResponse.transactionId.toString());
+      
+      // Get the receipt
+      console.log("WAITING FOR TRANSACTION RECEIPT...");
+      const receipt = await txResponse.getReceipt(this.hederaKit.client);
+      console.log("RECEIPT RECEIVED with status:", receipt.status.toString());
+      
+      console.log("===== CONTRACT EXECUTION - COMPLETED =====");
+      
+      return {
+        status: receipt.status.toString(),
+        transactionId: txResponse.transactionId.toString()
+      };
+    } catch (error) {
+      console.error("===== CONTRACT EXECUTION - FAILED =====");
+      console.error("Error executing contract:", error);
+      throw error;
+    }
+  }
+  
+  async _call(input, config) {
+    try {
+      console.log(`CreateFrankyAgentTool called with input:`, input);
+      
+      // Parse input
+      const parsedInput = typeof input === 'string' ? JSON.parse(input) : input;
+      console.log("CreateFrankyAgentTool: parsed input:", parsedInput);
+      
+      // Get dynamic values
+      const { secrets, secretsHash, avatarUrl, deviceAddress, perApiCallFee } = requestValues.getValues();
+      
+      // Create the request body in the new format
+      const requestBody = {
+        json: {
+          character: {
+            name: parsedInput.name,
+            description: parsedInput.description,
+            personality: parsedInput.personality,
+            scenario: parsedInput.scenario,
+            first_mes: parsedInput.first_mes,
+            mes_example: parsedInput.mes_example,
+            creatorcomment: parsedInput.creator_notes,
+            tags: [parsedInput.system_prompt],
+            talkativeness: 0.7,
+            fav: true
+          },
+          subname: parsedInput.subdomain,
+          secrets,
+          secretsHash,
+          avatarUrl,
+          deviceAddress,
+          perApiCallFee
+        }
+      };
+
+      // Log the raw request body
+      console.log('Raw request body being sent to endpoint:');
+      console.log(JSON.stringify(requestBody, null, 2));
+
+      // Make the POST request to the new endpoint
+      console.log("SENDING REQUEST TO PINATA API...");
+      const response = await fetch('http://localhost:3000/api/pinata/json', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("PINATA API RESPONSE:", result);
+      
+      // Extract the CID from the URL
+      // URL format: https://amethyst-impossible-ptarmigan-368.mypinata.cloud/files/bafkreics2qb6tzhneoeskujr7kx5swoa7yv46itvhefpm3bpqanzkrg7t4
+      const characterConfigUrl = result.url;
+      const cid = characterConfigUrl.split('/files/')[1];
+      
+      console.log("EXTRACTED CID:", cid);
+      console.log("CHARACTER CONFIG URL:", characterConfigUrl);
+      
+      // Execute contract call to register the agent on blockchain
+      console.log("INITIATING CONTRACT CALL...");
+      const contractResult = await this.executeContractCall(
+        parsedInput.subdomain,
+        characterConfigUrl,
+        cid,
+        deviceAddress,
+        perApiCallFee,
+        parsedInput.isPublic
+      );
+      
+      console.log("CONTRACT EXECUTION RESULT:", contractResult);
+      
+      return JSON.stringify({
+        status: "success",
+        message: `Agent "${parsedInput.name}" created successfully and registered on blockchain!`,
+        data: {
+          ...result,
+          contract: contractResult
+        }
+      });
+
+    } catch (error) {
+      console.error("CreateFrankyAgentTool error:", error);
+      return JSON.stringify({
+        status: "error",
+        message: error.message,
+        code: error.code || "UNKNOWN_ERROR"
+      });
+    }
+  }
+  
+  // Helper function to convert accountId to Solidity address
+  accountIdToSolidityAddress(accountId) {
+    const parts = accountId.split('.');
+    if (parts.length !== 3) throw new Error("Invalid account ID format");
+    
+    const shard = BigInt(parts[0]);
+    const realm = BigInt(parts[1]);
+    const num = BigInt(parts[2]);
+    
+    const bytes = new Uint8Array(20);
+    const view = new DataView(bytes.buffer);
+    
+    // First 4 bytes: shard and realm (big endian)
+    view.setUint32(0, Number((shard << 32n) | realm));
+    
+    // Remaining bytes: account number (big endian)
+    for (let i = 0; i < 8; i++) {
+      bytes[12 + i] = Number((num >> BigInt(8 * (7 - i)))) & 0xff;
+    }
+    
+    return '0x' + Array.from(bytes)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+}
+
+/**
  * Create Hedera tools for the MCP server
  * @param {HederaAgentKit} hederaKit - HederaAgentKit instance
  * @returns {Tool[]} - Array of tools
@@ -348,15 +636,16 @@ function createHederaTools(hederaKit) {
     new AdditionTool(hederaKit),
     new CreateCharacterTool(hederaKit),
     new FindCharacterTool(hederaKit),
-    new ListAllCharactersTool(hederaKit)
+    new ListAllCharactersTool(hederaKit),
+    new CreateFrankyAgentTool(hederaKit)
   ];
 }
 
 module.exports = {
-  Tool,
   AdditionTool,
   CreateCharacterTool,
   FindCharacterTool,
   ListAllCharactersTool,
+  CreateFrankyAgentTool,
   createHederaTools
 }; 
