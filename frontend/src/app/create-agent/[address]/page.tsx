@@ -826,22 +826,30 @@ function CreateAgentContent({
     if (!deviceAddress) return;
     (async function () {
       try {
+        // Changed to fetch from Supabase endpoint
         const fetchedDeviceRequest = await fetch(
-          "/api/graph/devices-by-wallet?address=" +
-            deviceAddress.toLocaleLowerCase()
+          "/api/db/devices?address=" + deviceAddress.toLowerCase()
         );
-        const devices = await fetchedDeviceRequest.json();
-        console.log("Devices by wallet");
-        console.log(devices);
-        if (devices.length == 0) throw Error("Device does not exist");
-        const deviceMetadataRequest = await fetch(
-          `${devices[0].deviceMetadata}`
-        );
-        const deviceMetadata = await deviceMetadataRequest.json();
+        const device = await fetchedDeviceRequest.json();
+        console.log("Device from Supabase:", device);
+        
+        if (!device || device.error) throw Error("Device does not exist");
+        
+        // Transform Supabase response to match existing format
         setDeviceInfo({
-          ...devices[0],
-          ...deviceMetadata,
-          agentCount: devices[0].agents.length,
+          id: device.walletAddress,
+          deviceModel: device.deviceModel,
+          ram: device.ram,
+          storage: device.storage,
+          cpu: device.cpu || '',
+          ngrokUrl: device.ngrokUrl,
+          walletAddress: device.walletAddress,
+          hostingFee: device.hostingFee,
+          agentCount: device.agentCount || 0,
+          status: device.status || 'Active',
+          lastActive: device.lastActive,
+          txHash: device.txHash,
+          registeredAt: device.registeredAt
         });
       } catch (e) {
         console.log(e);
@@ -984,7 +992,7 @@ function CreateAgentContent({
 
       try {
         console.log("Preparing transaction");
-        toast.info("Uploading Avatar to Filecoin...", {
+        toast.info("Uploading Avatar to Pinata...", {
           description: "This will take some time...",
         });
 
@@ -1111,39 +1119,6 @@ function CreateAgentContent({
             },
           }
         );
-
-        // Additional step: Save to Supabase (non-blocking)
-        try {
-          await fetch('/api/db/agents', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              name: constructedCharacter.name,
-              subname: subname,
-              description: constructedCharacter.description,
-              personality: constructedCharacter.personality,
-              scenario: constructedCharacter.scenario,
-              first_mes: constructedCharacter.first_mes,
-              mes_example: constructedCharacter.mes_example,
-              creator_comment: constructedCharacter.creatorcomment,
-              tags: constructedCharacter.tags,
-              talkativeness: constructedCharacter.talkativeness,
-              is_favorite: constructedCharacter.fav,
-              device_address: deviceInfo.id.toLowerCase(),
-              owner_address: accountId?.toLowerCase() || '',
-              per_api_call_fee: perApiCallFee,
-              is_public: isPublic,
-              tools: selectedTools.map(tool => tool.id),
-              metadata_url: characterConfigUrl,
-              tx_hash: hash.toString()
-            }),
-          })
-        } catch (dbError) {
-          // Log but don't affect main flow
-          console.warn('Failed to save to database (non-critical):', dbError)
-        }
 
         setTransactionHash(hash);
       } catch (error: any) {

@@ -495,38 +495,55 @@ export default function AgentMarketplacePage() {
 
   useEffect(() => {
     (async function () {
-      // const fetchedAgents = await getPublicAgents()
-      const agentsRequest = await fetch("/api/graph/agents")
-      if (!agentsRequest.ok) {
+      try {
+        // Fetch agents from Supabase instead of graph API
+        const agentsRequest = await fetch("/api/db/agents")
+        if (!agentsRequest.ok) {
+          setLoading(false)
+          setError("Failed to fetch agents")
+          return
+        }
+        const agentsResponse = await agentsRequest.json()
+        console.log("Agents from Supabase:", agentsResponse)
+
+        // Transform Supabase response to match existing Agent interface
+        const formattedAgents = await Promise.all(agentsResponse.map(async (agent: any) => {
+          // Fetch character config if available
+          let characterConfig = null
+          if (agent.metadata_url) {
+            try {
+              const characterRequest = await fetch(`/api/akave/fetch-json?url=${encodeURIComponent(agent.metadata_url)}`)
+              characterConfig = await characterRequest.json()
+            } catch (err) {
+              console.warn("Failed to fetch character config:", err)
+            }
+          }
+
+          return {
+            id: agent.id,
+            prefix: agent.subname,
+            agentAddress: agent.id,
+            deviceAddress: agent.device_address,
+            owner: agent.owner_address,
+            perApiCallFee: agent.per_api_call_fee,
+            character: agent.avatar || agent.metadata_url, // Use avatar or fallback to metadata URL
+            characterConfig: characterConfig,
+            isPublic: agent.is_public,
+            timestamp: new Date(agent.created_at).toLocaleDateString(),
+            name: agent.name || '',
+            avatar: agent.avatar || agent.metadata_url
+          }
+        }))
+
+        console.log("Formatted agents:", formattedAgents)
+        setAgents(formattedAgents)
+        setLoading(false)
+        setError(null)
+      } catch (err) {
+        console.error("Error fetching agents:", err)
         setLoading(false)
         setError("Failed to fetch agents")
-        return
       }
-      const agentsResponse = await agentsRequest.json()
-      console.log(agentsResponse)
-      const formattedAgents = await Promise.all(agentsResponse.map(async (agent: any) => {
-        const characterRequest = await fetch(`/api/akave/fetch-json?url=${encodeURIComponent(agent.characterConfig)}`)
-        console.log(`/api/akave/fetch-json?url=${encodeURIComponent(agent.characterConfig)}`)
-        const character = await characterRequest.json()
-        return {
-          id: agent.id,
-          prefix: agent.subname,
-          agentAddress: agent.id,
-          deviceAddress: agent.deviceAddress.id,
-          owner: agent.owner.id,
-          perApiCallFee: formatEther(agent.perApiCallFee),
-          character: agent.avatar,
-          characterConfig: character,
-          isPublic: agent.isPublic,
-          timestamp: new Date(agent.createdAt * 1000).toLocaleDateString(),
-          name: agent.subname || '',
-          avatar: agent.avatar
-        }
-      }))
-      console.log(formattedAgents)
-      setAgents(formattedAgents)
-      setLoading(false)
-      setError(null)
     })()
   }, [])
 

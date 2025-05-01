@@ -4,7 +4,6 @@ import { hcsService } from '@/lib/services/hcs-service';
 // Self checker configuration
 const SELF_CHECKER_ADDRESS = '0.0.5868472'; // Hedera account ID format
 const SELF_CHECKER_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-const DEVICES_API_URL = `${process.env.NEXTAUTH_URL}/api/graph/devices`;
 
 // Interface for test result
 interface TestResult {
@@ -16,17 +15,12 @@ interface TestResult {
 
 // Interface for device API response
 interface DeviceApiResponse {
-  __typename: string;
-  id: string;
-  owner: {
-    __typename: string;
-    id: string;
-  };
-  deviceMetadata: string; // Pinata URL to the metadata
-  hostingFee: string;
-  createdAt: string;
-  updatedAt: string;
-  agents: any[];
+  walletAddress: string;
+  metadata_url: string;
+  ngrok_url: string;
+  agent_count: number;
+  status: string;
+  last_active: string;
   [key: string]: any;
 }
 
@@ -49,6 +43,8 @@ interface DeviceInfo {
   metadata?: DeviceMetadata; // Parsed metadata
   ngrokUrl?: string; // Extracted from metadata
   agents?: any[];
+  status: string;
+  lastActive: string;
   [key: string]: any;
 }
 
@@ -372,13 +368,13 @@ export async function POST(request: Request) {
     const body = await request.json();
     const providedDeviceAddresses = body.deviceAddresses;
     
-    // Fetch all devices from the API
+    // Fetch all devices from Supabase
     let allDevices: DeviceApiResponse[] = [];
     let devicesToCheck: DeviceInfo[] = [];
     
     try {
-      console.log(`Fetching devices from ${DEVICES_API_URL}`);
-      const response = await fetch(DEVICES_API_URL);
+      console.log('Fetching devices from Supabase');
+      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/db/devices`);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch devices: ${response.status}`);
@@ -387,24 +383,26 @@ export async function POST(request: Request) {
       allDevices = await response.json();
       console.log(`Found ${allDevices.length} devices in total`);
       
-      // Map API response to DeviceInfo format and load metadata for each device
+      // Map Supabase response to DeviceInfo format and load metadata for each device
       devicesToCheck = await Promise.all(allDevices.map(async (deviceResponse) => {
-        // Create a device info object from the API response, but exclude fields we explicitly set
-        const { id, deviceMetadata, agents, ...otherFields } = deviceResponse;
-        
         const deviceInfo: DeviceInfo = {
-          id,
-          deviceMetadata,
-          agents,
-          ...otherFields  // Keep other fields
+          id: deviceResponse.walletAddress,
+          deviceMetadata: deviceResponse.metadata_url,
+          agents: deviceResponse.agent_count > 0 ? [{ id: '1' }] : [], // Maintain compatibility with existing code
+          ngrokUrl: deviceResponse.ngrok_url,
+          status: deviceResponse.status,
+          lastActive: deviceResponse.last_active
         };
         
         // Fetch metadata if available
-        if (deviceMetadata) {
-          const metadata = await fetchDeviceMetadata(deviceMetadata);
+        if (deviceInfo.deviceMetadata) {
+          const metadata = await fetchDeviceMetadata(deviceInfo.deviceMetadata);
           if (metadata) {
             deviceInfo.metadata = metadata;
-            deviceInfo.ngrokUrl = metadata.ngrokUrl;
+            // Only override ngrokUrl from metadata if not already set in Supabase
+            if (!deviceInfo.ngrokUrl) {
+              deviceInfo.ngrokUrl = metadata.ngrokUrl;
+            }
           }
         }
         

@@ -2,6 +2,30 @@ import { NextResponse } from 'next/server';
 import { hcsService } from '@/lib/services/hcs-service';
 import { ethers } from 'ethers';
 
+// Fetch devices from Supabase
+async function fetchDevices() {
+  try {
+    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/db/devices`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch devices: ${response.status}`);
+    }
+    const devices = await response.json();
+    
+    // Transform Supabase response to match existing format
+    return devices.map((device: any) => ({
+      id: device.walletAddress,
+      deviceMetadata: device.metadata_url,
+      ngrokLink: device.ngrokUrl,
+      agents: device.agent_count > 0, // Convert agent count to boolean for compatibility
+      status: device.status,
+      lastActive: device.last_active
+    }));
+  } catch (error) {
+    console.error('Error fetching devices:', error);
+    throw error;
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -30,17 +54,8 @@ export async function GET(request: Request) {
       );
     }
 
-    // Get devices from graph API
-    const devicesResponse = await fetch('https://www.frankyagent.xyz/api/graph/devices', {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    });
-
-    if (!devicesResponse.ok) {
-      throw new Error(`Failed to fetch devices: ${devicesResponse.status}`);
-    }
-
-    const devices = await devicesResponse.json();
+    // Get devices from Supabase
+    const devices = await fetchDevices();
 
     // Use a simple round-robin approach for device assignment
     // In production, would use a more sophisticated algorithm

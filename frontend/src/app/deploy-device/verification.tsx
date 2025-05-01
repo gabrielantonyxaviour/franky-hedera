@@ -385,6 +385,9 @@ export const DeviceVerification = () => {
 
                                                 // Additional step: Save to Supabase (non-blocking)
                                                 try {
+                                                    // Convert hosting fee to same format as contract (wei/tinybars)
+                                                    const hostingFeeInWei = parseEther(hostingFee).toString();
+                                                    
                                                     await fetch('/api/db/devices', {
                                                         method: 'POST',
                                                         headers: {
@@ -397,7 +400,7 @@ export const DeviceVerification = () => {
                                                             cpu: deviceDetails.cpu || '',
                                                             ngrokUrl: deviceDetails.ngrokLink,
                                                             walletAddress: deviceDetails.walletAddress,
-                                                            hostingFee: hostingFee,
+                                                            hostingFee: hostingFeeInWei,
                                                             txHash: response.toString()
                                                         }),
                                                     })

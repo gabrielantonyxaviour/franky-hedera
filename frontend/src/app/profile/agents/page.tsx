@@ -66,34 +66,40 @@ export default function AgentsPage() {
     setError(null)
 
     try {
-      const agentsRequest = await fetch("/api/graph/agents-by-owner?address=" + accountId.toLocaleLowerCase())
+      // Changed to fetch from Supabase endpoint
+      const agentsRequest = await fetch("/api/db/agents?address=" + accountId.toLowerCase())
       if (!agentsRequest.ok) {
         setLoading(false)
         setError("Failed to fetch agents")
         return
       }
       const agentsResponse = await agentsRequest.json()
-      console.log(agentsResponse)
+      console.log('Agents from Supabase:', agentsResponse)
+      
       const formattedAgents = await Promise.all(agentsResponse.map(async (agent: any) => {
         if (!agent) return;
-        const characterRequest = await fetch(`/api/akave/fetch-json?url=${encodeURIComponent(agent.characterConfig)}`)
+        
+        // Fetch character config from metadata_url
+        const characterRequest = await fetch(`/api/akave/fetch-json?url=${encodeURIComponent(agent.metadata_url)}`)
         const character = await characterRequest.json()
+        
+        // Transform to match existing format
         return {
           id: agent.id,
           prefix: agent.subname,
           agentAddress: agent.id,
-          deviceAddress: agent.deviceAddress.id,
-          owner: agent.owner.id,
-          perApiCallFee: formatEther(agent.perApiCallFee),
-          character: agent.avatar,
+          deviceAddress: agent.device_address,
+          owner: agent.owner_address,
+          perApiCallFee: formatEther(agent.per_api_call_fee),
           characterConfig: character,
-          isPublic: agent.isPublic,
-          timestamp: new Date(agent.createdAt * 1000).toLocaleDateString(),
-          name: agent.subname || '',
-          avatar: agent.avatar
+          isPublic: agent.is_public,
+          timestamp: new Date(agent.created_at).getTime() / 1000,
+          name: agent.name || '',
+          avatar: character.avatarUrl // Avatar URL is stored in character config
         }
       }))
-      console.log(formattedAgents.filter((agent: any) => agent !== null))
+      
+      console.log('Formatted agents:', formattedAgents.filter((agent: any) => agent !== null))
       setAgents(formattedAgents.filter((agent: any) => agent !== null))
     } catch (error: any) {
       console.error("Error fetching agents:", error)

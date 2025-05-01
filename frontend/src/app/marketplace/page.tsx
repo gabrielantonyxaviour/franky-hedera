@@ -218,35 +218,38 @@ export default function MarketplacePage() {
   useEffect(() => {
     if (!isClient) return;
     (async function () {
-      const fetchedDevicesRequest = await fetch('/api/graph/devices')
-      const fetchedDevices = await fetchedDevicesRequest.json()
-      console.log("Fetched devices from Subgraph")
-      console.log(fetchedDevices)
-      const formattedDevices = await Promise.all(
-        fetchedDevices.map(async (device: any) => {
-          if (device.agents.length > 0) return;
-          const metadataRequest = await fetch(device.deviceMetadata);
-          const metadata = await metadataRequest.json();
+      try {
+        // Changed to fetch from Supabase endpoint
+        const fetchedDevicesRequest = await fetch('/api/db/devices')
+        const fetchedDevices = await fetchedDevicesRequest.json()
+        console.log("Fetched devices from Supabase")
+        console.log(fetchedDevices)
 
-          return {
-            id: device.id,
-            deviceModel: metadata.deviceModel ?? 'Samsung Galaxy S23',
-            ram: metadata.ram ?? '8GB',
-            storage: metadata.storage ?? '128GB',
-            cpu: metadata.cpu ?? 'Snapdragon 8 Gen 2',
-            ngrokLink: metadata.ngrokUrl,
-            walletAddress: device.id,
-            hostingFee: device.hostingFee,
-            agentCount: device.agents.length,
-            status: device.agents.length > 0 ? 'In Use' : 'Available',
-            lastActive: new Date(device.updatedAt * 1000).toLocaleDateString(),
-            registeredAt: new Date(device.createdAt * 1000).toLocaleDateString(),
-          };
-        })
-      );
-      setDevices(formattedDevices.filter(Boolean));
-      setLoading(false)
-      setError(null)
+        // Transform Supabase response to match existing format
+        const formattedDevices = fetchedDevices.map((device: any) => ({
+          id: device.id,
+          deviceModel: device.deviceModel,
+          ram: device.ram,
+          storage: device.storage,
+          cpu: device.cpu || '',
+          ngrokLink: device.ngrokUrl,
+          walletAddress: device.walletAddress,
+          hostingFee: device.hostingFee,
+          agentCount: device.agentCount,
+          status: device.status,
+          lastActive: new Date(device.lastActive).toLocaleDateString(),
+          txHash: device.txHash,
+          registeredAt: new Date(device.registeredAt).toLocaleDateString()
+        }));
+
+        setDevices(formattedDevices.filter(Boolean));
+        setLoading(false)
+        setError(null)
+      } catch (err) {
+        console.error('Error fetching devices:', err)
+        setError('Failed to load devices')
+        setLoading(false)
+      }
     })()
   }, [isClient]);
 

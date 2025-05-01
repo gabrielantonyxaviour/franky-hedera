@@ -7,7 +7,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const address = searchParams.get('address')
   
-  const supabase = createRouteHandlerClient({ cookies })
+  const cookieStore = cookies()
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
   
   try {
     if (address) {
@@ -72,7 +73,8 @@ export async function GET(request: Request) {
 
 // POST /api/db/devices - Create new device record
 export async function POST(request: Request) {
-  const supabase = createRouteHandlerClient({ cookies })
+  const cookieStore = cookies()
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
   
   try {
     const json = await request.json()

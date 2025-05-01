@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Constants
-BASE_URL="https://hedera.frankyagent.xyz"
-GRAPH_API_ENDPOINT="/api/graph/devices-by-wallet?address="
+BASE_URL="http://localhost:3000"
+GRAPH_API_ENDPOINT="/api/db/devices?address="
 DEVICE_DETAILS_FILE="Device_details.txt"
 METADATA_TOPIC_FILE="device_metadata_topic.txt"
 # Update registration check settings: 30 checks x 20 seconds = 10 minutes
@@ -827,7 +827,7 @@ create_and_display_qr_code() {
   log_success "QR code displayed successfully with all device metadata using EVM address"
 }
 
-# Function to poll the graph endpoint for device creation
+# Function to check device registration
 check_device_registration() {
   log_status "Checking device registration..."
   
@@ -877,15 +877,40 @@ check_device_registration() {
   while [ $retry_count -lt $MAX_RETRIES ]; do
     response=$(curl -s "$GRAPH_URL")
     
-    # Check if the response contains a device
-    if [[ "$response" == *"\"device\":"* ]]; then
-      log_success "Device registered successfully!"
-      # Extract device details to display
-      if [[ "$response" == *"\"id\":"* ]]; then
-        DEVICE_ID=$(echo "$response" | grep -o '"id":"[^"]*' | head -1 | sed 's/"id":"//g')
-        log_success "Registered device ID: $DEVICE_ID"
+    # Check if the response contains a device - Supabase returns camelCase fields
+    if [[ "$response" == *"\"deviceModel\""* && "$response" != "null" ]]; then
+      # Verify the wallet address matches
+      if command_exists jq; then
+        RETURNED_ADDRESS=$(echo "$response" | jq -r '.walletAddress' | tr '[:upper:]' '[:lower:]')
+        EXPECTED_ADDRESS=$(echo "$EVM_ADDRESS" | tr '[:upper:]' '[:lower:]')
+        
+        if [ "$RETURNED_ADDRESS" = "$EXPECTED_ADDRESS" ]; then
+          log_success "Device registered successfully!"
+          
+          # Extract device details
+          DEVICE_MODEL=$(echo "$response" | jq -r '.deviceModel')
+          DEVICE_RAM=$(echo "$response" | jq -r '.ram')
+          DEVICE_STORAGE=$(echo "$response" | jq -r '.storage')
+          log_success "Device Details:"
+          log_success "Model: $DEVICE_MODEL"
+          log_success "RAM: $DEVICE_RAM"
+          log_success "Storage: $DEVICE_STORAGE"
+          log_success "Wallet Address: $RETURNED_ADDRESS"
+          break
+        else
+          log_warning "Found device but wallet address doesn't match."
+          log_warning "Expected: $EXPECTED_ADDRESS"
+          log_warning "Found: $RETURNED_ADDRESS"
+        fi
+      else
+        # Simple grep fallback if jq is not available
+        if [[ "$response" == *"\"walletAddress\":\"$EVM_ADDRESS\""* ]]; then
+          log_success "Device registered and verified"
+          break
+        else
+          log_warning "Found device but wallet address doesn't match"
+        fi
       fi
-      break
     else
       retry_count=$((retry_count + 1))
       if [ $retry_count -lt $MAX_RETRIES ]; then

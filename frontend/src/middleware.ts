@@ -2,42 +2,32 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 interface Device {
-  __typename: string;
   id: string;
-  ngrokLink: string;
-}
-
-interface User {
-  __typename: string;
-  id: string;
+  ngrokUrl: string;
+  walletAddress: string;
+  status: string;
 }
 
 interface Agent {
-  __typename: string;
   id: string;
-  deviceAddress: Device;
-  owner: User;
-  avatar: string;
+  device_address: string;
+  owner_address: string;
   subname: string;
-  perApiCallFee: string;
-  characterConfig: string;
-  createdAt: string;
-  updatedAt: string;
-  isPublic: boolean;
+  is_public: boolean;
 }
 
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl
   const hostname = request.headers.get('host') || ''
-  const isHederaSubdomain = hostname.includes('.hedera.frankyagent.xyz')
-  const isMainDomain = hostname === 'hedera.frankyagent.xyz'
+  const isHederaSubdomain = hostname.includes('.franky-hedera.vercel.app')
+  const isMainDomain = hostname === 'franky-hedera.vercel.app'
   const isSubdomain = isHederaSubdomain && !isMainDomain
 
   if (isSubdomain) {
     // Extract subdomain (agent prefix)
     const subdomain = hostname.split('.')[0]
     
-    // If it's a browser request (GET), serve the Hello page
+    // If it's a browser request (GET), serve the subdomain page
     if (request.method === 'GET') {
       return NextResponse.rewrite(new URL('/subdomain', url))
     }
@@ -46,35 +36,46 @@ export async function middleware(request: NextRequest) {
       console.log(`Processing request for subdomain: ${subdomain}`)
       
       try {
-        // Fetch agents from the API endpoint
-        const response = await fetch('https://hedera.frankyagent.xyz/api/graph/agents')
+        // 1. First fetch agent by subname from Supabase
+        const agentResponse = await fetch(`https://franky-hedera.vercel.app/api/db/agents?subname=${subdomain}`)
         
-        if (!response.ok) {
-          console.error(`Failed to fetch agents: ${response.status} ${response.statusText}`)
-          return new NextResponse('Failed to fetch agents', { status: 500 })
+        if (!agentResponse.ok) {
+          console.error(`Failed to fetch agent: ${agentResponse.status} ${agentResponse.statusText}`)
+          return new NextResponse('Failed to fetch agent', { status: 500 })
         }
         
-        const agents: Agent[] = await response.json()
+        const agent: Agent = await agentResponse.json()
         
-        // Find agent with matching subname
-        const agent = agents.find(agent => agent.subname === subdomain)
-        
-        if (!agent || !agent.deviceAddress?.ngrokLink) {
-          console.error(`No agent found with subname: ${subdomain} or ngrok link not available`)
-          return new NextResponse('Agent not found or ngrok link not available', { status: 404 })
+        if (!agent || !agent.device_address) {
+          console.error(`No agent found with subname: ${subdomain}`)
+          return new NextResponse('Agent not found', { status: 404 })
         }
 
-        const ngrokUrl = agent.deviceAddress.ngrokLink
-        console.log(`Found ngrok URL for ${subdomain}: ${ngrokUrl}`)
+        // 2. Then fetch device details using the device address
+        const deviceResponse = await fetch(`https://franky-hedera.vercel.app/api/db/devices?address=${agent.device_address}`)
+
+        if (!deviceResponse.ok) {
+          console.error(`Failed to fetch device: ${deviceResponse.status} ${deviceResponse.statusText}`)
+          return new NextResponse('Failed to fetch device', { status: 500 })
+        }
+
+        const device: Device = await deviceResponse.json()
+
+        if (!device || !device.ngrokUrl || device.status !== 'Active') {
+          console.error(`Device not found or inactive for agent: ${subdomain}`)
+          return new NextResponse('Device not found or inactive', { status: 404 })
+        }
+
+        console.log(`Found ngrok URL for ${subdomain}: ${device.ngrokUrl}`)
         
         // Forward the request to the ngrok URL
-        return NextResponse.rewrite(new URL(ngrokUrl + url.pathname + url.search))
+        return NextResponse.rewrite(new URL(device.ngrokUrl + url.pathname + url.search))
       } catch (error) {
-        console.error(`Error fetching agent data: ${error}`)
-        return new NextResponse('Failed to get agent data', { status: 500 })
+        console.error(`Error fetching data: ${error}`)
+        return new NextResponse('Failed to process request', { status: 500 })
       }
     } catch (error) {
-      console.error('Error processing agent request:', error)
+      console.error('Error processing request:', error)
       return new NextResponse('Internal Server Error', { status: 500 })
     }
   }

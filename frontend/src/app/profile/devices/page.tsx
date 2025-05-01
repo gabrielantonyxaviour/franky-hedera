@@ -7,20 +7,24 @@ import { formatEther } from 'viem'
 import { useWalletInterface } from '@/hooks/use-wallet-interface'
 
 interface Device {
-  id: number
+  id: string | number
   txHash: string
-  blockNumber: number
   timestamp: number
   deviceModel: string
   ram?: string
-  storageCapacity?: string
+  storage?: string
   cpu?: string
-  ngrokLink?: string
+  ngrokUrl?: string
   deviceAddress: string
   hostingFee: string
   verificationHash?: string
   signature?: string
   error?: boolean
+  agentCount?: number
+  status?: string
+  lastActive?: string
+  registeredAt?: string
+  blockNumber?: number
 }
 
 
@@ -59,34 +63,40 @@ export default function DevicesPage() {
     setDebugInfo(null)
 
     try {
-      console.log(walletAddress)
-      const devicesRequest = await fetch('/api/graph/devices-by-owner?address=' + walletAddress)
+      console.log('Fetching devices for wallet:', walletAddress)
+      // Changed to fetch from Supabase endpoint
+      const devicesRequest = await fetch('/api/db/devices?address=' + walletAddress.toLowerCase())
       if (!devicesRequest.ok) {
         throw new Error(`HTTP error! status: ${devicesRequest.status}`)
       }
       const fetchedDevices = await devicesRequest.json()
-      console.log("Fetched devices:", fetchedDevices)
-      const formattedDevices = await Promise.all(
-        fetchedDevices.map(async (device: any) => {
-          const metadataRequest = await fetch(`/api/akave/fetch-json?url=${encodeURIComponent(device.metadata)}`);
-          const metadata = await metadataRequest.json();
+      console.log("Fetched devices from Supabase:", fetchedDevices)
 
+      // Handle array or single device response
+      const devicesArray = Array.isArray(fetchedDevices) ? fetchedDevices : [fetchedDevices]
+      
+      const formattedDevices = await Promise.all(
+        devicesArray.map(async (device: any) => {
+          // Transform Supabase response to match existing format
           return {
             id: device.id,
-            deviceModel: metadata.deviceModal ?? 'Samsung Galaxy S23',
-            ram: metadata.ram ?? '8GB',
-            storage: metadata.storage ?? '128GB',
-            cpu: metadata.cpu ?? 'Snapdragon 8 Gen 2',
-            ngrokLink: device.ngrokLink,
-            walletAddress: device.id,
+            deviceModel: device.deviceModel,
+            ram: device.ram,
+            storage: device.storage,
+            cpu: device.cpu,
+            ngrokUrl: device.ngrokUrl,
+            deviceAddress: device.walletAddress,
             hostingFee: device.hostingFee,
-            agentCount: device.agents.length,
-            status: device.agents.length > 0 ? 'In Use' : 'Available',
-            lastActive: new Date(device.updatedAt * 1000).toLocaleDateString(),
-            registeredAt: new Date(device.createdAt * 1000).toLocaleDateString(),
+            agentCount: device.agentCount,
+            status: device.agentCount > 0 ? 'In Use' : 'Available',
+            lastActive: new Date(device.lastActive).toLocaleDateString(),
+            registeredAt: new Date(device.registeredAt).toLocaleDateString(),
+            timestamp: new Date(device.registeredAt).getTime() / 1000,
+            txHash: device.txHash
           };
         })
       );
+      
       setDevices(formattedDevices.filter(Boolean));
     } catch (error: any) {
       console.error("Error fetching devices:", error)
@@ -228,7 +238,7 @@ export default function DevicesPage() {
                         </div>
                         <div>
                           <span className={labelStyle}>Storage</span>
-                          <p className="text-white/80 text-sm">{device.storageCapacity || "N/A"}</p>
+                          <p className="text-white/80 text-sm">{device.storage || "N/A"}</p>
                         </div>
                         <div>
                           <span className={labelStyle}>CPU</span>

@@ -37,15 +37,25 @@ async function fetchDeviceMetadata(metadataUrl: string): Promise<DeviceMetadata 
   }
 }
 
-// Fetch devices from the graph API
+// Fetch devices from Supabase
 async function fetchDevices(limit: number) {
     try {
-        const response = await fetch(`${process.env.NEXTAUTH_URL}/api/graph/devices`);
+        const response = await fetch(`${process.env.NEXTAUTH_URL}/api/db/devices`);
         if (!response.ok) {
             throw new Error(`Failed to fetch devices: ${response.status}`);
         }
         const devices = await response.json();
-        return devices.slice(0, limit); // Respect the limit parameter
+        
+        // Transform Supabase response to match existing format
+        const transformedDevices = devices.map((device: any) => ({
+            id: device.walletAddress,
+            deviceMetadata: device.metadata_url,
+            ngrokLink: device.ngrokUrl,
+            agents: [], // This will be populated if needed
+            // Add any other fields needed by the device checker
+        }));
+        
+        return transformedDevices.slice(0, limit); // Respect the limit parameter
     } catch (error) {
         console.error('Error fetching devices:', error);
         throw error;
@@ -68,7 +78,7 @@ export async function GET(request: Request) {
         // Make sure HCS topics are initialized
         await hcsService.initializeTopics();
 
-        // Fetch devices using the graph API
+        // Fetch devices using Supabase
         const allDevices = await fetchDevices(deviceAddress ? 1 : 10);
 
         // Filter by device address if provided
