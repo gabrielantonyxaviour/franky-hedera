@@ -5,32 +5,36 @@ export interface Agent {
   id: string;
   name: string;
   subname: string;
-  description: string;
-  personality: string;
-  scenario: string;
-  first_mes: string;
-  mes_example: string;
-  creator_comment: string;
+  description: string | null;
+  personality: string | null;
+  scenario: string | null;
+  first_mes: string | null;
+  mes_example: string | null;
+  creator_comment: string | null;
   tags: string[];
-  talkativeness: number;
+  talkativeness: number | null;
   is_favorite: boolean;
   device_address: string;
   owner_address: string;
   per_api_call_fee: string;
   is_public: boolean;
   tools: string[];
+  metadata_url: string;
   tx_hash: string;
   created_at: string;
+  updated_at: string;
 }
 
 // GET /api/db/agents - Get all agents
 export async function GET(request: Request) {
+  console.log("GET /api/db/agents - Request received");
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
   const subname = searchParams.get("subname");
 
   try {
     if (subname) {
+      console.log(`Fetching agent by subname: ${subname}`);
       // Get agent by subname
       const { data, error } = await supabase
         .from("agents")
@@ -39,11 +43,13 @@ export async function GET(request: Request) {
         .single();
 
       if (error) throw error;
+      console.log(`Found agent with subname ${subname}`);
 
       return NextResponse.json(transformAgentData(data));
     }
 
     if (address) {
+      console.log(`Fetching agents for address: ${address}`);
       // Get agent by device or owner address
       const { data, error } = await supabase
         .from("agents")
@@ -53,10 +59,12 @@ export async function GET(request: Request) {
         );
 
       if (error) throw error;
+      console.log(`Found ${data.length} agents for address ${address}`);
 
       return NextResponse.json(data.map(transformAgentData));
     }
 
+    console.log("Fetching all agents");
     // Get all agents
     const { data, error } = await supabase
       .from("agents")
@@ -64,9 +72,11 @@ export async function GET(request: Request) {
       .order("created_at", { ascending: false });
 
     if (error) throw error;
+    console.log(`Found ${data.length} total agents`);
 
     return NextResponse.json(data.map(transformAgentData));
   } catch (error) {
+    console.error("Error in GET /api/db/agents:", error);
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
@@ -79,6 +89,7 @@ export async function GET(request: Request) {
 
 // POST /api/db/agents - Create new agent record
 export async function POST(request: Request) {
+  console.log("POST /api/db/agents - Request received");
   try {
     const json = await request.json();
     const {
@@ -90,17 +101,45 @@ export async function POST(request: Request) {
       first_mes,
       mes_example,
       creator_comment,
-      tags,
+      tags = [],
       talkativeness,
-      is_favorite,
+      is_favorite = false,
       device_address,
       owner_address,
       per_api_call_fee,
-      is_public,
-      tools,
+      metadata_url,
+      is_public = true,
+      tools = [],
       tx_hash,
     } = json;
 
+    console.log(`Creating new agent with subname: ${subname}`);
+    console.log(
+      JSON.stringify(
+        {
+          name,
+          subname: subname.toLowerCase(),
+          description,
+          personality,
+          scenario,
+          first_mes,
+          mes_example,
+          creator_comment,
+          tags,
+          talkativeness,
+          is_favorite,
+          device_address: device_address.toLowerCase(),
+          owner_address: owner_address.toLowerCase(),
+          per_api_call_fee,
+          is_public,
+          tools,
+          tx_hash,
+          metadata_url,
+        },
+        null,
+        2
+      )
+    );
     const { data, error } = await supabase
       .from("agents")
       .insert([
@@ -122,16 +161,18 @@ export async function POST(request: Request) {
           is_public,
           tools,
           tx_hash,
-          created_at: new Date().toISOString(),
+          metadata_url,
         },
       ])
       .select()
       .single();
 
     if (error) throw error;
+    console.log(`Successfully created agent with ID: ${data.id}`);
 
     return NextResponse.json(transformAgentData(data));
   } catch (error) {
+    console.error("Error in POST /api/db/agents:", error);
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
@@ -164,5 +205,6 @@ function transformAgentData(data: Agent) {
     tools: data.tools,
     txHash: data.tx_hash,
     createdAt: data.created_at,
+    updatedAt: data.updated_at,
   };
 }

@@ -1119,8 +1119,9 @@ function CreateAgentContent({
             is_favorite: constructedCharacter.fav,
             device_address: deviceInfo.id.toLowerCase(),
             owner_address: accountId?.toLowerCase(),
-            per_api_call_fee: perApiCallFee,
+            per_api_call_fee: parseEther(perApiCallFee).toString(),
             is_public: isPublic,
+            metadata_url: characterConfigUrl,
             tools: selectedTools.map((tool) => tool.id),
             tx_hash: hash,
           }),
@@ -1137,6 +1138,7 @@ function CreateAgentContent({
             loading: "Waiting for confirmation...",
             success: (data) => {
               console.log("Transaction confirmed, receipt:", data);
+              setIsPending(false);
               return `Transaction confirmed! `;
             },
             action: {
@@ -1148,7 +1150,6 @@ function CreateAgentContent({
           }
         );
 
-        setIsPending(false);
         setTransactionHash(hash);
       } catch (error: any) {
         console.error("Transaction signing error:", error);

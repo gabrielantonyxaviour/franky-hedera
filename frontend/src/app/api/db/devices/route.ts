@@ -1,26 +1,22 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
+import { supabase } from "@/lib/supabase";
+import { NextResponse } from "next/server";
 
 // GET /api/db/devices - Get all devices
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const address = searchParams.get('address')
-  
-  const cookieStore = cookies()
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-  
+  const { searchParams } = new URL(request.url);
+  const address = searchParams.get("address");
+
   try {
     if (address) {
       // Get device by address
       const { data, error } = await supabase
-        .from('devices')
-        .select('*')
-        .eq('wallet_address', address.toLowerCase())
-        .single()
+        .from("devices")
+        .select("*")
+        .eq("wallet_address", address.toLowerCase())
+        .single();
 
-      if (error) throw error
-      
+      if (error) throw error;
+
       // Transform to match contract indexer format
       return NextResponse.json({
         id: data.id,
@@ -35,17 +31,17 @@ export async function GET(request: Request) {
         status: data.status,
         lastActive: data.last_active,
         txHash: data.tx_hash,
-        registeredAt: data.registered_at
-      })
+        registeredAt: data.registered_at,
+      });
     }
 
     // Get all devices
     const { data, error } = await supabase
-      .from('devices')
-      .select('*')
-      .order('registered_at', { ascending: false })
+      .from("devices")
+      .select("*")
+      .order("registered_at", { ascending: false });
 
-    if (error) throw error
+    if (error) throw error;
 
     // Transform to match contract indexer format
     const transformedData = data.map((device: any) => ({
@@ -61,36 +57,35 @@ export async function GET(request: Request) {
       status: device.status,
       lastActive: device.last_active,
       txHash: device.tx_hash,
-      registeredAt: device.registered_at
-    }))
+      registeredAt: device.registered_at,
+    }));
 
-    return NextResponse.json(transformedData)
-
+    return NextResponse.json(transformedData);
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 })
+    return NextResponse.json(
+      { error: (error as Error).message },
+      { status: 500 }
+    );
   }
 }
 
 // POST /api/db/devices - Create new device record
 export async function POST(request: Request) {
-  const cookieStore = cookies()
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-  
   try {
-    const json = await request.json()
+    const json = await request.json();
     const {
       deviceModel,
       ram,
-      storage, 
+      storage,
       cpu,
       ngrokUrl,
       walletAddress,
       hostingFee,
-      txHash
-    } = json
+      txHash,
+    } = json;
 
     const { data, error } = await supabase
-      .from('devices')
+      .from("devices")
       .insert([
         {
           device_model: deviceModel,
@@ -101,20 +96,22 @@ export async function POST(request: Request) {
           wallet_address: walletAddress.toLowerCase(),
           hosting_fee: hostingFee,
           tx_hash: txHash,
-          status: 'Active',
+          status: "Active",
           agent_count: 0,
           last_active: new Date().toISOString(),
-          registered_at: new Date().toISOString()
-        }
+          registered_at: new Date().toISOString(),
+        },
       ])
       .select()
-      .single()
+      .single();
 
-    if (error) throw error
+    if (error) throw error;
 
-    return NextResponse.json(data)
-
+    return NextResponse.json(data);
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 })
+    return NextResponse.json(
+      { error: (error as Error).message },
+      { status: 500 }
+    );
   }
-} 
+}
