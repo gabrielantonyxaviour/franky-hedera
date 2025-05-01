@@ -805,6 +805,7 @@ function CreateAgentContent({
   const [transactionHash, setTransactionHash] = useState<
     `0x${string}` | undefined
   >(undefined);
+  const [isPending, setIsPending] = useState(false);
   const [transactionError, setTransactionError] = useState<string | null>(null);
   const [agentCreated, setAgentCreated] = useState(false);
   const [agentId, setAgentId] = useState<string | null>(null);
@@ -1048,6 +1049,7 @@ function CreateAgentContent({
           setShowConfirmModal(false);
           return;
         }
+        setIsPending(true);
 
         console.log("Simulating contract call...");
         console.log("ARGS");
@@ -1146,6 +1148,7 @@ function CreateAgentContent({
           }
         );
 
+        setIsPending(false);
         setTransactionHash(hash);
       } catch (error: any) {
         console.error("Transaction signing error:", error);
@@ -1488,7 +1491,7 @@ function CreateAgentContent({
         agentName={agentName}
         characterData={constructedCharacter}
         isMainnet={false}
-        isPending={false}
+        isPending={isPending}
         walletAddress={accountId}
         perApiCallFee={perApiCallFee}
         isPublic={isPublic}
