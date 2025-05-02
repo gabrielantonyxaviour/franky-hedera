@@ -28,7 +28,7 @@ import { decryptServerWallet } from "./lit-helpers";
 // Import contract constants
 import { FRANKY_ADDRESS, FRANKY_ABI } from "./constants";
 // Import utilities
-import { createPublicClient, http } from "viem";
+import { createPublicClient, formatEther, http } from "viem";
 import { hederaTestnet } from "./hedera-chain";
 // Import HIP-991 agent functionality
 import {
@@ -556,7 +556,7 @@ async function fetchAgentAndCharacterData(agentAddress: string): Promise<{
     const feeInWei = agentData.perApiCallFee || agentData.per_api_call_fee
       ? Number(agentData.perApiCallFee || agentData.per_api_call_fee)
       : 50000000; // Default to 0.5 HBAR in wei
-    const feeInHbar = feeInWei / 100000000; // Convert wei to HBAR
+    const feeInHbar = Number(formatEther(BigInt(feeInWei))); // Convert wei to HBAR
 
     logger.info("Agent Init", `Agent fee set to ${feeInHbar} HBAR`);
 
