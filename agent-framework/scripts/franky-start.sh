@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Constants
-BASE_URL="http://localhost:3000"
+BASE_URL="https://franky-hedera.vercel.app"
 GRAPH_API_ENDPOINT="/api/db/devices?address="
 DEVICE_DETAILS_FILE="Device_details.txt"
 METADATA_TOPIC_FILE="device_metadata_topic.txt"

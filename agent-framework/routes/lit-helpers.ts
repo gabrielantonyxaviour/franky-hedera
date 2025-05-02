@@ -267,12 +267,13 @@ export async function decryptServerWallet(ethersWallet: ethers.Wallet, serverWal
     //     new ethers.providers.JsonRpcProvider(LIT_RPC.CHRONICLE_YELLOWSTONE)
     // );
 
+    
     const evmContractConditions = [
         {
             contractAddress: FRANKY_ADDRESS,
             chain: "hederaTestnet",
             functionName: "canDecryptServerWallet",
-            functionParams: [":userAddress", serverWalletAddress],
+            functionParams: [":userAddress", serverWalletAddress.toLowerCase()],
             functionAbi: {
                 stateMutability: "view",
                 type: "function",
@@ -302,6 +303,9 @@ export async function decryptServerWallet(ethersWallet: ethers.Wallet, serverWal
         },
     ];
     await litNodeClient.connect();
+
+    console.log("Decrypting server wallet for address:", serverWalletAddress.toLowerCase());
+
     console.log("Connected to Lit Network");
 
     console.log("Generating session sigs");

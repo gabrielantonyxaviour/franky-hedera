@@ -297,7 +297,7 @@ async function getServerWalletPrivateKey(
       address: FRANKY_ADDRESS,
       abi: FRANKY_ABI,
       functionName: "serverWalletsMapping",
-      args: [accountId],
+      args: [accountId.toLowerCase()],
     });
     console.log("Server Wallets return value");
     console.log(serverWallet);
@@ -357,7 +357,7 @@ async function getServerWalletPrivateKey(
       // 3. Decrypt the server wallet private key using Lit Protocol
       const decryptionResult = await decryptServerWallet(
         ethersWallet,
-        walletAddress,
+        walletAddress.toLowerCase(),
         encryptedPrivateKey,
         privateKeyHash
       );
@@ -1299,7 +1299,7 @@ async function startServer() {
             address: FRANKY_ADDRESS as `0x${string}`,
             abi: FRANKY_ABI,
             functionName: "serverWalletsMapping",
-            args: [accountId],
+            args: [accountId.toLowerCase()],
           })
           .then((serverWallet) => {
             const walletAddress = serverWallet[0];
