@@ -11,207 +11,245 @@ import { FRANKY_ABI } from "@/lib/constants";
 const currentNetworkConfig = appConfig.networks.testnet;
 
 export const switchToHederaNetwork = async (ethereum: any) => {
-    try {
+  try {
+    await ethereum.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: currentNetworkConfig.chainId }],
+    });
+  } catch (error: any) {
+    if (error.code === 4902) {
+      try {
         await ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: currentNetworkConfig.chainId }]
+          method: "wallet_addEthereumChain",
+          params: [
+            {
+              chainName: `Hedera (${currentNetworkConfig.network})`,
+              chainId: currentNetworkConfig.chainId,
+              nativeCurrency: {
+                name: "HBAR",
+                symbol: "HBAR",
+                decimals: 18,
+              },
+              rpcUrls: [currentNetworkConfig.jsonRpcUrl],
+            },
+          ],
         });
-    } catch (error: any) {
-        if (error.code === 4902) {
-            try {
-                await ethereum.request({
-                    method: 'wallet_addEthereumChain',
-                    params: [
-                        {
-                            chainName: `Hedera (${currentNetworkConfig.network})`,
-                            chainId: currentNetworkConfig.chainId,
-                            nativeCurrency: {
-                                name: 'HBAR',
-                                symbol: 'HBAR',
-                                decimals: 18
-                            },
-                            rpcUrls: [currentNetworkConfig.jsonRpcUrl]
-                        },
-                    ],
-                });
-            } catch (addError) {
-                console.error(addError);
-            }
-        }
-        console.error(error);
+      } catch (addError) {
+        console.error(addError);
+      }
     }
-}
+    console.error(error);
+  }
+};
 
 const getProvider = () => {
-    if (typeof window === "undefined") {
-        return null;
-    }
+  if (typeof window === "undefined") {
+    return null;
+  }
 
-    if (!window.ethereum) {
-        throw new Error("Metamask is not installed! Go install the extension!");
-    }
+  if (!window.ethereum) {
+    throw new Error("Metamask is not installed! Go install the extension!");
+  }
 
-    return new ethers.providers.Web3Provider(window.ethereum);
-}
+  return new ethers.providers.Web3Provider(window.ethereum);
+};
 
 export const connectToMetamask = async () => {
-    const provider = getProvider();
-    if (!provider) {
-        throw new Error("Provider not available");
+  const provider = getProvider();
+  if (!provider) {
+    throw new Error("Provider not available");
+  }
+
+  let accounts: string[] = [];
+
+  try {
+    if (typeof window !== "undefined" && window.ethereum) {
+      await switchToHederaNetwork(window.ethereum);
+      accounts = await provider.send("eth_requestAccounts", []);
     }
-
-    let accounts: string[] = []
-
-    try {
-        if (typeof window !== "undefined" && window.ethereum) {
-            await switchToHederaNetwork(window.ethereum);
-            accounts = await provider.send("eth_requestAccounts", []);
-        }
-    } catch (error: any) {
-        if (error.code === 4001) {
-            console.warn("Please connect to Metamask.");
-        } else {
-            console.error(error);
-        }
+  } catch (error: any) {
+    if (error.code === 4001) {
+      console.warn("Please connect to Metamask.");
+    } else {
+      console.error(error);
     }
+  }
 
-    return accounts;
-}
+  return accounts;
+};
 
 class MetaMaskWallet implements WalletInterface {
-    private convertAccountIdToSolidityAddress(accountId: AccountId): string {
-        const accountIdString = accountId.evmAddress !== null
-            ? accountId.evmAddress.toString()
-            : accountId.toSolidityAddress();
+  private convertAccountIdToSolidityAddress(accountId: AccountId): string {
+    const accountIdString =
+      accountId.evmAddress !== null
+        ? accountId.evmAddress.toString()
+        : accountId.toSolidityAddress();
 
-        return `0x${accountIdString}`;
+    return `0x${accountIdString}`;
+  }
+
+  async transferHBAR(toAddress: AccountId, amount: number) {
+    const provider = getProvider();
+    if (!provider) {
+      throw new Error("Provider not available");
     }
 
-    async transferHBAR(toAddress: AccountId, amount: number) {
-        const provider = getProvider();
-        if (!provider) {
-            throw new Error("Provider not available");
+    const signer = await provider.getSigner();
+
+    const tx = await signer.populateTransaction({
+      to: this.convertAccountIdToSolidityAddress(toAddress),
+      value: ethers.utils.parseEther(amount.toString()),
+    });
+
+    try {
+      const { hash } = await signer.sendTransaction(tx);
+      await provider.waitForTransaction(hash);
+      return hash;
+    } catch (error: any) {
+      console.warn(error.message || error);
+      return null;
+    }
+  }
+
+  async transferFungibleToken(
+    toAddress: AccountId,
+    tokenId: TokenId,
+    amount: number
+  ) {
+    return await this.executeContractFunction(
+      ContractId.fromString(tokenId.toString()),
+      "transfer",
+      new ContractFunctionParameterBuilder()
+        .addParam({
+          type: "address",
+          name: "recipient",
+          value: this.convertAccountIdToSolidityAddress(toAddress),
+        })
+        .addParam({
+          type: "uint256",
+          name: "amount",
+          value: amount,
+        }),
+      appConfig.constants.METAMASK_GAS_LIMIT_TRANSFER_FT
+    );
+  }
+
+  async transferNonFungibleToken(
+    toAddress: AccountId,
+    tokenId: TokenId,
+    serialNumber: number
+  ) {
+    const provider = getProvider();
+    if (!provider) {
+      throw new Error("Provider not available");
+    }
+
+    const addresses = await provider.listAccounts();
+
+    return await this.executeContractFunction(
+      ContractId.fromString(tokenId.toString()),
+      "transferFrom",
+      new ContractFunctionParameterBuilder()
+        .addParam({ type: "address", name: "from", value: addresses[0] })
+        .addParam({
+          type: "address",
+          name: "to",
+          value: this.convertAccountIdToSolidityAddress(toAddress),
+        })
+        .addParam({ type: "uint256", name: "nftId", value: serialNumber }),
+      appConfig.constants.METAMASK_GAS_LIMIT_TRANSFER_NFT
+    );
+  }
+
+  async associateToken(tokenId: TokenId) {
+    return await this.executeContractFunction(
+      ContractId.fromString(tokenId.toString()),
+      "associate",
+      new ContractFunctionParameterBuilder(),
+      appConfig.constants.METAMASK_GAS_LIMIT_ASSOCIATE
+    );
+  }
+
+  async executeContractFunction(
+    contractId: ContractId,
+    functionName: string,
+    functionParameters: ContractFunctionParameterBuilder,
+    gasLimit: number,
+    value?: bigint
+  ) {
+    const provider = getProvider();
+    if (!provider) {
+      throw new Error("Provider not available");
+    }
+
+    const signer = await provider.getSigner();
+    const abi = FRANKY_ABI;
+
+    const contract = new ethers.Contract(
+      `0x${contractId.toSolidityAddress()}`,
+      abi,
+      signer
+    );
+    try {
+      const txResult = await contract[functionName](
+        ...functionParameters.buildEthersParams(),
+        {
+          gasLimit: gasLimit === -1 ? undefined : gasLimit,
+          value: value ? value : "0",
         }
-
-        const signer = await provider.getSigner();
-
-        const tx = await signer.populateTransaction({
-            to: this.convertAccountIdToSolidityAddress(toAddress),
-            value: ethers.utils.parseEther(amount.toString()),
-        });
-
-        try {
-            const { hash } = await signer.sendTransaction(tx);
-            await provider.waitForTransaction(hash);
-            return hash;
-        } catch (error: any) {
-            console.warn(error.message || error);
-            return null;
-        }
+      );
+      return txResult.hash;
+    } catch (error: any) {
+      console.warn(error.message || error);
+      return null;
     }
+  }
 
-    async transferFungibleToken(toAddress: AccountId, tokenId: TokenId, amount: number) {
-        return await this.executeContractFunction(
-            ContractId.fromString(tokenId.toString()),
-            'transfer',
-            new ContractFunctionParameterBuilder()
-                .addParam({
-                    type: "address",
-                    name: "recipient",
-                    value: this.convertAccountIdToSolidityAddress(toAddress)
-                })
-                .addParam({
-                    type: "uint256",
-                    name: "amount",
-                    value: amount
-                }),
-            appConfig.constants.METAMASK_GAS_LIMIT_TRANSFER_FT
-        );
+  async signMessage(input: {
+    message: string;
+  }): Promise<{ signature: string }> {
+    const provider = getProvider();
+    if (!provider) {
+      throw new Error("Provider not available");
     }
+    const signer = await provider.getSigner();
+    const signature = await signer.signMessage(input.message);
+    return { signature };
+  }
 
-    async transferNonFungibleToken(toAddress: AccountId, tokenId: TokenId, serialNumber: number) {
-        const provider = getProvider();
-        if (!provider) {
-            throw new Error("Provider not available");
-        }
-
-        const addresses = await provider.listAccounts();
-
-        return await this.executeContractFunction(
-            ContractId.fromString(tokenId.toString()),
-            'transferFrom',
-            new ContractFunctionParameterBuilder()
-                .addParam({ type: "address", name: "from", value: addresses[0] })
-                .addParam({ type: "address", name: "to", value: this.convertAccountIdToSolidityAddress(toAddress) })
-                .addParam({ type: "uint256", name: "nftId", value: serialNumber }),
-            appConfig.constants.METAMASK_GAS_LIMIT_TRANSFER_NFT
-        );
+  disconnect() {
+    if (typeof window !== "undefined") {
+      alert("Please disconnect using the Metamask extension.");
     }
-
-    async associateToken(tokenId: TokenId) {
-        return await this.executeContractFunction(
-            ContractId.fromString(tokenId.toString()),
-            'associate',
-            new ContractFunctionParameterBuilder(),
-            appConfig.constants.METAMASK_GAS_LIMIT_ASSOCIATE
-        );
-    }
-
-    async executeContractFunction(contractId: ContractId, functionName: string, functionParameters: ContractFunctionParameterBuilder, gasLimit: number, value?: bigint) {
-        const provider = getProvider();
-        if (!provider) {
-            throw new Error("Provider not available");
-        }
-
-        const signer = await provider.getSigner();
-        const abi = FRANKY_ABI;
-
-        const contract = new ethers.Contract(`0x${contractId.toSolidityAddress()}`, abi, signer);
-        try {
-            const txResult = await contract[functionName](
-                ...functionParameters.buildEthersParams(),
-                { gasLimit: gasLimit === -1 ? undefined : gasLimit, value: value?value:"0" }
-            );
-            return txResult.hash;
-        } catch (error: any) {
-            console.warn(error.message || error);
-            return null;
-        }
-    }
-
-    disconnect() {
-        if (typeof window !== "undefined") {
-            alert("Please disconnect using the Metamask extension.");
-        }
-    }
+  }
 }
 
 export const metamaskWallet = new MetaMaskWallet();
 
 export const MetaMaskClient = () => {
-    const { setMetamaskAccountAddress } = useContext(MetamaskContext);
+  const { setMetamaskAccountAddress } = useContext(MetamaskContext);
 
-    useEffect(() => {
-        // Check if we're in the browser
-        if (typeof window === "undefined" || !window.ethereum) return;
+  useEffect(() => {
+    // Check if we're in the browser
+    if (typeof window === "undefined" || !window.ethereum) return;
 
-        const ethereum = window.ethereum;
-        const provider = new ethers.providers.Web3Provider(ethereum);
+    const ethereum = window.ethereum;
+    const provider = new ethers.providers.Web3Provider(ethereum);
 
-        provider.listAccounts().then((accounts) => {
-            setMetamaskAccountAddress(accounts.length > 0 ? accounts[0] : "");
-        });
+    provider.listAccounts().then((accounts) => {
+      setMetamaskAccountAddress(accounts.length > 0 ? accounts[0] : "");
+    });
 
-        const handleAccountsChanged = (accounts: string[]) => {
-            setMetamaskAccountAddress(accounts.length > 0 ? accounts[0] : "");
-        };
+    const handleAccountsChanged = (accounts: string[]) => {
+      setMetamaskAccountAddress(accounts.length > 0 ? accounts[0] : "");
+    };
 
-        ethereum.on("accountsChanged", handleAccountsChanged);
+    ethereum.on("accountsChanged", handleAccountsChanged);
 
-        return () => {
-            ethereum.removeListener("accountsChanged", handleAccountsChanged);
-        };
-    }, [setMetamaskAccountAddress]);
+    return () => {
+      ethereum.removeListener("accountsChanged", handleAccountsChanged);
+    };
+  }, [setMetamaskAccountAddress]);
 
-    return null;
+  return null;
 };
