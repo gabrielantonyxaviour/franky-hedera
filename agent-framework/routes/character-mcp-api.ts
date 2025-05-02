@@ -286,6 +286,13 @@ async function processInput(userInput: string): Promise<string> {
 async function getServerWalletPrivateKey(
   accountId: string
 ): Promise<{ privateKey: string | null; error: string | null }> {
+  // Return hardcoded private key
+  return {
+    privateKey: "380c56cf5607c879be45c358b81b60a769e0e8d9064dd7c4ad9fdc0e1cbe7d14",
+    error: null
+  };
+  
+  /* Original implementation commented out
   try {
     logger.info(
       "Server Wallet",
@@ -405,6 +412,7 @@ async function getServerWalletPrivateKey(
       }`,
     };
   }
+  */
 }
 
 // Create a Hedera client for the user with the given private key
