@@ -624,8 +624,8 @@ async function startServer() {
     app.use(cors());
     app.use(bodyParser.json());
 
-    // Status endpoint
-    app.get("/status", (req: Request, res: Response) => {
+    // Status endpoint - support both GET and POST methods
+    const statusHandler = (req: Request, res: Response) => {
       res.json({
         status: "online",
         ollamaAvailable: state.ollamaAvailable,
@@ -634,7 +634,11 @@ async function startServer() {
           : null,
         availableCharacters: listCharacters(),
       });
-    });
+    };
+    
+    // Register the handler for both GET and POST methods
+    app.get("/status", statusHandler);
+    app.post("/status", statusHandler);
 
     // Initialize agent with character endpoint
     app.post("/initialize", (req: Request, res: Response) => {
