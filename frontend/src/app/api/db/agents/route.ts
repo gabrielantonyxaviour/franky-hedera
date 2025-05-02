@@ -56,7 +56,7 @@ export async function GET(request: Request) {
         .from("agents")
         .select("*")
         .or(
-          `device_address.eq.${address.toLowerCase()},owner_address.eq.${address.toLowerCase()}`
+          `agent_address.eq.${address.toLowerCase()},owner_address.eq.${address.toLowerCase()}`
         );
 
       if (error) throw error;
