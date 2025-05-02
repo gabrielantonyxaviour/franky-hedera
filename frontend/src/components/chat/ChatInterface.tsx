@@ -258,7 +258,34 @@ export default function ChatInterface({
     ];
 
     const lowerMessage = message.toLowerCase();
-    return deployKeywords.some((keyword) => lowerMessage.includes(keyword));
+    
+    // Check for exact phrase matches first (existing implementation)
+    const hasExactMatch = deployKeywords.some((keyword) => lowerMessage.includes(keyword));
+    if (hasExactMatch) return true;
+    
+    // Regex patterns for more flexible matching
+    const deviceTerms = /\b(device|phone|mobile|android|iphone|ios)\b/i;
+    const actionTerms = /\b(deploy|register|setup|set up|configure|enroll|initialize|activate|onboard)\b/i;
+    const questionTerms = /\b(how|can i|steps|guide|instructions|help|want|get)\b/i;
+    
+    // Check for combinations of terms
+    const hasDeviceTerm = deviceTerms.test(lowerMessage);
+    const hasActionTerm = actionTerms.test(lowerMessage);
+    
+    // If both device and action terms exist in the message
+    if (hasDeviceTerm && hasActionTerm) return true;
+    
+    // If it's a question about devices or expressing intent to register devices
+    if (hasDeviceTerm && questionTerms.test(lowerMessage)) {
+      // Check if there's a registration intent or question about registration
+      if (lowerMessage.includes("regist") || lowerMessage.includes("deploy") || 
+          lowerMessage.includes("setup") || lowerMessage.includes("set up") ||
+          lowerMessage.includes("configur") || lowerMessage.includes("enroll")) {
+        return true;
+      }
+    }
+    
+    return false;
   };
 
   const handleSend = async () => {
