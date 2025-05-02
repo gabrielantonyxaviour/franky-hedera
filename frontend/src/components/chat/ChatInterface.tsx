@@ -156,6 +156,7 @@ export default function ChatInterface({
       "how to deploy",
       "setup device",
       "deploy a device",
+      "register my device",
       "register device",
       "deploy my phone",
       "deploy my device",
@@ -164,10 +165,128 @@ export default function ChatInterface({
       "deploy my android",
       "deploy my iphone",
       "deploy mobile",
+      "setup my phone",
+      "setup my mobile",
+      "setup android",
+      "setup iphone",
+      "configure my phone",
+      "configure my mobile",
+      "configure android device",
+      "configure iphone",
+      "initialize mobile",
+      "initialize phone",
+      "initialize my device",
+      "initialize android",
+      "initialize iphone",
+      "enroll my phone",
+      "enroll my device",
+      "enroll android",
+      "enroll iphone",
+      "how to setup phone",
+      "how to setup mobile",
+      "how to configure mobile",
+      "how to register my phone",
+      "how to register android",
+      "how to register iphone",
+      "how to enroll mobile",
+      "how to enroll phone",
+      "deploy a new phone",
+      "deploy a new device",
+      "deploy new android",
+      "deploy new iphone",
+      "how to deploy new phone",
+      "how to deploy mobile device",
+      "how to deploy android phone",
+      "how to deploy iphone",
+      "register new phone",
+      "register new mobile",
+      "register android phone",
+      "register iphone device",
+      "setup new device",
+      "setup new phone",
+      "setup new android",
+      "setup new iphone",
+      "deploy company phone",
+      "deploy business mobile",
+      "deploy corporate device",
+      "deploy enterprise phone",
+      "register company mobile",
+      "enroll company device",
+      "configure enterprise mobile",
+      "how to set up corporate phone",
+      "how to deploy personal phone",
+      "deploy my new phone",
+      "setup my new phone",
+      "configure my new phone",
+      "initialize my new phone",
+      "how can i setup my phone",
+      "how can i configure my phone",
+      "how do i setup my phone",
+      "how do i register my phone",
+      "deploy android device",
+      "deploy iphone device",
+      "deploy mobile phone",
+      "enroll a mobile device",
+      "how to enroll a phone",
+      "register a new phone",
+      "how do i start device deployment",
+      "start mobile deployment",
+      "begin device deployment",
+      "start phone registration",
+      "enroll mobile",
+      "enroll my mobile device",
+      "deploy mobile for work",
+      "deploy mobile for personal use",
+      "how to deploy android mobile",
+      "how to deploy ios device",
+      "how to deploy mobile step by step",
+      "step by step device deployment",
+      "step by step mobile setup",
+      "how to install and deploy mobile",
+      "mobile onboarding",
+      "device onboarding",
+      "start mobile setup",
+      "how to activate my phone",
+      "activate new mobile",
+      "prepare phone for deployment",
+      "ready my phone for deployment",
+      "mobile deployment instructions",
+      "device registration steps",
+      "steps to deploy phone",
+      "deployment guide for phone",
+      "deployment help for mobile",
+      "mobile device deployment help"
     ];
 
     const lowerMessage = message.toLowerCase();
-    return deployKeywords.some((keyword) => lowerMessage.includes(keyword));
+    
+    // Check for exact phrase matches first (existing implementation)
+    const hasExactMatch = deployKeywords.some((keyword) => lowerMessage.includes(keyword));
+    if (hasExactMatch) return true;
+    
+    // Regex patterns for more flexible matching
+    const deviceTerms = /\b(device|phone|mobile|android|iphone|ios)\b/i;
+    const actionTerms = /\b(deploy|register|setup|set up|configure|enroll|initialize|activate|onboard)\b/i;
+    const questionTerms = /\b(how|can i|steps|guide|instructions|help|want|get)\b/i;
+    
+    // Check for combinations of terms
+    const hasDeviceTerm = deviceTerms.test(lowerMessage);
+    const hasActionTerm = actionTerms.test(lowerMessage);
+    
+    // If both device and action terms exist in the message
+    if (hasDeviceTerm && hasActionTerm) return true;
+    
+    // If it's a question about devices or expressing intent to register devices
+    if (hasDeviceTerm && questionTerms.test(lowerMessage)) {
+      // Check if there's a registration intent or question about registration
+      if (lowerMessage.includes("regist") || lowerMessage.includes("deploy") || 
+          lowerMessage.includes("setup") || lowerMessage.includes("set up") ||
+          lowerMessage.includes("configur") || lowerMessage.includes("enroll")) {
+        return true;
+      }
+    }
+    
+    return false;
   };
 
   const handleSend = async () => {
