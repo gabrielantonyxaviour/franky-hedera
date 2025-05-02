@@ -107,20 +107,6 @@ export async function GET(request: Request) {
                     }
                 }
                 
-                // If the device has no agents, skip it
-                if (!device.agents || device.agents.length === 0) {
-                    return {
-                        deviceAddress: device.id,
-                        ngrokLink: ngrokUrl,
-                        deviceMetadata: device.deviceMetadata,
-                        metadata: metadata,
-                        status: 'skipped',
-                        reason: 'No agents found for this device',
-                        reputationScore: 0,
-                        checked: new Date().toISOString()
-                    };
-                }
-
                 // Get device reputation from HCS
                 const reputationData = await hcsService.getDeviceReputation(device.id, numRetrievals);
 

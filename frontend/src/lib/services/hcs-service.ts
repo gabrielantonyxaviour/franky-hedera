@@ -350,8 +350,6 @@ export class HcsService {
    * Get messages from a topic
    */
   private async getMessages(topicId: TopicId, limit: number = 100): Promise<any[]> {
-    console.log(`Getting messages from topic ${topicId.toString()}`);
-    
     const networkType = process.env.HEDERA_NETWORK || 'testnet';
     const baseUrl = networkType === 'mainnet' 
       ? 'https://mainnet-public.mirrornode.hedera.com'
@@ -369,14 +367,12 @@ export class HcsService {
         }
 
         const data: MirrorNodeResponse = await response.json();
-        console.log('Mirror node response data:', JSON.stringify(data, null, 2));
         messages.push(...data.messages);
 
         // Update URL for pagination
         url = data.links?.next ? baseUrl + data.links.next : null;
       }
 
-      console.log(`Retrieved ${messages.length} messages from topic ${topicId.toString()}`);
       return messages;
     } catch (error) {
       console.error('Error getting messages:', error);
@@ -431,18 +427,13 @@ export class HcsService {
       }
 
       const messages = await this.getMessages(this.checkerRegistryTopic);
-      console.log('Raw messages from getMessages:', JSON.stringify(messages, null, 2));
       const checkers = new Map<string, any>();
       
       // Process messages to build checker list
       messages.forEach(msg => {
         try {
-          // Log the raw message for debugging
-          console.log('Processing message:', JSON.stringify(msg, null, 2));
-
           // Validate message has message content before parsing
           if (!msg || !msg.message) {
-            console.warn('Skipping invalid message: missing message content', msg);
             return;
           }
 
@@ -450,22 +441,18 @@ export class HcsService {
           let content;
           try {
             content = JSON.parse(msg.message);
-            console.log('Parsed content:', JSON.stringify(content, null, 2));
           } catch (parseError) {
-            console.warn('Skipping message: invalid JSON content', parseError);
             return;
           }
 
           // Validate content structure
           if (!content || !content.type || !content.payload) {
-            console.warn('Skipping message: invalid content structure', content);
             return;
           }
           
           if (content.type === MessageType.REGISTER_CHECKER) {
             const checker = content.payload;
             if (!checker.walletAddress || !checker.serverUrl) {
-              console.warn('Skipping invalid checker registration: missing required fields', checker);
               return;
             }
             
@@ -480,7 +467,6 @@ export class HcsService {
           } else if (content.type === MessageType.CHECKER_HEARTBEAT) {
             // Validate heartbeat payload
             if (!content.payload.walletAddress) {
-              console.warn('Skipping invalid heartbeat: missing wallet address', content.payload);
               return;
             }
 
@@ -493,14 +479,11 @@ export class HcsService {
             }
           }
         } catch (e) {
-          console.error("Error processing checker message:", e);
           // Continue processing other messages
         }
       });
       
-      const result = Array.from(checkers.values());
-      console.log('Final checkers result:', JSON.stringify(result, null, 2));
-      return result;
+      return Array.from(checkers.values());
     } catch (error) {
       console.error(`Error getting checkers: ${error}`);
       return [];
