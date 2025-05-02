@@ -1102,55 +1102,71 @@ function CreateAgentContent({
           deviceInfo.hostingFee
         );
         console.log("Transaction sent, hash:", hash);
-
-        const createAgentRequest = await fetch(`/api/db/agents`, {
-          method: "POST",
-          body: JSON.stringify({
-            name: agentName,
-            subname: agentName.toLowerCase(),
-            description: constructedCharacter.description,
-            personality: constructedCharacter.personality,
-            scenario: constructedCharacter.scenario,
-            first_mes: constructedCharacter.first_mes,
-            mes_example: constructedCharacter.mes_example,
-            creator_comment: constructedCharacter.creatorcomment,
-            tags: constructedCharacter.tags,
-            talkativeness: constructedCharacter.talkativeness,
-            is_favorite: constructedCharacter.fav,
-            device_address: deviceInfo.id.toLowerCase(),
-            owner_address: accountId?.toLowerCase(),
-            per_api_call_fee: parseEther(perApiCallFee).toString(),
-            is_public: isPublic,
-            metadata_url: characterConfigUrl,
-            tools: selectedTools.map((tool) => tool.id),
-            tx_hash: hash,
-          }),
+        const receipt = await publicClient.waitForTransactionReceipt({
+          hash,
         });
-
-        const createAgentResponse = await createAgentRequest.json();
-        console.log("Agent created:", createAgentResponse);
-
-        toast.promise(
-          publicClient.waitForTransactionReceipt({
-            hash,
-          }),
-          {
-            loading: "Waiting for confirmation...",
-            success: (data) => {
-              console.log("Transaction confirmed, receipt:", data);
-              setIsPending(false);
-              return `Transaction confirmed! `;
-            },
-            action: {
-              label: "View Tx",
-              onClick: () => {
-                window.open(`https://hashscan.io/testnet/tx/${hash}`, "_blank");
+        console.log("Transaction receipt:", receipt);
+        if (receipt.logs.length == 0) {
+          toast.error("Transaction failed", {
+            description: "Exact Same Agent Already Exists",
+          });
+          setShowConfirmModal(false);
+          setIsPending(false);
+          return;
+        } else {
+          const createAgentsRequest = await fetch(`/api/db/agents`, {
+            method: "POST",
+            body: JSON.stringify({
+              name: agentName,
+              subname: agentName.toLowerCase(),
+              description: constructedCharacter.description,
+              personality: constructedCharacter.personality,
+              scenario: constructedCharacter.scenario,
+              first_mes: constructedCharacter.first_mes,
+              mes_example: constructedCharacter.mes_example,
+              creator_comment: constructedCharacter.creatorcomment,
+              tags: constructedCharacter.tags,
+              talkativeness: constructedCharacter.talkativeness,
+              is_favorite: constructedCharacter.fav,
+              device_address: deviceInfo.id.toLowerCase(),
+              owner_address: accountId?.toLowerCase(),
+              per_api_call_fee: parseEther(perApiCallFee).toString(),
+              is_public: isPublic,
+              metadata_url: characterConfigUrl,
+              tools: selectedTools.map((tool) => tool.id),
+              tx_hash: hash,
+              agent_address: `0x${(receipt.logs[0].topics[2] as string).slice(
+                -40
+              )}`,
+            }),
+          });
+          const createAgentResponse = await createAgentsRequest.json();
+          console.log("Agent created:", createAgentResponse);
+          toast.promise(
+            new Promise((resolve) => {
+              setTimeout(() => {
+                resolve(receipt);
+              }, 2000);
+            }),
+            {
+              loading: "Waiting for confirmation...",
+              success: (data) => {
+                return `Transaction confirmed! `;
               },
-            },
-          }
-        );
-
-        setTransactionHash(hash);
+              action: {
+                label: "View Tx",
+                onClick: () => {
+                  window.open(
+                    `https://hashscan.io/testnet/tx/${hash}`,
+                    "_blank"
+                  );
+                },
+              },
+            }
+          );
+          setIsPending(false);
+          setTransactionHash(hash);
+        }
       } catch (error: any) {
         console.error("Transaction signing error:", error);
 

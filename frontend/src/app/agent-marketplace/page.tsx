@@ -1,48 +1,67 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import Link from 'next/link'
-import Header from '@/components/ui/Header'
-import { FiCpu, FiHash, FiDollarSign, FiUser, FiUserCheck, FiX, FiCopy, FiCheck } from 'react-icons/fi'
-import { getApiKey } from '@/utils/apiKey'
-import { formatEther, Hex } from 'viem'
-import { useWalletInterface } from '@/hooks/use-wallet-interface'
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import {
+  FiCpu,
+  FiHash,
+  FiDollarSign,
+  FiUser,
+  FiUserCheck,
+  FiX,
+  FiCopy,
+  FiCheck,
+} from "react-icons/fi";
+import { useWalletInterface } from "@/hooks/use-wallet-interface";
+import { Hex } from "viem";
+import { getApiKey } from "@/utils/apiKey";
+import { publicClient } from "@/lib/utils";
+import { FRANKY_ABI } from "@/lib/constants";
 
 // Define agent interface
-interface Agent {
-  id: number
-  prefix: string
-  agentAddress: string
-  deviceAddress: string
-  owner: string
-  perApiCallFee: string
-  character: string // Will be used as avatar URL
-  isPublic: boolean
-  txHash: string
-  blockNumber: number
-  timestamp: number
-  avatar?: string // Alias for character for better naming
-  characterConfig?: {
-    name: string
-    personality: string
-    scenario: string
-    first_mes: string
-    mes_example: string
-    creatorcomment: string
-    tags: string[]
-    talkativeness: string
-  }
-}
+type Agent = {
+  id: string;
+  name: string;
+  subname: string;
+  description: string | null;
+  personality: string | null;
+  scenario: string | null;
+  firstMes: string | null;
+  mesExample: string | null;
+  creatorComment: string | null;
+  tags: string[];
+  talkativeness: number | null;
+  isFavorite: boolean;
+  deviceAddress: string;
+  ownerAddress: string;
+  perApiCallFee: string;
+  isPublic: boolean;
+  tools: string[];
+  txHash: string;
+  createdAt: string;
+  updatedAt: string;
+  agentAddress: string;
+  avatar: string;
+};
 
 const Background = () => {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden">
       <div className="absolute inset-0 grid-bg opacity-30"></div>
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-emerald-900/10"></div>
-      <svg className="absolute inset-0 w-full h-full opacity-10" xmlns="http://www.w3.org/2000/svg">
+      <svg
+        className="absolute inset-0 w-full h-full opacity-10"
+        xmlns="http://www.w3.org/2000/svg"
+      >
         <defs>
-          <pattern id="hexagons" width="50" height="43.4" patternUnits="userSpaceOnUse" patternTransform="scale(2)">
+          <pattern
+            id="hexagons"
+            width="50"
+            height="43.4"
+            patternUnits="userSpaceOnUse"
+            patternTransform="scale(2)"
+          >
             <path
               d="M25 0 L50 14.4 L50 38.6 L25 53 L0 38.6 L0 14.4 Z"
               fill="none"
@@ -57,9 +76,10 @@ const Background = () => {
       <motion.div
         className="absolute w-96 h-96 rounded-full"
         style={{
-          background: 'radial-gradient(circle at center, rgba(0,255,136,0.15) 0%, transparent 70%)',
-          top: '30%',
-          left: '60%',
+          background:
+            "radial-gradient(circle at center, rgba(0,255,136,0.15) 0%, transparent 70%)",
+          top: "30%",
+          left: "60%",
         }}
         animate={{
           scale: [1, 1.2, 1],
@@ -75,9 +95,10 @@ const Background = () => {
       <motion.div
         className="absolute w-64 h-64 rounded-full"
         style={{
-          background: 'radial-gradient(circle at center, rgba(0,255,136,0.1) 0%, transparent 70%)',
-          bottom: '20%',
-          left: '30%',
+          background:
+            "radial-gradient(circle at center, rgba(0,255,136,0.1) 0%, transparent 70%)",
+          bottom: "20%",
+          left: "30%",
         }}
         animate={{
           scale: [1, 1.3, 1],
@@ -90,18 +111,26 @@ const Background = () => {
         }}
       />
     </div>
-  )
-}
+  );
+};
 
 // Agent card component
-const AgentCard = ({ keyVal, agent, onClick }: { keyVal: string, agent: Agent, onClick: () => void }) => {
+const AgentCard = ({
+  keyVal,
+  agent,
+  onClick,
+}: {
+  keyVal: string;
+  agent: Agent;
+  onClick: () => void;
+}) => {
   return (
     <motion.div
       key={keyVal}
       className="p-6 rounded-xl border border-[#00FF88] border-opacity-30 bg-black/50 backdrop-blur-sm h-full flex flex-col"
       whileHover={{
         y: -5,
-        boxShadow: '0 10px 25px -5px rgba(0, 255, 136, 0.3)'
+        boxShadow: "0 10px 25px -5px rgba(0, 255, 136, 0.3)",
       }}
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -109,15 +138,16 @@ const AgentCard = ({ keyVal, agent, onClick }: { keyVal: string, agent: Agent, o
       transition={{ duration: 0.5 }}
     >
       <div className="flex items-center mb-4">
-        {agent.character ? (
+        {agent.avatar ? (
           <div className="h-12 w-12 rounded-full overflow-hidden mr-4">
             <img
-              src={`/api/akave/fetch-image?url=${encodeURIComponent(agent.character)}`}
-              alt={agent.prefix}
+              src={agent.avatar}
+              alt={agent.subname}
               className="h-full w-full object-cover"
               onError={(e) => {
                 e.currentTarget.onerror = null;
-                e.currentTarget.src = 'https://placehold.co/100x100/00FF88/1A1A1A?text=AI&font=Roboto';
+                e.currentTarget.src =
+                  "https://placehold.co/100x100/00FF88/1A1A1A?text=AI&font=Roboto";
               }}
             />
           </div>
@@ -128,12 +158,10 @@ const AgentCard = ({ keyVal, agent, onClick }: { keyVal: string, agent: Agent, o
         )}
         <div className="flex-1">
           <h3 className="text-xl font-bold bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
-            {agent.prefix}
+            {agent.subname}
           </h3>
-          {agent.characterConfig && (
-            <p className="text-white/80 text-sm mt-1">
-              {agent.characterConfig.name}
-            </p>
+          {agent.name && (
+            <p className="text-white/80 text-sm mt-1">{agent.name}</p>
           )}
         </div>
       </div>
@@ -141,17 +169,34 @@ const AgentCard = ({ keyVal, agent, onClick }: { keyVal: string, agent: Agent, o
       <div className="space-y-4 flex-grow">
         <div className="flex items-center text-[#CCCCCC]">
           <FiDollarSign className="mr-2 text-[#00FF88]" />
-          <span>Fee per API Call: <span className="text-[#00FF88] font-medium">{agent.perApiCallFee} $HBAR</span></span>
+          <span>
+            Fee per API Call:{" "}
+            <span className="text-[#00FF88] font-medium">
+              {agent.perApiCallFee} $HBAR
+            </span>
+          </span>
         </div>
 
         <div className="flex items-center text-[#CCCCCC]">
           <FiHash className="mr-2 text-[#00FF88]" />
-          <span>Agent: <span className="text-[#00FF88] font-medium">{`${agent.agentAddress.slice(0, 6)}...${agent.agentAddress.slice(-4)}`}</span></span>
+          <span>
+            Agent:{" "}
+            <span className="text-[#00FF88] font-medium">{`${agent.agentAddress.slice(
+              0,
+              6
+            )}...${agent.agentAddress.slice(-4)}`}</span>
+          </span>
         </div>
 
         <div className="flex items-center text-[#CCCCCC]">
           <FiCpu className="mr-2 text-[#00FF88]" />
-          <span>Device: <span className="text-[#00FF88] font-medium">{`${agent.deviceAddress.slice(0, 6)}...${agent.deviceAddress.slice(-4)}`}</span></span>
+          <span>
+            Device:{" "}
+            <span className="text-[#00FF88] font-medium">{`${agent.deviceAddress.slice(
+              0,
+              6
+            )}...${agent.deviceAddress.slice(-4)}`}</span>
+          </span>
         </div>
       </div>
 
@@ -159,13 +204,15 @@ const AgentCard = ({ keyVal, agent, onClick }: { keyVal: string, agent: Agent, o
         <div className="flex items-center justify-between">
           <span className="text-xs text-gray-400">Owner</span>
           <span className="text-xs text-[#00FF88]">
-            {`${agent.owner.slice(0, 6)}...${agent.owner.slice(-4)}`}
+            {`${agent.ownerAddress.slice(0, 6)}...${agent.ownerAddress.slice(
+              -4
+            )}`}
           </span>
         </div>
         <div className="flex items-center justify-between mt-1">
           <span className="text-xs text-gray-400">Registration Tx</span>
           <a
-            href={`https://hashscan.io/testnet/address/` + agent.agentAddress}
+            href={`https://hashscan.io/testnet/address/` + agent.ownerAddress}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-[#00FF88] hover:underline"
@@ -185,24 +232,24 @@ const AgentCard = ({ keyVal, agent, onClick }: { keyVal: string, agent: Agent, o
         Use Agent
       </motion.button>
     </motion.div>
-  )
-}
+  );
+};
 
 // Preview Modal Component
 const PreviewModal = ({
   agent,
   isOpen,
-  onClose
+  onClose,
 }: {
-  agent: Agent | null
-  isOpen: boolean
-  onClose: () => void
+  agent: Agent | null;
+  isOpen: boolean;
+  onClose: () => void;
 }) => {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [keyError, setKeyError] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
-  const { accountId } = useWalletInterface()
+  const { accountId, walletInterface } = useWalletInterface();
   const handlePurchase = async () => {
     if (!agent || !accountId) return;
 
@@ -210,25 +257,25 @@ const PreviewModal = ({
       setIsPurchasing(true);
 
       try {
-        console.log('Generating API key for agent:', agent.agentAddress);
+        console.log("Generating API key for agent:", agent);
 
         // Generate API key using the agent address and wallet address
         // TODO: Sign Message flow setup
-        // const key = await getApiKey(
-        //   agent.agentAddress,
-        //   accountId as Hex,
-        //   signMessage
-        // );
+        const key = await getApiKey(
+          agent.agentAddress,
+          accountId as Hex,
+          walletInterface.signMessage
+        );
 
-        // setApiKey(key);
+        setApiKey(key);
         setKeyError(null);
       } catch (error: any) {
-        console.error('Error generating API key:', error);
-        setKeyError(error.message || 'Error generating API key');
+        console.error("Error generating API key:", error);
+        setKeyError(error.message || "Error generating API key");
       }
     } catch (error: any) {
-      console.error('Error generating API key:', error);
-      setKeyError(error.message || 'Failed to generate API key');
+      console.error("Error generating API key:", error);
+      setKeyError(error.message || "Failed to generate API key");
     } finally {
       setIsPurchasing(false);
     }
@@ -242,9 +289,13 @@ const PreviewModal = ({
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     } catch (error) {
-      console.error('Error copying to clipboard:', error);
+      console.error("Error copying to clipboard:", error);
     }
   };
+
+  useEffect(() => {
+    console.log("accountId:", accountId);
+  }, [accountId]);
 
   return (
     <AnimatePresence>
@@ -282,15 +333,16 @@ const PreviewModal = ({
 
             {/* Agent details */}
             <div className="mb-6 flex items-center">
-              {agent.character ? (
+              {agent.avatar ? (
                 <div className="h-16 w-16 rounded-full overflow-hidden mr-4">
                   <img
-                    src={`/api/akave/fetch-image?url=${encodeURIComponent(agent.character)}`}
-                    alt={agent.prefix}
+                    src={agent.avatar}
+                    alt={agent.subname}
                     className="h-full w-full object-cover"
                     onError={(e) => {
                       e.currentTarget.onerror = null;
-                      e.currentTarget.src = 'https://placehold.co/100x100/00FF88/1A1A1A?text=AI&font=Roboto';
+                      e.currentTarget.src =
+                        "https://placehold.co/100x100/00FF88/1A1A1A?text=AI&font=Roboto";
                     }}
                   />
                 </div>
@@ -300,65 +352,72 @@ const PreviewModal = ({
                 </div>
               )}
               <div>
-                <h2 className="text-2xl font-bold text-white">{agent.prefix}</h2>
-                {agent.characterConfig?.name && (
-                  <p className="text-[#00FF88]">{agent.characterConfig?.name}</p>
-                )}
+                <h2 className="text-2xl font-bold text-white">
+                  {agent.subname}
+                </h2>
+                {agent.name && <p className="text-[#00FF88]">{agent.name}</p>}
               </div>
             </div>
 
-
             {/* Character Configuration Details */}
-            {agent.characterConfig && (
+            {agent && (
               <div className="mb-6 space-y-4">
-                <h3 className="text-xl font-bold text-white border-b border-[#00FF88]/20 pb-2">Character Details</h3>
+                <h3 className="text-xl font-bold text-white border-b border-[#00FF88]/20 pb-2">
+                  Character Details
+                </h3>
 
                 {/* Personality */}
                 {agent && (
                   <div>
                     <h4 className="text-[#00FF88] text-sm mb-1">Personality</h4>
-                    <p className="text-gray-200">{agent.characterConfig.personality}</p>
+                    <p className="text-gray-200">{agent.personality}</p>
                   </div>
                 )}
 
                 {/* Scenario */}
-                {agent.characterConfig.scenario && (
+                {agent.scenario && (
                   <div>
                     <h4 className="text-[#00FF88] text-sm mb-1">Scenario</h4>
-                    <p className="text-gray-200">{agent.characterConfig.scenario}</p>
+                    <p className="text-gray-200">{agent.scenario}</p>
                   </div>
                 )}
 
                 {/* First Message */}
-                {agent.characterConfig.first_mes && (
+                {agent.firstMes && (
                   <div>
-                    <h4 className="text-[#00FF88] text-sm mb-1">First Message</h4>
-                    <p className="text-gray-200">{agent.characterConfig.first_mes}</p>
+                    <h4 className="text-[#00FF88] text-sm mb-1">
+                      First Message
+                    </h4>
+                    <p className="text-gray-200">{agent.firstMes}</p>
                   </div>
                 )}
 
                 {/* Message Example */}
-                {agent.characterConfig.mes_example && (
+                {agent.mesExample && (
                   <div>
-                    <h4 className="text-[#00FF88] text-sm mb-1">Message Example</h4>
-                    <p className="text-gray-200">{agent.characterConfig.mes_example}</p>
+                    <h4 className="text-[#00FF88] text-sm mb-1">
+                      Message Example
+                    </h4>
+                    <p className="text-gray-200">{agent.mesExample}</p>
                   </div>
                 )}
 
                 {/* Creator Comment */}
-                {agent.characterConfig.creatorcomment && (
+                {agent.creatorComment && (
                   <div>
-                    <h4 className="text-[#00FF88] text-sm mb-1">Creator Comment</h4>
-                    <p className="text-gray-200">{agent.characterConfig.creatorcomment}</p>
+                    <h4 className="text-[#00FF88] text-sm mb-1">
+                      Creator Comment
+                    </h4>
+                    <p className="text-gray-200">{agent.creatorComment}</p>
                   </div>
                 )}
 
                 {/* Tags */}
-                {agent.characterConfig.tags && (
+                {agent.tags && (
                   <div>
                     <h4 className="text-[#00FF88] text-sm mb-1">Tags</h4>
                     <div className="flex flex-wrap gap-2">
-                      {agent.characterConfig.tags.map((tag, index) => (
+                      {agent.tags.map((tag, index) => (
                         <span
                           key={index}
                           className="px-2 py-1 bg-[#00FF88]/10 text-[#00FF88] rounded-md text-sm"
@@ -371,10 +430,12 @@ const PreviewModal = ({
                 )}
 
                 {/* Talkativeness */}
-                {agent.characterConfig.talkativeness && (
+                {agent.talkativeness && (
                   <div>
-                    <h4 className="text-[#00FF88] text-sm mb-1">Talkativeness</h4>
-                    <p className="text-gray-200">{agent.characterConfig.talkativeness}</p>
+                    <h4 className="text-[#00FF88] text-sm mb-1">
+                      Talkativeness
+                    </h4>
+                    <p className="text-gray-200">{agent.talkativeness}</p>
                   </div>
                 )}
               </div>
@@ -384,28 +445,50 @@ const PreviewModal = ({
             <div className="mb-6 space-y-3">
               <div className="flex items-center text-[#CCCCCC]">
                 <FiDollarSign className="mr-2 text-[#00FF88]" />
-                <span>Fee per API Call: <span className="text-[#00FF88] font-medium">{agent.perApiCallFee} $HBAR</span></span>
+                <span>
+                  Fee per API Call:{" "}
+                  <span className="text-[#00FF88] font-medium">
+                    {agent.perApiCallFee} $HBAR
+                  </span>
+                </span>
               </div>
 
               <div className="flex items-center text-[#CCCCCC]">
                 <FiHash className="mr-2 text-[#00FF88]" />
-                <span>Agent: <span className="text-[#00FF88] font-medium">{agent.agentAddress}</span></span>
+                <span>
+                  Agent:{" "}
+                  <span className="text-[#00FF88] font-medium">
+                    {agent.deviceAddress}
+                  </span>
+                </span>
               </div>
 
               <div className="flex items-center text-[#CCCCCC]">
                 <FiCpu className="mr-2 text-[#00FF88]" />
-                <span>Device: <span className="text-[#00FF88] font-medium">{agent.deviceAddress}</span></span>
+                <span>
+                  Device:{" "}
+                  <span className="text-[#00FF88] font-medium">
+                    {agent.deviceAddress}
+                  </span>
+                </span>
               </div>
 
               <div className="flex items-center text-[#CCCCCC]">
                 <FiUser className="mr-2 text-[#00FF88]" />
-                <span>Owner: <span className="text-[#00FF88] font-medium">{agent.owner}</span></span>
+                <span>
+                  Owner:{" "}
+                  <span className="text-[#00FF88] font-medium">
+                    {agent.ownerAddress}
+                  </span>
+                </span>
               </div>
             </div>
 
             {/* API Key Section */}
             <div className="mt-8">
-              <h3 className="text-xl font-bold mb-4 text-white">Generate API Key</h3>
+              <h3 className="text-xl font-bold mb-4 text-white">
+                Generate API Key
+              </h3>
 
               {apiKey ? (
                 <div className="mb-6">
@@ -420,7 +503,11 @@ const PreviewModal = ({
                       onClick={copyApiKey}
                       className="py-2 px-4 rounded-r-lg bg-[#00FF88]/20 text-[#00FF88] hover:bg-[#00FF88]/30 flex items-center"
                     >
-                      {isCopied ? <FiCheck className="text-lg" /> : <FiCopy className="text-lg" />}
+                      {isCopied ? (
+                        <FiCheck className="text-lg" />
+                      ) : (
+                        <FiCopy className="text-lg" />
+                      )}
                     </button>
                   </div>
                   <p className="text-sm text-gray-400 mt-2">
@@ -440,15 +527,17 @@ const PreviewModal = ({
               ) : (
                 <div className="mb-6">
                   <p className="mb-4 text-gray-300">
-                    Generate an API key to interact with this agent. Your wallet must be connected toHedera Testnet.
+                    Generate an API key to interact with this agent. Your wallet
+                    must be connected to Hedera Testnet.
                   </p>
                   <button
                     onClick={handlePurchase}
-                    disabled={accountId != null || isPurchasing}
+                    disabled={accountId == null || isPurchasing}
                     className={`py-2 px-6 rounded-lg text-center 
-                      ${(accountId)
-                        ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                        : 'bg-[#00FF88]/20 text-[#00FF88] hover:bg-[#00FF88]/30'
+                      ${
+                        !accountId
+                          ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                          : "bg-[#00FF88]/20 text-[#00FF88] hover:bg-[#00FF88]/30"
                       } transition-colors flex items-center justify-center`}
                   >
                     {isPurchasing ? (
@@ -457,11 +546,11 @@ const PreviewModal = ({
                         Generating...
                       </>
                     ) : (
-                      'Generate API Key'
+                      "Generate API Key"
                     )}
                   </button>
 
-                  {accountId && (
+                  {!accountId && (
                     <p className="text-sm text-yellow-400 mt-2">
                       Your wallet must be connected to generate an API key.
                     </p>
@@ -485,75 +574,44 @@ const PreviewModal = ({
       )}
     </AnimatePresence>
   );
-}
+};
 
 export default function AgentMarketplacePage() {
-  const [agents, setAgents] = useState<Agent[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null)
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
 
   useEffect(() => {
     (async function () {
       try {
         // Fetch agents from Supabase instead of graph API
-        const agentsRequest = await fetch("/api/db/agents")
+        const agentsRequest = await fetch("/api/db/agents");
         if (!agentsRequest.ok) {
-          setLoading(false)
-          setError("Failed to fetch agents")
-          return
+          setLoading(false);
+          setError("Failed to fetch agents");
+          return;
         }
-        const agentsResponse = await agentsRequest.json()
-        console.log("Agents from Supabase:", agentsResponse)
-
-        // Transform Supabase response to match existing Agent interface
-        const formattedAgents = await Promise.all(agentsResponse.map(async (agent: any) => {
-          // Fetch character config if available
-          let characterConfig = null
-          if (agent.metadata_url) {
-            try {
-              const characterRequest = await fetch(`/api/akave/fetch-json?url=${encodeURIComponent(agent.metadata_url)}`)
-              characterConfig = await characterRequest.json()
-            } catch (err) {
-              console.warn("Failed to fetch character config:", err)
-            }
-          }
-
-          return {
-            id: agent.id,
-            prefix: agent.subname,
-            agentAddress: agent.id,
-            deviceAddress: agent.device_address,
-            owner: agent.owner_address,
-            perApiCallFee: agent.per_api_call_fee,
-            character: agent.avatar || agent.metadata_url, // Use avatar or fallback to metadata URL
-            characterConfig: characterConfig,
-            isPublic: agent.is_public,
-            timestamp: new Date(agent.created_at).toLocaleDateString(),
-            name: agent.name || '',
-            avatar: agent.avatar || agent.metadata_url
-          }
-        }))
-
-        console.log("Formatted agents:", formattedAgents)
-        setAgents(formattedAgents)
-        setLoading(false)
-        setError(null)
+        const agentsResponse = await agentsRequest.json();
+        console.log("Agents from Supabase:", agentsResponse);
+        setAgents(agentsResponse);
+        setLoading(false);
+        setError(null);
       } catch (err) {
-        console.error("Error fetching agents:", err)
-        setLoading(false)
-        setError("Failed to fetch agents")
+        console.error("Error fetching agents:", err);
+        setLoading(false);
+        setError("Failed to fetch agents");
       }
-    })()
-  }, [])
+    })();
+  }, []);
 
   const handleAgentSelect = async (agent: Agent) => {
-    setSelectedAgent(agent)
-  }
+    setSelectedAgent(agent);
+  };
 
   const closeModal = () => {
-    setSelectedAgent(null)
-  }
+    setSelectedAgent(null);
+  };
 
   return (
     <>
@@ -570,8 +628,8 @@ export default function AgentMarketplacePage() {
               Agent Marketplace
             </h1>
             <p className="text-xl mb-6 text-[#AAAAAA] max-w-4xl mx-auto">
-              Browse and use public AI agents deployed on the network.
-              Each agent has unique capabilities and can be used for a small fee.
+              Browse and use public AI agents deployed on the network. Each
+              agent has unique capabilities and can be used for a small fee.
             </p>
             <p className="text-lg mb-12 text-emerald-400 max-w-4xl mx-auto">
               Pay per API call in $HBAR tokens to interact with these agents.
@@ -586,12 +644,16 @@ export default function AgentMarketplacePage() {
           {loading ? (
             <div className="flex flex-col justify-center items-center py-20">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#00FF88] mb-4"></div>
-              <p className="text-[#AAAAAA]">Loading agents from blockchain...</p>
+              <p className="text-[#AAAAAA]">
+                Loading agents from blockchain...
+              </p>
             </div>
           ) : error ? (
             <div className="text-center py-20 px-4">
               <div className="p-6 rounded-xl border border-red-500 border-opacity-30 bg-black/50 backdrop-blur-sm max-w-2xl mx-auto">
-                <p className="text-xl text-red-400 mb-4">Error loading agents</p>
+                <p className="text-xl text-red-400 mb-4">
+                  Error loading agents
+                </p>
                 <p className="text-[#AAAAAA]">{error}</p>
               </div>
             </div>
@@ -608,7 +670,9 @@ export default function AgentMarketplacePage() {
             </div>
           ) : (
             <div className="text-center py-20">
-              <p className="text-xl text-[#AAAAAA] mb-3">No public agents available.</p>
+              <p className="text-xl text-[#AAAAAA] mb-3">
+                No public agents available.
+              </p>
               <Link href="/marketplace">
                 <motion.button
                   className="px-6 py-2 rounded-lg bg-[#00FF88]/20 border border-[#00FF88]/50 text-[#00FF88] hover:bg-[#00FF88]/30 transition-colors"
@@ -623,7 +687,6 @@ export default function AgentMarketplacePage() {
         </div>
       </section>
 
-
       <AnimatePresence>
         {selectedAgent && (
           <PreviewModal
@@ -634,5 +697,5 @@ export default function AgentMarketplacePage() {
         )}
       </AnimatePresence>
     </>
-  )
+  );
 }

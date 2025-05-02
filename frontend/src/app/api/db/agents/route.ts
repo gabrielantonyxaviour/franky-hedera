@@ -23,6 +23,7 @@ export interface Agent {
   tx_hash: string;
   created_at: string;
   updated_at: string;
+  agent_address: string;
 }
 
 // GET /api/db/agents - Get all agents
@@ -45,7 +46,7 @@ export async function GET(request: Request) {
       if (error) throw error;
       console.log(`Found agent with subname ${subname}`);
 
-      return NextResponse.json(transformAgentData(data));
+      return NextResponse.json(await transformAgentData(data));
     }
 
     if (address) {
@@ -61,7 +62,8 @@ export async function GET(request: Request) {
       if (error) throw error;
       console.log(`Found ${data.length} agents for address ${address}`);
 
-      return NextResponse.json(data.map(transformAgentData));
+      const transformedData = await Promise.all(data.map(transformAgentData));
+      return NextResponse.json(transformedData);
     }
 
     console.log("Fetching all agents");
@@ -74,7 +76,8 @@ export async function GET(request: Request) {
     if (error) throw error;
     console.log(`Found ${data.length} total agents`);
 
-    return NextResponse.json(data.map(transformAgentData));
+    const transformedData = await Promise.all(data.map(transformAgentData));
+    return NextResponse.json(transformedData);
   } catch (error) {
     console.error("Error in GET /api/db/agents:", error);
     if (error instanceof Error) {
@@ -111,6 +114,7 @@ export async function POST(request: Request) {
       is_public = true,
       tools = [],
       tx_hash,
+      agent_address,
     } = json;
 
     console.log(`Creating new agent with subname: ${subname}`);
@@ -135,6 +139,7 @@ export async function POST(request: Request) {
           tools,
           tx_hash,
           metadata_url,
+          agent_address,
         },
         null,
         2
@@ -162,6 +167,7 @@ export async function POST(request: Request) {
           tools,
           tx_hash,
           metadata_url,
+          agent_address,
         },
       ])
       .select()
@@ -170,7 +176,7 @@ export async function POST(request: Request) {
     if (error) throw error;
     console.log(`Successfully created agent with ID: ${data.id}`);
 
-    return NextResponse.json(transformAgentData(data));
+    return NextResponse.json(await transformAgentData(data));
   } catch (error) {
     console.error("Error in POST /api/db/agents:", error);
     if (error instanceof Error) {
@@ -184,7 +190,10 @@ export async function POST(request: Request) {
 }
 
 // Helper function to transform agent data to match contract indexer format
-function transformAgentData(data: Agent) {
+async function transformAgentData(data: Agent) {
+  const characterConfig = await fetch(data.metadata_url);
+  const characterConfigJson = await characterConfig.json();
+
   return {
     id: data.id,
     name: data.name,
@@ -206,5 +215,8 @@ function transformAgentData(data: Agent) {
     txHash: data.tx_hash,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
+    avatar: characterConfigJson.avatarUrl,
+    agentAddress:
+      data.agent_address ?? "0x6a251cd0df26210a5ee4b688d4ddc10046061135",
   };
 }
