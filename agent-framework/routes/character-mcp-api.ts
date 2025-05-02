@@ -493,7 +493,7 @@ async function fetchAgentAndCharacterData(agentAddress: string): Promise<{
 
     // Fetch agent details from Supabase instead of graph API
     const agentResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL}/api/db/agents?address=${agentAddress}`
+      `https://franky-hedera.vercel.app/api/db/agents?address=${agentAddress}`
     );
 
     if (!agentResponse.ok) {
@@ -511,7 +511,7 @@ async function fetchAgentAndCharacterData(agentAddress: string): Promise<{
     logger.info("Agent Init", "Agent details fetched successfully");
 
     // Extract the character config URL from the agent data
-    const metadataUrl = agentData.metadata_url;
+    const metadataUrl = agentData.metadataUrl;
 
     if (!metadataUrl) {
       logger.error("Agent Init", "No character config found in agent data");
