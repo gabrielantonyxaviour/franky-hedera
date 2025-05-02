@@ -507,7 +507,7 @@ async function fetchAgentAndCharacterData(agentAddress: string): Promise<{
       };
     }
 
-    const agentData = await agentResponse.json(); // Get first agent since response is an array
+    const [agentData] = await agentResponse.json(); // Get first agent since response is an array
     logger.info("Agent Init", "Agent details fetched successfully");
 
     // Extract the character config URL from the agent data
