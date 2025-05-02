@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 /**
  * Tool class for implementing MCP-compatible tools
  */
@@ -200,64 +202,99 @@ Example usage:
 '{"search_term": "pirate"}'`);
       
     this.hederaKit = hederaKit;
-    this.apiUrl = 'https://getmessages.onrender.com/get-complete-characters';
-    console.log("FindCharacterTool initialized with dynamic API endpoint");
+    this.apiUrl = `${process.env.API_BASE_URL}/api/db/agents`;
+    console.log("FindCharacterTool initialized with dynamic API endpoint:", this.apiUrl);
   }
   
   async _call(input, config) {
     try {
-      console.log(`FindCharacterTool called with input:`, input);
+      console.log("=== FindCharacterTool Execution Start ===");
+      console.log("Input received:", JSON.stringify(input, null, 2));
       
       // Parse input
       const parsedInput = typeof input === 'string' ? JSON.parse(input) : input;
-      console.log("FindCharacterTool: parsed input:", parsedInput);
+      console.log("Parsed input:", JSON.stringify(parsedInput, null, 2));
       
       const searchTerm = parsedInput.search_term || "";
-      console.log(`FindCharacterTool: Searching for "${searchTerm}" via API`);
+      console.log("Search term:", searchTerm);
       
       // Fetch characters from the API
-      console.log(`Fetching characters from ${this.apiUrl}`);
+      console.log("Making API request to:", this.apiUrl);
       const response = await axios.get(this.apiUrl);
       
-      if (!response.data || !response.data.characters || !Array.isArray(response.data.characters)) {
-        console.error("FindCharacterTool: Invalid API response format");
-        throw new Error("Invalid API response format");
+      console.log("API Response Status:", response.status);
+      console.log("API Response Headers:", response.headers);
+      console.log("API Response Type:", typeof response.data);
+      console.log("API Response Data:", JSON.stringify(response.data, null, 2));
+      
+      // Validate that response.data is an array
+      if (!response.data) {
+        console.error("API Response data is null or undefined");
+        throw new Error("API Response data is missing");
       }
       
-      const allCharacters = response.data.characters;
-      console.log(`FindCharacterTool: Retrieved ${allCharacters.length} characters from API`);
+      if (!Array.isArray(response.data)) {
+        console.error("API Response is not an array. Type:", typeof response.data);
+        console.error("Response structure:", Object.keys(response.data));
+        throw new Error(`Invalid API response format - expected array, got ${typeof response.data}`);
+      }
+      
+      const allCharacters = response.data;
+      console.log("Total characters retrieved:", allCharacters.length);
+      
+      if (allCharacters.length > 0) {
+        console.log("Sample character structure:", Object.keys(allCharacters[0]));
+      }
       
       // Filter characters based on search term if provided
       let characters;
       if (searchTerm && searchTerm.trim() !== "") {
         const searchTermLower = searchTerm.toLowerCase();
         characters = allCharacters.filter(char => {
-          // Search in name, description, and personality
-          return (
+          const matches = (
             char.name?.toLowerCase().includes(searchTermLower) ||
             char.description?.toLowerCase().includes(searchTermLower) ||
             char.personality?.toLowerCase().includes(searchTermLower)
           );
+          console.log(`Character ${char.name}: ${matches ? 'matches' : 'does not match'} search term`);
+          return matches;
         });
-        console.log(`FindCharacterTool: Found ${characters.length} characters matching "${searchTerm}"`);
+        console.log(`Filtered results: ${characters.length} matches found for "${searchTerm}"`);
       } else {
         characters = allCharacters;
-        console.log(`FindCharacterTool: Returning all ${characters.length} characters (no search term provided)`);
+        console.log("No search term provided, returning all characters");
       }
       
-      return JSON.stringify({
+      const result = {
         status: "success",
         message: `Found ${characters.length} characters${searchTerm ? ` matching "${searchTerm}"` : ""}`,
         matches: characters.length,
         characters: characters,
         searchTerm: searchTerm
-      });
+      };
+      
+      console.log("=== FindCharacterTool Execution Complete ===");
+      console.log("Returning result with", characters.length, "characters");
+      
+      return JSON.stringify(result);
     } catch (error) {
-      console.error("FindCharacterTool error:", error);
+      console.error("=== FindCharacterTool Error ===");
+      console.error("Error type:", error.constructor.name);
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+      if (error.response) {
+        console.error("API Error Response:", {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          headers: error.response.headers,
+          data: error.response.data
+        });
+      }
       return JSON.stringify({
         status: "error",
         message: error.message,
-        code: error.code || "UNKNOWN_ERROR"
+        code: error.code || "UNKNOWN_ERROR",
+        details: error.response?.data || error.stack
       });
     }
   }
@@ -276,18 +313,17 @@ Example usage:
 '{}'`);
       
     this.hederaKit = hederaKit;
-    this.apiUrl = 'https://getmessages.onrender.com/get-complete-characters';
-    console.log("ListAllCharactersTool initialized with dynamic API endpoint");
+    this.apiUrl = `${process.env.API_BASE_URL}/api/db/agents`;
+    console.log("ListAllCharactersTool initialized with dynamic API endpoint:", this.apiUrl);
   }
   
   async _call(input, config) {
     try {
-      console.log(`ListAllCharactersTool called`);
+      console.log("=== ListAllCharactersTool Execution Start ===");
       
       // Create a fake response for testing when bypass is enabled
       if (process.env.BYPASS_HEDERA === 'true') {
-        console.log("ListAllCharactersTool: BYPASS_HEDERA is true, returning API fallback data");
-        
+        console.log("BYPASS_HEDERA mode active, returning test data");
         const characters = [
           {
             name: "Captain Blackbeard",
@@ -298,8 +334,7 @@ Example usage:
             mes_example: "Hoist the sails and prepare for plunder",
             creator_notes: "Known for his intimidating presence and strategic mind.",
             system_prompt: "You are Captain Blackbeard"
-          },
-          // ... previous fallback characters ...
+          }
         ];
         
         return JSON.stringify({
@@ -310,29 +345,65 @@ Example usage:
       }
       
       // Fetch characters from the API
-      console.log(`Fetching characters from ${this.apiUrl}`);
+      console.log("Making API request to:", this.apiUrl);
+      console.log("Request headers:", axios.defaults.headers);
+      
       const response = await axios.get(this.apiUrl);
       
-      if (!response.data || !response.data.characters || !Array.isArray(response.data.characters)) {
-        console.error("ListAllCharactersTool: Invalid API response format");
-        throw new Error("Invalid API response format");
+      console.log("API Response Status:", response.status);
+      console.log("API Response Headers:", response.headers);
+      console.log("API Response Type:", typeof response.data);
+      console.log("Is Array?", Array.isArray(response.data));
+      console.log("Raw Response Data:", JSON.stringify(response.data, null, 2));
+      
+      // Validate response
+      if (!response.data) {
+        console.error("API Response data is null or undefined");
+        throw new Error("API Response data is missing");
       }
       
-      const characters = response.data.characters;
-      console.log(`ListAllCharactersTool: Retrieved ${characters.length} characters from API`);
+      if (!Array.isArray(response.data)) {
+        console.error("API Response is not an array. Type:", typeof response.data);
+        console.error("Response structure:", Object.keys(response.data));
+        throw new Error(`Invalid API response format - expected array, got ${typeof response.data}`);
+      }
       
-      return JSON.stringify({
+      const characters = response.data;
+      console.log("Total characters found:", characters.length);
+      
+      if (characters.length > 0) {
+        console.log("First character structure:", Object.keys(characters[0]));
+        console.log("Sample character data:", JSON.stringify(characters[0], null, 2));
+      }
+      
+      const result = {
         status: "success",
         message: `Found ${characters.length} characters`,
-        characters: characters,
-        topicId: response.data.topicId
-      });
+        characters: characters
+      };
+      
+      console.log("=== ListAllCharactersTool Execution Complete ===");
+      console.log("Returning result with", characters.length, "characters");
+      
+      return JSON.stringify(result);
     } catch (error) {
-      console.error("ListAllCharactersTool error:", error);
+      console.error("=== ListAllCharactersTool Error ===");
+      console.error("Error type:", error.constructor.name);
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+      if (error.response) {
+        console.error("API Error Response:", {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          headers: error.response.headers,
+          data: error.response.data
+        });
+      }
       return JSON.stringify({
         status: "error",
         message: error.message,
-        code: error.code || "UNKNOWN_ERROR"
+        code: error.code || "UNKNOWN_ERROR",
+        details: error.response?.data || error.stack
       });
     }
   }
@@ -348,20 +419,23 @@ class RequestValues {
     this.avatarUrl = null;
     this.deviceAddress = null;
     this.perApiCallFee = null;
+    this.ownerAddress = null;
   }
 
-  updateValues(secrets, secretsHash, avatarUrl, deviceAddress, perApiCallFee) {
+  updateValues(secrets, secretsHash, avatarUrl, deviceAddress, perApiCallFee, ownerAddress) {
     this.secrets = secrets;
     this.secretsHash = secretsHash;
     this.avatarUrl = avatarUrl;
-    this.deviceAddress = deviceAddress || "0x7339b922a04ad2c0ddd9887e5f043a65759543b8"; // Default device address
+    this.deviceAddress = deviceAddress || "0x8f9506909b3b8cddb6891bc925099188f383a262"; // Default device address
     this.perApiCallFee = perApiCallFee || "1000000000000000"; // Default to 0.001 ETH in wei
+    this.ownerAddress = ownerAddress || "0x0000000000000000000000000000000000000000"; // Default owner address
     console.log('Updated request values:', {
       secrets: secrets ? '*** (hidden) ***' : null,
       secretsHash: secretsHash ? '*** (hidden) ***' : null,
       avatarUrl,
       deviceAddress: this.deviceAddress,
-      perApiCallFee: this.perApiCallFee
+      perApiCallFee: this.perApiCallFee,
+      ownerAddress: this.ownerAddress
     });
   }
 
@@ -370,8 +444,9 @@ class RequestValues {
       secrets: this.secrets || "encrypted_secrets_here",
       secretsHash: this.secretsHash || "hash_of_encrypted_secrets",
       avatarUrl: this.avatarUrl || "https://amethyst-impossible-ptarmigan-368.mypinata.cloud/files/your_avatar_cid",
-      deviceAddress: this.deviceAddress || "0x7339b922a04ad2c0ddd9887e5f043a65759543b8",
-      perApiCallFee: this.perApiCallFee || "1000000000000000"
+      deviceAddress: this.deviceAddress || "0x8f9506909b3b8cddb6891bc925099188f383a262",
+      perApiCallFee: this.perApiCallFee || "1000000000000000",
+      ownerAddress: this.ownerAddress || "0x0000000000000000000000000000000000000000"
     };
   }
 }
@@ -511,8 +586,19 @@ Example usage:
       const parsedInput = typeof input === 'string' ? JSON.parse(input) : input;
       console.log("CreateFrankyAgentTool: parsed input:", parsedInput);
       
-      // Get dynamic values
-      const { secrets, secretsHash, avatarUrl, deviceAddress, perApiCallFee } = requestValues.getValues();
+      // Get dynamic values including owner_address
+      const { secrets, secretsHash, avatarUrl, deviceAddress, perApiCallFee, ownerAddress } = requestValues.getValues();
+      
+      // Log the request values for debugging
+      console.log("===== REQUEST VALUES BEFORE API CALL =====");
+      console.log("Full requestValues object:", JSON.stringify(requestValues, null, 2));
+      console.log("secrets:", secrets ? "*** (hidden) ***" : null);
+      console.log("secretsHash:", secretsHash ? "*** (hidden) ***" : null);
+      console.log("avatarUrl:", avatarUrl);
+      console.log("deviceAddress:", deviceAddress);
+      console.log("perApiCallFee:", perApiCallFee);
+      console.log("ownerAddress:", ownerAddress);
+      console.log("===========================================");
       
       // Create the request body in the new format
       const requestBody = {
@@ -534,7 +620,8 @@ Example usage:
           secretsHash,
           avatarUrl,
           deviceAddress,
-          perApiCallFee
+          perApiCallFee,
+          ownerAddress
         }
       };
 
@@ -544,7 +631,7 @@ Example usage:
 
       // Make the POST request to the new endpoint
       console.log("SENDING REQUEST TO PINATA API...");
-      const response = await fetch('http://localhost:3000/api/pinata/json', {
+      const response = await fetch(`${process.env.API_BASE_URL}/api/pinata/json`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -560,7 +647,6 @@ Example usage:
       console.log("PINATA API RESPONSE:", result);
       
       // Extract the CID from the URL
-      // URL format: https://amethyst-impossible-ptarmigan-368.mypinata.cloud/files/bafkreics2qb6tzhneoeskujr7kx5swoa7yv46itvhefpm3bpqanzkrg7t4
       const characterConfigUrl = result.url;
       const cid = characterConfigUrl.split('/files/')[1];
       
@@ -579,13 +665,58 @@ Example usage:
       );
       
       console.log("CONTRACT EXECUTION RESULT:", contractResult);
+
+      // Create the agent database entry
+      console.log("CREATING AGENT DATABASE ENTRY...");
+      const dbRequestBody = {
+        name: parsedInput.name,
+        subname: parsedInput.subdomain,
+        description: parsedInput.description,
+        personality: parsedInput.personality,
+        scenario: parsedInput.scenario,
+        first_mes: parsedInput.first_mes,
+        mes_example: parsedInput.mes_example,
+        creator_comment: parsedInput.creator_notes,
+        tags: [parsedInput.system_prompt],
+        talkativeness: 0.7,
+        is_favorite: true,
+        device_address: deviceAddress,
+        owner_address: ownerAddress,
+        per_api_call_fee: perApiCallFee,
+        is_public: parsedInput.isPublic,
+        tools: ["balance", "gas", "price"],
+        metadata_url: characterConfigUrl,
+        tx_hash: contractResult.transactionId
+      };
+
+      console.log("===== DATABASE REQUEST DETAILS =====");
+      console.log("DB Request Body:", JSON.stringify(dbRequestBody, null, 2));
+      console.log("owner_address from requestValues:", ownerAddress);
+      console.log("owner_address in DB request:", dbRequestBody.owner_address);
+      console.log("===================================");
+
+      const dbResponse = await fetch(`${process.env.API_BASE_URL}/api/db/agents`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(dbRequestBody)
+      });
+
+      if (!dbResponse.ok) {
+        throw new Error(`Database error! status: ${dbResponse.status}`);
+      }
+
+      const dbResult = await dbResponse.json();
+      console.log("DATABASE RESPONSE:", dbResult);
       
       return JSON.stringify({
         status: "success",
         message: `Agent "${parsedInput.name}" created successfully and registered on blockchain!`,
         data: {
           ...result,
-          contract: contractResult
+          contract: contractResult,
+          database: dbResult
         }
       });
 
@@ -647,5 +778,6 @@ module.exports = {
   FindCharacterTool,
   ListAllCharactersTool,
   CreateFrankyAgentTool,
-  createHederaTools
+  createHederaTools,
+  requestValues
 }; 

@@ -1,6 +1,7 @@
 const { Client, AccountId, PrivateKey, TopicCreateTransaction, TopicMessageSubmitTransaction, TopicId, TopicMessageQuery } = require('@hashgraph/sdk');
 const uuid = require('uuid');
 const axios = require('axios');
+require('dotenv').config();
 
 /**
  * Simplified HederaAgentKit class for Hedera operations
@@ -199,6 +200,9 @@ class HederaAgentKit {
       // Generate a UUID for the character
       const characterId = uuid.v4();
       
+      // Add to database
+      const apiUrl = `${process.env.API_BASE_URL}/api/db/agents`;
+      
       // Add the UUID to the character data
       const characterDataWithId = {
         uuid: characterId,
@@ -394,7 +398,7 @@ class HederaAgentKit {
       
       try {
         // Fetch characters from the API
-        const apiUrl = 'https://getmessages.onrender.com/get-complete-characters';
+        const apiUrl = `${process.env.API_BASE_URL}/api/db/agents`;
         console.log(`Fetching characters from API: ${apiUrl}`);
         
         const response = await axios.get(apiUrl);

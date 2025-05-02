@@ -3,7 +3,7 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const HederaAgentKit = require('./hedera-agent-kit');
-const { createHederaTools } = require('./tools');
+const { createHederaTools, requestValues } = require('./tools');
 const MCPServer = require('./mcp-server');
 const MCPOpenAIClient = require('./mcp-openai');
 
@@ -86,6 +86,27 @@ app.post('/chat', async (req, res) => {
     }
 
     console.log(`Received user input: "${userInput.substring(0, 30)}${userInput.length > 30 ? '...' : ''}"`);
+    
+    // Update request values from the request body
+    if (req.body) {
+      const { secrets, secretsHash, avatarUrl, deviceAddress, perApiCallFee, ownerAddress } = req.body;
+      console.log("Updating request values with data from API request:", {
+        secrets: secrets ? "*** (hidden) ***" : null,
+        secretsHash: secretsHash ? "*** (hidden) ***" : null,
+        avatarUrl,
+        deviceAddress,
+        perApiCallFee,
+        ownerAddress
+      });
+      requestValues.updateValues(
+        secrets,
+        secretsHash,
+        avatarUrl,
+        deviceAddress,
+        perApiCallFee,
+        ownerAddress
+      );
+    }
     
     // Send user message to input topic
     try {
@@ -180,7 +201,7 @@ app.post('/clear', (req, res) => {
 });
 
 // Start the server
-const API_PORT = process.env.API_PORT || 4000;
+const API_PORT = process.env.API_PORT || process.env.PORT || 4000;
 
 // Initialize and start the server
 async function startServer() {
@@ -188,8 +209,9 @@ async function startServer() {
     await initializeMCP();
     
     app.listen(API_PORT, () => {
+      const baseUrl = process.env.API_BASE_URL || `http://localhost:${API_PORT}`;
       console.log(`API server running on port ${API_PORT}`);
-      console.log(`You can now interact with the agent via Postman at http://localhost:${API_PORT}/chat`);
+      console.log(`You can now interact with the agent via Postman at ${baseUrl}/chat`);
       console.log('Send POST requests with JSON body: {"message": "your message here"}');
       console.log(`Messages will be recorded on Hedera topics:`);
       console.log(`  Input messages go to topic: ${INPUT_TOPIC_ID}`);

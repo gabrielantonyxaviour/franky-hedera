@@ -112,7 +112,8 @@ class MCPServer {
   async start() {
     return new Promise((resolve) => {
       this.app.listen(this.port, () => {
-        console.log(`MCP server started on http://localhost:${this.port}`);
+        const baseUrl = process.env.API_BASE_URL || `http://localhost:${this.port}`;
+        console.log(`MCP server started on ${baseUrl}`);
         resolve();
       });
     });
@@ -123,7 +124,7 @@ class MCPServer {
    * @returns {string} Server URL
    */
   getUrl() {
-    return `http://localhost:${this.port}`;
+    return process.env.API_BASE_URL || `http://localhost:${this.port}`;
   }
 }
 
