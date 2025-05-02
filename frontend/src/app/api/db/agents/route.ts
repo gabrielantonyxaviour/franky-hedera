@@ -215,6 +215,7 @@ async function transformAgentData(data: Agent) {
     txHash: data.tx_hash,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
+    metadataUrl: data.metadata_url,
     avatar: characterConfigJson.avatarUrl,
     agentAddress:
       data.agent_address ?? "0x6a251cd0df26210a5ee4b688d4ddc10046061135",
