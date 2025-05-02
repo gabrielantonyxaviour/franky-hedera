@@ -110,6 +110,13 @@ const DeployDeviceInfo = () => {
             allowFullScreen
           ></iframe>
         </div>
+        <div className="mt-4 p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
+          <p className="text-yellow-400">
+            <strong>Important:</strong> Make sure the qwen2.5:3b model is
+            installed on your device before proceeding. This is required for
+            Franky to function properly.
+          </p>
+        </div>
       </InstructionStep>
 
       <InstructionStep
@@ -120,7 +127,7 @@ const DeployDeviceInfo = () => {
         <p>
           Use the following curl command to download, install and run Franky:
         </p>
-        <CodeBlock code="pkg update && pkg install nodejs libqrencode termux-api jq curl && git clone https://github.com/Marshal-AM/franky.git && cd franky && cd agent-framework && chmod +x franky && ./franky start" />
+        <CodeBlock code="pkg update && pkg install nodejs libqrencode termux-api jq curl && git clone https://github.com/gabrielantonyxaviour/franky-hedera.git && cd franky-hedera && cd agent-framework && chmod +x franky && ./franky start" />
         <p>
           This script will download all necessary files to run Franky on your
           device.
@@ -255,37 +262,46 @@ export default function ChatInterface({
       "steps to deploy phone",
       "deployment guide for phone",
       "deployment help for mobile",
-      "mobile device deployment help"
+      "mobile device deployment help",
     ];
 
     const lowerMessage = message.toLowerCase();
-    
+
     // Check for exact phrase matches first (existing implementation)
-    const hasExactMatch = deployKeywords.some((keyword) => lowerMessage.includes(keyword));
+    const hasExactMatch = deployKeywords.some((keyword) =>
+      lowerMessage.includes(keyword)
+    );
     if (hasExactMatch) return true;
-    
+
     // Regex patterns for more flexible matching
     const deviceTerms = /\b(device|phone|mobile|android|iphone|ios)\b/i;
-    const actionTerms = /\b(deploy|register|setup|set up|configure|enroll|initialize|activate|onboard)\b/i;
-    const questionTerms = /\b(how|can i|steps|guide|instructions|help|want|get)\b/i;
-    
+    const actionTerms =
+      /\b(deploy|register|setup|set up|configure|enroll|initialize|activate|onboard)\b/i;
+    const questionTerms =
+      /\b(how|can i|steps|guide|instructions|help|want|get)\b/i;
+
     // Check for combinations of terms
     const hasDeviceTerm = deviceTerms.test(lowerMessage);
     const hasActionTerm = actionTerms.test(lowerMessage);
-    
+
     // If both device and action terms exist in the message
     if (hasDeviceTerm && hasActionTerm) return true;
-    
+
     // If it's a question about devices or expressing intent to register devices
     if (hasDeviceTerm && questionTerms.test(lowerMessage)) {
       // Check if there's a registration intent or question about registration
-      if (lowerMessage.includes("regist") || lowerMessage.includes("deploy") || 
-          lowerMessage.includes("setup") || lowerMessage.includes("set up") ||
-          lowerMessage.includes("configur") || lowerMessage.includes("enroll")) {
+      if (
+        lowerMessage.includes("regist") ||
+        lowerMessage.includes("deploy") ||
+        lowerMessage.includes("setup") ||
+        lowerMessage.includes("set up") ||
+        lowerMessage.includes("configur") ||
+        lowerMessage.includes("enroll")
+      ) {
         return true;
       }
     }
-    
+
     return false;
   };
 

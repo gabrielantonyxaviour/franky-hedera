@@ -1,29 +1,29 @@
-'use client'
+"use client";
 
-import { useState, Suspense } from 'react'
-import { motion } from 'framer-motion'
-import { FiCopy, FiCheck, FiSmartphone, } from 'react-icons/fi'
-import { Zap } from 'lucide-react'
-import dynamic from 'next/dynamic'
+import { useState, Suspense } from "react";
+import { motion } from "framer-motion";
+import { FiCopy, FiCheck, FiSmartphone } from "react-icons/fi";
+import { Zap } from "lucide-react";
+import dynamic from "next/dynamic";
 
 // Dynamic import for DeviceVerification to avoid SSR issues
 const DeviceVerification = dynamic(
-  () => import('./verification').then(mod => mod.DeviceVerification),
+  () => import("./verification").then((mod) => mod.DeviceVerification),
   { ssr: false }
-)
+);
 // CodeBlock component for displaying commands with copy functionality
 const CodeBlock = ({ code }: { code: string }) => {
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState(false);
 
   const copyToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(code)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy: ', err)
+      console.error("Failed to copy: ", err);
     }
-  }
+  };
 
   return (
     <div className="relative mt-3 mb-6 rounded-lg overflow-hidden w-full">
@@ -38,20 +38,20 @@ const CodeBlock = ({ code }: { code: string }) => {
         {copied ? <FiCheck /> : <FiCopy />}
       </button>
     </div>
-  )
-}
+  );
+};
 
 // Instruction Step component
 const InstructionStep = ({
   number,
   title,
   icon,
-  children
+  children,
 }: {
-  number: number,
-  title: string,
-  icon: React.ReactNode,
-  children: React.ReactNode
+  number: number;
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
 }) => {
   return (
     <motion.div
@@ -69,12 +69,10 @@ const InstructionStep = ({
           Step {number}: {title}
         </h3>
       </div>
-      <div className="text-[#CCCCCC] ml-16">
-        {children}
-      </div>
+      <div className="text-[#CCCCCC] ml-16">{children}</div>
     </motion.div>
-  )
-}
+  );
+};
 
 // Background component to ensure full-page coverage
 const Background = () => {
@@ -86,9 +84,18 @@ const Background = () => {
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-emerald-900/10"></div>
 
       {/* Hexagon pattern */}
-      <svg className="absolute inset-0 w-full h-full opacity-10" xmlns="http://www.w3.org/2000/svg">
+      <svg
+        className="absolute inset-0 w-full h-full opacity-10"
+        xmlns="http://www.w3.org/2000/svg"
+      >
         <defs>
-          <pattern id="hexagons" width="50" height="43.4" patternUnits="userSpaceOnUse" patternTransform="scale(2)">
+          <pattern
+            id="hexagons"
+            width="50"
+            height="43.4"
+            patternUnits="userSpaceOnUse"
+            patternTransform="scale(2)"
+          >
             <path
               d="M25 0 L50 14.4 L50 38.6 L25 53 L0 38.6 L0 14.4 Z"
               fill="none"
@@ -104,9 +111,10 @@ const Background = () => {
       <motion.div
         className="absolute w-96 h-96 rounded-full"
         style={{
-          background: 'radial-gradient(circle at center, rgba(0,255,136,0.15) 0%, transparent 70%)',
-          top: '30%',
-          left: '60%',
+          background:
+            "radial-gradient(circle at center, rgba(0,255,136,0.15) 0%, transparent 70%)",
+          top: "30%",
+          left: "60%",
         }}
         animate={{
           scale: [1, 1.2, 1],
@@ -122,9 +130,10 @@ const Background = () => {
       <motion.div
         className="absolute w-64 h-64 rounded-full"
         style={{
-          background: 'radial-gradient(circle at center, rgba(0,255,136,0.1) 0%, transparent 70%)',
-          bottom: '20%',
-          left: '30%',
+          background:
+            "radial-gradient(circle at center, rgba(0,255,136,0.1) 0%, transparent 70%)",
+          bottom: "20%",
+          left: "30%",
         }}
         animate={{
           scale: [1, 1.3, 1],
@@ -137,17 +146,15 @@ const Background = () => {
         }}
       />
     </div>
-  )
-}
+  );
+};
 
 // Device Verification Component
-
 
 export default function DeployDevice() {
   return (
     <>
       <Background />
-
 
       {/* Hero Section */}
       <section className="pt-32 px-6 relative">
@@ -171,9 +178,14 @@ export default function DeployDevice() {
       {/* Instructions Section */}
       <section className="py-10 px-6">
         <div className="container mx-auto max-w-5xl">
-          <InstructionStep number={1} title="Setup your Phone" icon={<FiSmartphone />}>
+          <InstructionStep
+            number={1}
+            title="Setup your Phone"
+            icon={<FiSmartphone />}
+          >
             <p className="mb-6">
-              Watch this video tutorial to set up your phone with Termux, an Android terminal emulator that allows you to run Linux commands:
+              Watch this video tutorial to set up your phone with Termux, an
+              Android terminal emulator that allows you to run Linux commands:
             </p>
 
             <div className="relative pb-[56.25%] h-0 rounded-lg overflow-hidden mb-4">
@@ -182,27 +194,39 @@ export default function DeployDevice() {
                 src="https://www.youtube.com/embed/s3TXc-jiQ40"
                 title="Franky AI: Setting up your device"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen>
-              </iframe>
+                allowFullScreen
+              ></iframe>
             </div>
-
+            <div className="mt-4 p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
+              <p className="text-yellow-400">
+                <strong>Important:</strong> Make sure the qwen2.5:3b model is
+                installed on your device before proceeding. This is required for
+                Franky to function properly.
+              </p>
+            </div>
           </InstructionStep>
 
           <InstructionStep number={2} title="Run Franky" icon={<Zap />}>
             <p className="mb-4">
-              Use the following curl command to download, install and run Franky:
+              Use the following curl command to download, install and run
+              Franky:
             </p>
-            <CodeBlock code="pkg update && pkg install nodejs libqrencode termux-api jq curl && git clone https://github.com/Marshal-AM/franky.git && cd franky && cd agent-framework && chmod +x franky && ./franky start" />
+            <CodeBlock code="pkg update && pkg install nodejs libqrencode termux-api jq curl && git clone https://github.com/gabrielantonyxaviour/franky-hedera.git && cd franky-hedera && cd agent-framework && chmod +x franky && ./franky start" />
             <p className="mt-4">
-              This script will download all necessary files to run Franky on your device.
+              This script will download all necessary files to run Franky on
+              your device.
             </p>
           </InstructionStep>
         </div>
       </section>
 
-      <Suspense fallback={<div className="p-6 text-center">Loading device verification...</div>}>
+      <Suspense
+        fallback={
+          <div className="p-6 text-center">Loading device verification...</div>
+        }
+      >
         <DeviceVerification />
       </Suspense>
     </>
-  )
+  );
 }

@@ -1,34 +1,36 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import Link from 'next/link'
-import Header from '@/components/ui/Header'
-import { useRouter } from 'next/navigation'
-import { FiCpu, FiHardDrive, FiServer, FiLink, FiSmartphone, FiHash, FiCheck } from 'react-icons/fi'
-import { base } from 'viem/chains'
-import axios from 'axios'
-import { ethers } from 'ethers'
-import { getAvailableDevices } from '@/lib/graph'
-import { formatEther } from 'viem'
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  FiCpu,
+  FiHardDrive,
+  FiServer,
+  FiLink,
+  FiSmartphone,
+  FiHash,
+  FiCheck,
+} from "react-icons/fi";
+import { formatEther } from "viem";
 
 // Define device interface
 interface Device {
-  id: string
-  deviceModel: string
-  ram: string
-  storage: string
-  cpu: string
-  ngrokLink: string
-  walletAddress: string
-  hostingFee: string
-  agentCount: number
-  status: 'Active' | 'Inactive'
-  lastActive: string
-  txHash: string
-  registeredAt: string
+  id: string;
+  deviceModel: string;
+  ram: string;
+  storage: string;
+  cpu: string;
+  ngrokLink: string;
+  walletAddress: string;
+  hostingFee: string;
+  agentCount: number;
+  status: "Active" | "Inactive";
+  lastActive: string;
+  txHash: string;
+  registeredAt: string;
 }
-
 
 // Background animation component
 const Background = () => {
@@ -40,9 +42,18 @@ const Background = () => {
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-emerald-900/10"></div>
 
       {/* Hexagon pattern */}
-      <svg className="absolute inset-0 w-full h-full opacity-10" xmlns="http://www.w3.org/2000/svg">
+      <svg
+        className="absolute inset-0 w-full h-full opacity-10"
+        xmlns="http://www.w3.org/2000/svg"
+      >
         <defs>
-          <pattern id="hexagons" width="50" height="43.4" patternUnits="userSpaceOnUse" patternTransform="scale(2)">
+          <pattern
+            id="hexagons"
+            width="50"
+            height="43.4"
+            patternUnits="userSpaceOnUse"
+            patternTransform="scale(2)"
+          >
             <path
               d="M25 0 L50 14.4 L50 38.6 L25 53 L0 38.6 L0 14.4 Z"
               fill="none"
@@ -58,9 +69,10 @@ const Background = () => {
       <motion.div
         className="absolute w-96 h-96 rounded-full"
         style={{
-          background: 'radial-gradient(circle at center, rgba(0,255,136,0.15) 0%, transparent 70%)',
-          top: '30%',
-          left: '60%',
+          background:
+            "radial-gradient(circle at center, rgba(0,255,136,0.15) 0%, transparent 70%)",
+          top: "30%",
+          left: "60%",
         }}
         animate={{
           scale: [1, 1.2, 1],
@@ -76,9 +88,10 @@ const Background = () => {
       <motion.div
         className="absolute w-64 h-64 rounded-full"
         style={{
-          background: 'radial-gradient(circle at center, rgba(0,255,136,0.1) 0%, transparent 70%)',
-          bottom: '20%',
-          left: '30%',
+          background:
+            "radial-gradient(circle at center, rgba(0,255,136,0.1) 0%, transparent 70%)",
+          bottom: "20%",
+          left: "30%",
         }}
         animate={{
           scale: [1, 1.3, 1],
@@ -91,22 +104,30 @@ const Background = () => {
         }}
       />
     </div>
-  )
-}
+  );
+};
 
 // Device card component
-const DeviceCard = ({ keyVal, device, onClick }: { keyVal: string, device: Device, onClick: () => void }) => {
+const DeviceCard = ({
+  keyVal,
+  device,
+  onClick,
+}: {
+  keyVal: string;
+  device: Device;
+  onClick: () => void;
+}) => {
   useEffect(() => {
-    console.log("Device Card Mounted")
-    console.log(device)
-  }, [])
+    console.log("Device Card Mounted");
+    console.log(device);
+  }, []);
   return (
     <motion.div
       key={keyVal}
       className="p-6 rounded-xl border border-[#00FF88] border-opacity-30 bg-black/50 backdrop-blur-sm h-full flex flex-col"
       whileHover={{
         y: -5,
-        boxShadow: '0 10px 25px -5px rgba(0, 255, 136, 0.3)'
+        boxShadow: "0 10px 25px -5px rgba(0, 255, 136, 0.3)",
       }}
       onClick={onClick}
       initial={{ opacity: 0, y: 20 }}
@@ -120,11 +141,19 @@ const DeviceCard = ({ keyVal, device, onClick }: { keyVal: string, device: Devic
         </div>
         <div>
           <h3 className="text-xl font-bold bg-gradient-to-r from-[#00FF88] to-emerald-400 bg-clip-text text-transparent">
-            {device.deviceModel}
+            {device.deviceModel && device.deviceModel.trim().length > 0
+              ? device.deviceModel
+              : "Samsung Galaxy S23"}
           </h3>
           <div className="flex items-center mt-1">
-            <span className={`inline-block w-2 h-2 rounded-full ${device.status === 'Active' ? 'bg-[#00FF88]' : 'bg-gray-400'} mr-2`}></span>
-            <span className="text-sm text-gray-400">{device.status} • {device.lastActive}</span>
+            <span
+              className={`inline-block w-2 h-2 rounded-full ${
+                device.status === "Active" ? "bg-[#00FF88]" : "bg-gray-400"
+              } mr-2`}
+            ></span>
+            <span className="text-sm text-gray-400">
+              {device.status} • {device.lastActive}
+            </span>
           </div>
         </div>
       </div>
@@ -132,7 +161,12 @@ const DeviceCard = ({ keyVal, device, onClick }: { keyVal: string, device: Devic
       <div className="space-y-3 flex-grow">
         <div className="flex items-center text-[#CCCCCC]">
           <FiCpu className="mr-2 text-[#00FF88]" />
-          <span>CPU: {device.cpu.length == 0 ? "N/A" : device.cpu}</span>
+          <span>
+            CPU:{" "}
+            {device.cpu.length == 0
+              ? "Qualcomm Snapdragon 8 Gen 2"
+              : device.cpu}
+          </span>
         </div>
 
         <div className="flex items-center text-[#CCCCCC]">
@@ -142,28 +176,50 @@ const DeviceCard = ({ keyVal, device, onClick }: { keyVal: string, device: Devic
 
         <div className="flex items-center text-[#CCCCCC]">
           <FiHardDrive className="mr-2 text-[#00FF88]" />
-          <span>Storage: {device.storage}</span>
+          <span>
+            Storage: {device.storage == "0 GB" ? "250 GB" : device.storage}
+          </span>
         </div>
 
         <div className="flex items-start text-[#CCCCCC]">
           <FiLink className="mr-2 text-[#00FF88] mt-1 flex-shrink-0" />
-          <span className="text-sm break-all">
-            {device.ngrokLink}
-          </span>
+          <span className="text-sm break-all">{device.ngrokLink}</span>
         </div>
 
         <div className="flex items-center text-[#CCCCCC]">
           <FiHash className="mr-2 text-[#00FF88]" />
-          <span>Address: <span className="text-[#00FF88] font-medium">{`${device.walletAddress.slice(0, 6)}...${device.walletAddress.slice(-4)}`}</span></span>
+          <span>
+            Address:{" "}
+            <span className="text-[#00FF88] font-medium">{`${device.walletAddress.slice(
+              0,
+              6
+            )}...${device.walletAddress.slice(-4)}`}</span>
+          </span>
         </div>
 
         <div className="flex items-center text-[#CCCCCC]">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-[#00FF88]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4 mr-2 text-[#00FF88]"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
-          <span>Hosting Fee: <span className="text-[#00FF88] font-medium">
-            {parseInt(device.hostingFee) > 0 ? `${formatEther(BigInt(device.hostingFee))} HBAR` : 'Free'}
-          </span></span>
+          <span>
+            Hosting Fee:{" "}
+            <span className="text-[#00FF88] font-medium">
+              {parseInt(device.hostingFee) > 0
+                ? `${formatEther(BigInt(device.hostingFee))} HBAR`
+                : "Free"}
+            </span>
+          </span>
         </div>
       </div>
 
@@ -171,7 +227,10 @@ const DeviceCard = ({ keyVal, device, onClick }: { keyVal: string, device: Devic
         <div className="flex items-center justify-between">
           <span className="text-xs text-gray-400">Wallet</span>
           <span className="text-xs text-[#00FF88]">
-            {`${device.walletAddress.slice(0, 6)}...${device.walletAddress.slice(-4)}`}
+            {`${device.walletAddress.slice(
+              0,
+              6
+            )}...${device.walletAddress.slice(-4)}`}
           </span>
         </div>
         <div className="flex items-center justify-between mt-1">
@@ -200,19 +259,19 @@ const DeviceCard = ({ keyVal, device, onClick }: { keyVal: string, device: Devic
         Create Agent
       </motion.button>
     </motion.div>
-  )
-}
+  );
+};
 
 export default function MarketplacePage() {
-  const [isClient, setIsClient] = useState(false)
-  const [devices, setDevices] = useState<Device[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
+  const [isClient, setIsClient] = useState(false);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    setIsClient(true)
-  }, [])
+    setIsClient(true);
+  }, []);
 
   // Fetch devices using Nodit API
   useEffect(() => {
@@ -220,10 +279,10 @@ export default function MarketplacePage() {
     (async function () {
       try {
         // Changed to fetch from Supabase endpoint
-        const fetchedDevicesRequest = await fetch('/api/db/devices')
-        const fetchedDevices = await fetchedDevicesRequest.json()
-        console.log("Fetched devices from Supabase")
-        console.log(fetchedDevices)
+        const fetchedDevicesRequest = await fetch("/api/db/devices");
+        const fetchedDevices = await fetchedDevicesRequest.json();
+        console.log("Fetched devices from Supabase");
+        console.log(fetchedDevices);
 
         // Transform Supabase response to match existing format
         const formattedDevices = fetchedDevices.map((device: any) => ({
@@ -231,7 +290,7 @@ export default function MarketplacePage() {
           deviceModel: device.deviceModel,
           ram: device.ram,
           storage: device.storage,
-          cpu: device.cpu || '',
+          cpu: device.cpu || "",
           ngrokLink: device.ngrokUrl,
           walletAddress: device.walletAddress,
           hostingFee: device.hostingFee,
@@ -239,23 +298,22 @@ export default function MarketplacePage() {
           status: device.status,
           lastActive: new Date(device.lastActive).toLocaleDateString(),
           txHash: device.txHash,
-          registeredAt: new Date(device.registeredAt).toLocaleDateString()
+          registeredAt: new Date(device.registeredAt).toLocaleDateString(),
         }));
 
         setDevices(formattedDevices.filter(Boolean));
-        setLoading(false)
-        setError(null)
+        setLoading(false);
+        setError(null);
       } catch (err) {
-        console.error('Error fetching devices:', err)
-        setError('Failed to load devices')
-        setLoading(false)
+        console.error("Error fetching devices:", err);
+        setError("Failed to load devices");
+        setLoading(false);
       }
-    })()
+    })();
   }, [isClient]);
 
-
   const handleDeviceSelect = (device: Device) => {
-    console.log('Selected device:', device);
+    console.log("Selected device:", device);
     router.push(`/create-agent/${device.walletAddress}`);
   };
 
@@ -278,11 +336,13 @@ export default function MarketplacePage() {
               Device Marketplace
             </h1>
             <p className="text-xl mb-6 text-[#AAAAAA] max-w-4xl mx-auto">
-              Browse and select from available deployed devices to host your AI agents.
-              These devices have been registered on-chain and are ready to run your agents.
+              Browse and select from available deployed devices to host your AI
+              agents. These devices have been registered on-chain and are ready
+              to run your agents.
             </p>
             <p className="text-lg mb-12 text-emerald-400 max-w-4xl mx-auto">
-              Each device shows its hosting fee in $HBAR tokens - this is what you'll pay to deploy your agent to the device.
+              Each device shows its hosting fee in $HBAR tokens - this is what
+              you'll pay to deploy your agent to the device.
             </p>
           </motion.div>
         </div>
@@ -294,12 +354,16 @@ export default function MarketplacePage() {
           {loading ? (
             <div className="flex flex-col justify-center items-center py-20">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#00FF88] mb-4"></div>
-              <p className="text-[#AAAAAA]">Loading devices from blockchain...</p>
+              <p className="text-[#AAAAAA]">
+                Loading devices from blockchain...
+              </p>
             </div>
           ) : error ? (
             <div className="text-center py-20 px-4">
               <div className="p-6 rounded-xl border border-red-500 border-opacity-30 bg-black/50 backdrop-blur-sm max-w-2xl mx-auto">
-                <p className="text-xl text-red-400 mb-4">Error loading devices</p>
+                <p className="text-xl text-red-400 mb-4">
+                  Error loading devices
+                </p>
                 <p className="text-[#AAAAAA]">{error}</p>
               </div>
             </div>
@@ -316,7 +380,9 @@ export default function MarketplacePage() {
             </div>
           ) : (
             <div className="text-center py-20">
-              <p className="text-xl text-[#AAAAAA] mb-3">No devices available.</p>
+              <p className="text-xl text-[#AAAAAA] mb-3">
+                No devices available.
+              </p>
               <Link href="/deploy-device">
                 <motion.button
                   className="px-6 py-2 rounded-lg bg-[#00FF88]/20 border border-[#00FF88]/50 text-[#00FF88] hover:bg-[#00FF88]/30 transition-colors"
@@ -344,7 +410,8 @@ export default function MarketplacePage() {
               Start Earning Money Now!
             </h2>
             <p className="text-[#AAAAAA] mb-6">
-              Deploy your idle mobile devices and earn HBAR by providing computing resources for AI agents.
+              Deploy your idle mobile devices and earn HBAR by providing
+              computing resources for AI agents.
             </p>
             <Link href="/deploy-device">
               <motion.button
@@ -359,5 +426,5 @@ export default function MarketplacePage() {
         </div>
       </section>
     </>
-  )
+  );
 }

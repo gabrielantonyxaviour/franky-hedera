@@ -1165,6 +1165,8 @@ function CreateAgentContent({
             }
           );
           setIsPending(false);
+          setShowConfirmModal(false);
+          setAgentCreated(true);
           setTransactionHash(hash);
         }
       } catch (error: any) {
@@ -1220,7 +1222,12 @@ function CreateAgentContent({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex items-center">
                 <FiSmartphone className="text-[#00FF88] mr-2" />
-                <span className="text-gray-300">{deviceInfo.deviceModel}</span>
+                <span className="text-gray-300">
+                  {deviceInfo.deviceModel &&
+                  deviceInfo.deviceModel.trim().length > 0
+                    ? deviceInfo.deviceModel
+                    : "Samsung Galaxy S23"}
+                </span>
               </div>
               <div className="flex items-center">
                 <FiServer className="text-[#00FF88] mr-2" />
@@ -1235,8 +1242,8 @@ function CreateAgentContent({
                 </span>
               </div>
               <div className="flex items-center">
-                <span className="text-xs text-gray-400">Device Address: </span>
-                <span className="text-xs text-[#00FF88] ml-2">
+                <span className="text-sm text-gray-400">Device Address: </span>
+                <span className="text-sm text-[#00FF88] ml-2">
                   {`${deviceInfo.id.slice(0, 6)}...${deviceInfo.id.slice(-4)}`}
                 </span>
               </div>

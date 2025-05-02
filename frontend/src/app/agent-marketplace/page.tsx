@@ -18,6 +18,7 @@ import { Hex } from "viem";
 import { getApiKey } from "@/utils/apiKey";
 import { publicClient } from "@/lib/utils";
 import { FRANKY_ABI } from "@/lib/constants";
+import { formatEther } from "viem";
 
 // Define agent interface
 type Agent = {
@@ -172,7 +173,7 @@ const AgentCard = ({
           <span>
             Fee per API Call:{" "}
             <span className="text-[#00FF88] font-medium">
-              {agent.perApiCallFee} $HBAR
+              {formatEther(BigInt(agent.perApiCallFee))} $HBAR
             </span>
           </span>
         </div>
@@ -448,7 +449,7 @@ const PreviewModal = ({
                 <span>
                   Fee per API Call:{" "}
                   <span className="text-[#00FF88] font-medium">
-                    {agent.perApiCallFee} $HBAR
+                    {formatEther(BigInt(agent.perApiCallFee))} $HBAR
                   </span>
                 </span>
               </div>
