@@ -113,246 +113,145 @@ async function fetchDeviceMetadata(metadataUrl: string): Promise<DeviceMetadata 
  * @returns Check results with actual metrics
  */
 async function checkDeviceHealth(deviceId: string, deviceInfo?: DeviceInfo): Promise<any> {
-  // Start timing the overall check process
   const startTime = Date.now();
   let success = false;
   let responseTime = 0;
   let deviceResponse: Response | null = null;
-  let errorRate = 1.0; // Default to 100% error rate
-  
+  let errorRate = 1.0;
+
   try {
-    // Get device metadata URL from device info if provided
-    let metadataUrl = deviceInfo?.deviceMetadata;
-    let ngrokLink: string | undefined;
+    const ngrokUrl = deviceInfo?.ngrokUrl;
     
-    if (metadataUrl) {
-      // Fetch metadata from Pinata URL
-      const metadata = await fetchDeviceMetadata(metadataUrl);
-      
-      if (metadata) {
-        // Store metadata in device info for future use
-        if (deviceInfo) {
-          deviceInfo.metadata = metadata;
-        }
-        
-        // Get ngrok URL from metadata
-        ngrokLink = metadata.ngrokUrl;
-        
-        // Save ngrok URL to device info for convenience
-        if (deviceInfo) {
-          deviceInfo.ngrokUrl = ngrokLink;
-        }
-      }
-    }
-    
-    if (!ngrokLink) {
-      console.warn(`No ngrok link available for device ${deviceId}`);
-      // If no ngrok link, we can't test the device directly
-      success = false;
-      responseTime = 0;
-      
+    if (!ngrokUrl) {
+      console.log(`[Device ${deviceId}] ❌ No ngrok URL available`);
       return {
-        reputationScore: 20, // Base score only
+        reputationScore: 0,
         retrievalStats: {
           successRate: 0,
           averageResponseTime: 0,
-          consistency: 0,
-          lastSeen: null,
           totalChecks: 0,
           checkDuration: Date.now() - startTime
         },
-        performance: {
-          throughput: 0,
-          errorRate: 1.0,
-          latency: {
-            p50: 0,
-            p95: 0,
-            p99: 0
-          }
-        },
-        security: {
-          tlsVersion: 'unknown',
-          certificateValid: false,
-          lastUpdated: new Date().toISOString()
-        },
-        testDetails: {
-          ngrokLinkAvailable: false,
-          ngrokLink: 'Not available',
-          httpStatus: 'No response',
-          timestamp: new Date().toISOString(),
-          message: 'Device has no ngrok link for testing'
-        }
+        status: 'error',
+        reason: 'No ngrok URL available'
       };
     }
-    
-    console.log(`Testing device ${deviceId} with ngrok link: ${ngrokLink}`);
-    
-    // Run 3 test requests to get a better performance sample
-    const testResults: TestResult[] = await Promise.all(
+
+    console.log(`\n[Device ${deviceId}] 🔗 Testing ngrok URL: ${ngrokUrl}`);
+
+    // Run 3 test requests to get a better sample
+    const testResults = await Promise.all(
       Array(3).fill(0).map(async (_, i) => {
         const testStart = Date.now();
         try {
-          // Add a test parameter to avoid caching
-          const testUrl = `${ngrokLink}/health?test=${Date.now()}${i}`;
+          const testUrl = `${ngrokUrl}/status?test=${Date.now()}-${i}`;
+          console.log(`\n[Device ${deviceId}] 🚀 Request ${i + 1}/3: ${testUrl}`);
           
-          // Create AbortController with timeout
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
-          
-          const response = await fetch(testUrl, { 
+          const timeoutId = setTimeout(() => {
+            controller.abort();
+            console.log(`[Device ${deviceId}] ⏰ Request ${i + 1} timed out after 5s`);
+          }, 5000);
+
+          const response = await fetch(testUrl, {
             method: 'GET',
-            headers: { 'Accept': 'application/json' },
             signal: controller.signal
           });
-          
-          // Clear timeout
+
           clearTimeout(timeoutId);
           
-          // Save the response from the first successful request
-          if (i === 0) {
-            deviceResponse = response;
+          try {
+            const responseText = await response.text();
+            console.log(`[Device ${deviceId}] ✅ Response ${i + 1}: Status ${response.status}\nBody: ${responseText}`);
+          } catch (e) {
+            console.log(`[Device ${deviceId}] ⚠️ Response ${i + 1}: Could not read body`);
           }
-          
-          const testDuration = Date.now() - testStart;
-          return { 
-            success: response.ok, 
-            duration: testDuration,
-            status: response.status 
+
+          if (i === 0) deviceResponse = response;
+
+          const duration = Date.now() - testStart;
+          return {
+            success: response.ok,
+            duration,
+            status: response.status
           };
         } catch (error) {
-          const testDuration = Date.now() - testStart;
-          return { 
-            success: false, 
-            duration: testDuration,
-            error: error instanceof Error ? error.message : 'Unknown error' 
+          const duration = Date.now() - testStart;
+          console.log(`[Device ${deviceId}] ❌ Request ${i + 1} failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          return {
+            success: false,
+            duration,
+            error: error instanceof Error ? error.message : 'Unknown error'
           };
         }
       })
     );
-    
-    // Calculate actual metrics from the test results
+
+    // Rest of the function remains the same but without logging
     const successfulTests = testResults.filter(r => r.success);
     const successRate = successfulTests.length / testResults.length;
-    success = successRate > 0; // Consider successful if at least one test passed
-    
-    // Calculate average response time for successful tests
+    success = successRate > 0;
+
     if (successfulTests.length > 0) {
       responseTime = successfulTests.reduce((sum, r) => sum + r.duration, 0) / successfulTests.length;
     } else {
-      // If all tests failed, use the average of all test durations
       responseTime = testResults.reduce((sum, r) => sum + r.duration, 0) / testResults.length;
     }
-    
-    // Calculate error rate (percentage of requests that failed)
+
     errorRate = 1 - successRate;
-    
-    // Calculate an overall score based on real metrics
-    // Formula: 50% based on success rate + 30% based on response time + 20% base score
-    const successScore = success ? 50 * (1 - errorRate) : 0;
-    
-    // Response time score (lower is better):
-    // - Under 100ms: 30 points
-    // - 100-500ms: 15-30 points (linear scale)
-    // - Over 500ms: 0-15 points (linear scale)
+
+    const successScore = success ? 50 * successRate : 0;
     let responseTimeScore = 0;
+
     if (success) {
-      if (responseTime < 100) {
-        responseTimeScore = 30;
-      } else if (responseTime < 500) {
-        responseTimeScore = 30 - ((responseTime - 100) / 400) * 15;
-      } else {
-        responseTimeScore = 15 - Math.min(15, ((responseTime - 500) / 2000) * 15);
-      }
+      if (responseTime < 100) responseTimeScore = 30;
+      else if (responseTime < 500) responseTimeScore = 30 - ((responseTime - 100) / 400) * 15;
+      else responseTimeScore = Math.max(0, 15 - ((responseTime - 500) / 1000) * 15);
     }
-    
-    // Base score: every device gets a minimum score
+
     const baseScore = 20;
-    
-    // Calculate final score (0-100 scale)
     const finalScore = Math.round(successScore + responseTimeScore + baseScore);
-    
-    // Total check duration
-    const checkDuration = Date.now() - startTime;
-    
-    // Extract status safely since deviceResponse might be null
-    let httpStatus: string | number = 'No response';
-    if (deviceResponse) {
-      try {
-        httpStatus = (deviceResponse as Response).status;
-      } catch (error) {
-        httpStatus = 'Unknown status';
-      }
-    }
-    
+
     return {
       reputationScore: finalScore,
       retrievalStats: {
-        successRate: 1 - errorRate,
+        successRate,
         averageResponseTime: Math.round(responseTime),
-        consistency: success ? 0.9 : 0.1, // Simplified consistency measure
-        lastSeen: success ? new Date().toISOString() : null,
-        totalChecks: 3, // We ran 3 tests
-        checkDuration: checkDuration
+        totalChecks: testResults.length,
+        checkDuration: Date.now() - startTime,
+        lastSeen: success ? new Date().toISOString() : null
       },
       performance: {
-        throughput: success ? Math.round(1000 / (responseTime || 1)) : 0, // Requests per second
-        errorRate: errorRate,
+        throughput: success ? Math.round(1000 / responseTime) : 0,
+        errorRate,
         latency: {
           p50: Math.round(responseTime),
-          p95: Math.round(responseTime * 1.5), // Simplified percentile estimation
-          p99: Math.round(responseTime * 2)
+          p95: Math.round(responseTime * 1.2),
+          p99: Math.round(responseTime * 1.5)
         }
       },
-      security: {
-        tlsVersion: 'TLS 1.3', // Assumed
-        certificateValid: true, // Assumed
-        lastUpdated: new Date().toISOString()
-      },
+      status: success ? 'checked' : 'error',
+      reason: success ? undefined : 'Device not responding',
       testDetails: {
-        ngrokLinkAvailable: true,
-        ngrokLink: ngrokLink,
-        httpStatus: httpStatus,
-        testCount: testResults.length,
+        ngrokUrl,
+        httpStatus: deviceResponse?.status || 'No response',
         successfulTests: successfulTests.length,
+        totalTests: testResults.length,
         timestamp: new Date().toISOString()
       }
     };
   } catch (error) {
-    console.error(`Error checking device ${deviceId}:`, error);
-    
-    // Total check duration even for failed checks
-    const checkDuration = Date.now() - startTime;
-    
-    // Return failure metrics
+    console.log(`[Device ${deviceId}] ❌ Health check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return {
-      reputationScore: 10,
+      reputationScore: 0,
       retrievalStats: {
         successRate: 0,
-        averageResponseTime: checkDuration,
-        consistency: 0,
-        lastSeen: null,
+        averageResponseTime: Date.now() - startTime,
         totalChecks: 1,
-        checkDuration: checkDuration
+        checkDuration: Date.now() - startTime
       },
-      performance: {
-        throughput: 0,
-        errorRate: 1.0,
-        latency: {
-          p50: 5000,
-          p95: 8000,
-          p99: 10000
-        }
-      },
-      security: {
-        tlsVersion: 'unknown',
-        certificateValid: false,
-        lastUpdated: new Date().toISOString()
-      },
-      testDetails: {
-        ngrokLinkAvailable: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString()
-      }
+      status: 'error',
+      reason: error instanceof Error ? error.message : 'Unknown error'
     };
   }
 }
@@ -388,8 +287,8 @@ export async function POST(request: Request) {
         const deviceInfo: DeviceInfo = {
           id: deviceResponse.walletAddress,
           deviceMetadata: deviceResponse.metadata_url,
-          agents: deviceResponse.agent_count > 0 ? [{ id: '1' }] : [], // Maintain compatibility with existing code
-          ngrokUrl: deviceResponse.ngrok_url,
+          agents: deviceResponse.agent_count > 0 ? [{ id: '1' }] : [], // Keep this for compatibility but don't use it for skipping
+          ngrokUrl: deviceResponse.ngrokUrl || deviceResponse.ngrok_url, // Try both property names
           status: deviceResponse.status,
           lastActive: deviceResponse.last_active
         };
@@ -400,11 +299,14 @@ export async function POST(request: Request) {
           if (metadata) {
             deviceInfo.metadata = metadata;
             // Only override ngrokUrl from metadata if not already set in Supabase
-            if (!deviceInfo.ngrokUrl) {
+            if (!deviceInfo.ngrokUrl && metadata.ngrokUrl) {
               deviceInfo.ngrokUrl = metadata.ngrokUrl;
             }
           }
         }
+
+        // Log the ngrok URL for debugging
+        console.log(`[Device ${deviceInfo.id}] 🔗 ngrokUrl from Supabase: ${deviceInfo.ngrokUrl}`);
         
         return deviceInfo;
       }));

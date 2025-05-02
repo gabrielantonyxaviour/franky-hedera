@@ -483,9 +483,9 @@ async function fetchAgentAndCharacterData(agentAddress: string): Promise<{
       `Fetching agent details for address: ${agentAddress}`
     );
 
-    // Fetch agent details from the API
+    // Fetch agent details from Supabase instead of graph API
     const agentResponse = await fetch(
-      `https://frankyagent.xyz/api/graph/agent?address=${agentAddress}`
+      `${process.env.NEXT_PUBLIC_APP_URL}/api/db/agents?address=${agentAddress}`
     );
 
     if (!agentResponse.ok) {
@@ -499,16 +499,13 @@ async function fetchAgentAndCharacterData(agentAddress: string): Promise<{
       };
     }
 
-    const agentData = await agentResponse.json();
+    const agentData = (await agentResponse.json())[0]; // Get first agent since response is an array
     logger.info("Agent Init", "Agent details fetched successfully");
 
     // Extract the character config URL from the agent data
-    // characterConfig is an array where the first element is expected to be the URL in bytes format
-    const characterConfigBytes = agentData.characterConfig
-      ? agentData.characterConfig[0]
-      : null;
+    const metadataUrl = agentData.metadata_url;
 
-    if (!characterConfigBytes) {
+    if (!metadataUrl) {
       logger.error("Agent Init", "No character config found in agent data");
       return {
         agent: agentData,
@@ -518,34 +515,13 @@ async function fetchAgentAndCharacterData(agentAddress: string): Promise<{
       };
     }
 
-    // Convert bytes to string URL (if it's already a string, this won't harm)
-    let characterConfigUrl = "";
-    if (typeof characterConfigBytes === "string") {
-      // If it's a hex string starting with 0x, convert it to text
-      if (characterConfigBytes.startsWith("0x")) {
-        // Convert hex string to buffer and then to UTF-8 string
-        const buffer = Buffer.from(characterConfigBytes.slice(2), "hex");
-        characterConfigUrl = buffer.toString("utf8");
-      } else {
-        characterConfigUrl = characterConfigBytes;
-      }
-    } else {
-      logger.error("Agent Init", "Character config is not in expected format");
-      return {
-        agent: agentData,
-        character: null,
-        feeInHbar: 0.5,
-        error: "Character config is not in expected format",
-      };
-    }
-
     logger.info(
       "Agent Init",
-      `Fetching character data from: ${characterConfigUrl}`
+      `Fetching character data from: ${metadataUrl}`
     );
 
-    // Fetch character data from Pinata URL
-    const characterResponse = await fetch(characterConfigUrl);
+    // Fetch character data from metadata URL
+    const characterResponse = await fetch(metadataUrl);
 
     if (!characterResponse.ok) {
       const errorText = await characterResponse.text();
@@ -569,8 +545,8 @@ async function fetchAgentAndCharacterData(agentAddress: string): Promise<{
 
     // Convert the perApiCallFee from wei to HBAR
     // Assuming the fee is stored in wei and 1 HBAR = 100,000,000 wei
-    const feeInWei = agentData.perApiCallFee
-      ? Number(agentData.perApiCallFee)
+    const feeInWei = agentData.perApiCallFee || agentData.per_api_call_fee
+      ? Number(agentData.perApiCallFee || agentData.per_api_call_fee)
       : 50000000; // Default to 0.5 HBAR in wei
     const feeInHbar = feeInWei / 100000000; // Convert wei to HBAR
 
