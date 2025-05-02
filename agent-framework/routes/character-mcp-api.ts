@@ -997,7 +997,7 @@ async function startServer() {
     });
 
     // Get response endpoint
-    app.get("/viewresponse/:messageId", (req: Request, res: Response) => {
+    const viewResponseHandler = (req: Request, res: Response) => {
       const { messageId } = req.params;
 
       if (!messageId) {
@@ -1094,7 +1094,11 @@ async function startServer() {
           message,
         });
       }
-    });
+    };
+
+    // Register the view response handler for both GET and POST methods
+    app.get("/viewresponse/:messageId", viewResponseHandler);
+    app.post("/viewresponse/:messageId", viewResponseHandler);
 
     // Destruct/cleanup agent endpoint
     app.post("/destruct", (req: Request, res: Response) => {
