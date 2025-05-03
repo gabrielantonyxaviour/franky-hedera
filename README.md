@@ -83,7 +83,7 @@ FrankyAgent is a decentralized framework for deploying and monetizing local AI a
 * [ ] Pluggable local model backends
 * [ ] Community curation for high-trust agents
 
-## Getting Started
+## ✅ Getting Started
 
 ### 1. Contributing a Device
 
@@ -210,13 +210,13 @@ Clean up and destroy an agent instance.
 When you interact with a Franky agent:
 
 1. Your request is authenticated using your Hedera wallet
-2. For chat messages, a HIP-991 monetized topic receives your message and fee
+2. For chat messages, a **HIP-991 monetized topic** receives your message and fee
 3. The agent processes your query using either:
    - Local Ollama LLM inference running on the device.
    - OpenAI fallback for advanced queries.
-4. For blockchain-related requests, HederaAgentKit tools are used
+4. For blockchain-related requests, **HederaAgentKit** tools are used
 5. The agent's response is published to your dedicated outbound topic
-6. Fees in $HBAR are distributed to device owners and agent creators
+6. Fees in **$HBAR** are distributed to device owners and agent creators
 
 ## Hedera Consensus Service for Device Reputation Scores
 
@@ -228,11 +228,16 @@ Franky's DePIN (Decentralized Physical Infrastructure Network) architecture leve
    - Device Registry Topic: `0.0.5911509`
    - Checker Registry Topic: `0.0.5911510`
 
-2. **Decentralized Verification**: Multiple independent checker nodes evaluate device performance and availability
+2. **Independent Checker Registration**:
+   - Anyone can register their server as a checker node for performing reputation tests on all the devices available.
+   - They can go to the [Register Checker](https://franky-hedera.vercel.app/register-checker) page to register as a checker node.
+   - Then further instructions will be displayed on the page for performing the checking action.
+
+3. **Decentralized Verification**: Multiple independent checker nodes evaluate device performance and availability
    - Each check transaction is submitted to HCS with a cryptographic signature
    - Every evaluation becomes part of an immutable audit trail
 
-3. **Performance Metrics**: Devices are evaluated using key performance indicators:
+4. **Performance Metrics**: Devices are evaluated using key performance indicators:
    - **Availability**: Uptime, response time, consistency over time
    - **Performance**: Throughput (requests/sec), error rate, latency (p50, p95, p99)
    - **Security**: TLS version, certificate validity
@@ -277,7 +282,7 @@ Franky's DePIN (Decentralized Physical Infrastructure Network) architecture leve
    - Outlier detection prevents manipulation by malicious checkers
 
 2. **Mirror Node Integration**:
-   - Reputation data is queried directly from Hedera mirror nodes
+   - Reputation data is queried directly from **Hedera mirror nodes**
    - Global state is constructed by aggregating all HCS messages
    - Applications display consensus reputation via `/api/device-checker` endpoint
 
