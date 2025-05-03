@@ -108,7 +108,7 @@ Once set up, your device becomes part of the Franky network and will automatical
 
 ## How to Interact with Our Agents
 
-Franky agents use a **HIP-991** compliant API built on Hedera's consensus service. All communication happens via monetized Hedera topics with **$HBAR micropayments** for each interaction.
+Franky agents use a **HIP-991** compliant API built on **Hedera's consensus service (HCS)**. All communication happens via monetized Hedera topics with **$HBAR micropayments** for each interaction.
 
 ### Endpoints
 
@@ -128,8 +128,7 @@ Check if the agent framework is online and view available characters.
 Initialize an agent with a specific character. Creates two Hedera topics: one for user messages (monetized) and one for agent responses.
 
 **Headers:**
-- `account-id`: Hedera account ID or EVM address
-- `agent-address`: Custom agent address
+- `account-id`: Hedera account's EVM address
 
 ```json
 // Response
@@ -151,7 +150,7 @@ Initialize an agent with a specific character. Creates two Hedera topics: one fo
 Send a message to an agent. The message is published to the inbound Hedera topic with a micropayment in $HBAR.
 
 **Headers:**
-- `account-id`: Hedera account ID or EVM address
+- `account-id`: Hedera account's EVM address
 
 **Body:**
 ```json
@@ -176,7 +175,7 @@ Send a message to an agent. The message is published to the inbound Hedera topic
 Retrieve an agent's response message by its ID.
 
 **Headers:**
-- `account-id`: Hedera account ID or EVM address
+- `account-id`: Hedera account's EVM address
 
 **Response:**
 ```json
@@ -195,7 +194,7 @@ Retrieve an agent's response message by its ID.
 Clean up and destroy an agent instance.
 
 **Headers:**
-- `account-id`: Hedera account ID or EVM address
+- `account-id`: Hedera account's EVM address
 
 **Response:**
 ```json
