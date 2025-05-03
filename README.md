@@ -65,7 +65,7 @@ FrankyAgent is a decentralized framework for deploying and monetizing local AI a
 
 * **Hedera Agent Kit** – On-device agent framework.
 * **Ollama** – Lightweight LLM inference engine.
-* **Hedera Consensus Service** – Private telemetry + agent messaging.
+* **Hedera Consensus Service (with HIP991)** – Private telemetry + agent messaging.
 * **HCS-10** – Agent communication format.
 * **Hedera Token Service** – Agent ownership via NFT and \$HBAR-based incentives.
 
@@ -87,15 +87,15 @@ FrankyAgent is a decentralized framework for deploying and monetizing local AI a
 
 ### 1. Contributing a Device
 
-1. **Go to [Franky](https://frankyagent.xyz)**
+1. **Go to [Franky](https://franky-hedera.vercel.app)**
 2. **Connect Your Wallet**: Use MetaMask to create your Hedera Testnet wallet
-3. **Set Up Your Device**: Visit the [deploy device page](https://frankyagent.xyz/deploy-device) and follow the instructions there.
+3. **Set Up Your Device**: Visit the [deploy device page](https://franky-hedera.vercel.app/deploy-device) and follow the instructions there.
 
 Once set up, your device becomes part of the Franky network and will automatically start processing agent requests.
 
 ### 2. Creating Your Own Agent
 
-1. Visit the **[Device Marketplace](https://frankyagent.xyz/marketplace)** and choose a device you want to use.
+1. Visit the **[Device Marketplace](https://franky-hedera.vercel.app/marketplace)** and choose a device you want to use.
 2. **Create Your Agent**:
    - Enter a name for your agent, it will be minted as a subdomain (yourname.frankyagent.xyz)
    - Customize personality traits and knowledge areas can be included in the character content.
@@ -283,7 +283,7 @@ Franky's DePIN (Decentralized Physical Infrastructure Network) architecture leve
    - Applications display consensus reputation via `/api/device-checker` endpoint
 
 3. **Transparency**:
-   - All device reputation data visible on [Device Reputation](https://frankyagent.xyz/device-reputation) dashboard
+   - All device reputation data visible on [Device Reputation](https://franky-hedera.vercel.app/device-reputation) dashboard
    - Full audit trail accessible through Hedera mirror nodes
    - Historical performance tracking enables identification of performance trends
 
