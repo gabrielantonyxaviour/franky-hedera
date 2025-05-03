@@ -1,5 +1,0 @@
-=== DEVICE WALLET DETAILS ===
-Private Key: 0a31d499886b3aa299df68437bb94ce01ae56534f76d0698e28763090e3fab31
-Public Key: 03c970e7366390367d5eafc334a8c913c62988f7599f5d9a59768cbfaa549e5079
-Account ID: 0.0.5935128
-=============================
