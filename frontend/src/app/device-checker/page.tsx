@@ -1,11 +1,17 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { FiSearch, FiServer, FiCheckCircle, FiXCircle, FiClock } from 'react-icons/fi'
-import { Zap, ShieldCheck, Clock, Share2 } from 'lucide-react'
-import Header from '@/components/ui/Header'
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import {
+  FiSearch,
+  FiServer,
+  FiCheckCircle,
+  FiXCircle,
+  FiClock,
+} from "react-icons/fi";
+import { Zap, ShieldCheck, Clock, Share2 } from "lucide-react";
+import Header from "@/components/ui/Header";
 
 interface HcsInfo {
   network: string;
@@ -17,7 +23,7 @@ interface HcsInfo {
 interface Device {
   deviceAddress: string;
   ngrokLink?: string;
-  status: 'checked' | 'skipped' | 'error';
+  status: "checked" | "skipped" | "error";
   checked: string;
   reputationScore?: number;
   error?: string;
@@ -50,9 +56,18 @@ const Background = () => {
       <div className="absolute inset-0 grid-bg opacity-30"></div>
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-emerald-900/10"></div>
 
-      <svg className="absolute inset-0 w-full h-full opacity-10" xmlns="http://www.w3.org/2000/svg">
+      <svg
+        className="absolute inset-0 w-full h-full opacity-10"
+        xmlns="http://www.w3.org/2000/svg"
+      >
         <defs>
-          <pattern id="hexagons" width="50" height="43.4" patternUnits="userSpaceOnUse" patternTransform="scale(2)">
+          <pattern
+            id="hexagons"
+            width="50"
+            height="43.4"
+            patternUnits="userSpaceOnUse"
+            patternTransform="scale(2)"
+          >
             <path
               d="M25 0 L50 14.4 L50 38.6 L25 53 L0 38.6 L0 14.4 Z"
               fill="none"
@@ -67,9 +82,10 @@ const Background = () => {
       <motion.div
         className="absolute w-96 h-96 rounded-full"
         style={{
-          background: 'radial-gradient(circle at center, rgba(0,255,136,0.15) 0%, transparent 70%)',
-          top: '30%',
-          left: '60%',
+          background:
+            "radial-gradient(circle at center, rgba(0,255,136,0.15) 0%, transparent 70%)",
+          top: "30%",
+          left: "60%",
         }}
         animate={{
           scale: [1, 1.2, 1],
@@ -85,9 +101,10 @@ const Background = () => {
       <motion.div
         className="absolute w-64 h-64 rounded-full"
         style={{
-          background: 'radial-gradient(circle at center, rgba(0,255,136,0.1) 0%, transparent 70%)',
-          bottom: '20%',
-          left: '30%',
+          background:
+            "radial-gradient(circle at center, rgba(0,255,136,0.1) 0%, transparent 70%)",
+          bottom: "20%",
+          left: "30%",
         }}
         animate={{
           scale: [1, 1.3, 1],
@@ -100,41 +117,41 @@ const Background = () => {
         }}
       />
     </div>
-  )
-}
+  );
+};
 
 // DeviceCard component to display device info and reputation
 const DeviceCard = ({ device }: { device: Device }) => {
   // Format reputation score for display
   const formatScore = (score: number) => {
     return score.toFixed(2);
-  }
+  };
 
   // Determine reputation color based on score
   const getReputationColor = (score: number) => {
-    if (score >= 90) return 'text-green-400';
-    if (score >= 70) return 'text-emerald-400';
-    if (score >= 50) return 'text-yellow-400';
-    if (score >= 30) return 'text-orange-400';
-    return 'text-red-400';
-  }
+    if (score >= 90) return "text-green-400";
+    if (score >= 70) return "text-emerald-400";
+    if (score >= 50) return "text-yellow-400";
+    if (score >= 30) return "text-orange-400";
+    return "text-red-400";
+  };
 
   // Determine reputation label based on score
   const getReputationLabel = (score: number) => {
-    if (score >= 90) return 'Excellent';
-    if (score >= 70) return 'Good';
-    if (score >= 50) return 'Average';
-    if (score >= 30) return 'Poor';
-    return 'Unreliable';
-  }
+    if (score >= 90) return "Excellent";
+    if (score >= 70) return "Good";
+    if (score >= 50) return "Average";
+    if (score >= 30) return "Poor";
+    return "Unreliable";
+  };
 
   // Get ngrok URL from either direct ngrokLink or from metadata
   const getNgrokUrl = () => {
     if (device.metadata?.ngrokUrl) {
       return device.metadata.ngrokUrl;
     }
-    return device.ngrokLink || 'Not available';
-  }
+    return device.ngrokLink || "Not available";
+  };
 
   return (
     <motion.div
@@ -148,16 +165,24 @@ const DeviceCard = ({ device }: { device: Device }) => {
           {device.deviceAddress}
         </h3>
         <div className="mt-2 sm:mt-0">
-          {device.status === 'checked' ? (
-            <div className={`flex items-center ${getReputationColor(device.reputationScore || 0)}`}>
+          {device.status === "checked" ? (
+            <div
+              className={`flex items-center ${getReputationColor(
+                device.reputationScore || 0
+              )}`}
+            >
               <ShieldCheck className="w-5 h-5 mr-2" />
-              <span className="font-bold">{formatScore(device.reputationScore || 0)}</span>
-              <span className="ml-2 text-sm">{getReputationLabel(device.reputationScore || 0)}</span>
+              <span className="font-bold">
+                {formatScore(device.reputationScore || 0)}
+              </span>
+              <span className="ml-2 text-sm">
+                {getReputationLabel(device.reputationScore || 0)}
+              </span>
             </div>
           ) : (
             <div className="flex items-center text-gray-400">
               <Clock className="w-5 h-5 mr-2" />
-              <span>{device.status === 'skipped' ? 'Skipped' : 'Error'}</span>
+              <span>{device.status === "skipped" ? "Skipped" : "Error"}</span>
             </div>
           )}
         </div>
@@ -192,7 +217,7 @@ const DeviceCard = ({ device }: { device: Device }) => {
           )}
         </div>
 
-        {device.status === 'checked' && device.retrievalStats && (
+        {device.status === "checked" && device.retrievalStats && (
           <div className="space-y-2">
             <div className="flex items-center text-gray-300">
               <FiCheckCircle className="w-4 h-4 mr-2 text-[#00FF88]" />
@@ -223,19 +248,35 @@ const DeviceCard = ({ device }: { device: Device }) => {
 
       {device.metadata && device.metadata.deviceModel && (
         <div className="mt-2 p-3 bg-gray-900/40 border border-gray-700 rounded-lg mb-4">
-          <p className="text-sm font-medium text-[#00FF88] mb-2">Device Specs:</p>
+          <p className="text-sm font-medium text-[#00FF88] mb-2">
+            Device Specs:
+          </p>
           <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
             {device.metadata.deviceModel && (
-              <div>Model: <span className="text-gray-300">{device.metadata.deviceModel}</span></div>
+              <div>
+                Model:{" "}
+                <span className="text-gray-300">
+                  {device.metadata.deviceModel}
+                </span>
+              </div>
             )}
             {device.metadata.ram && (
-              <div>RAM: <span className="text-gray-300">{device.metadata.ram}</span></div>
+              <div>
+                RAM:{" "}
+                <span className="text-gray-300">{device.metadata.ram}</span>
+              </div>
             )}
             {device.metadata.storage && (
-              <div>Storage: <span className="text-gray-300">{device.metadata.storage}</span></div>
+              <div>
+                Storage:{" "}
+                <span className="text-gray-300">{device.metadata.storage}</span>
+              </div>
             )}
             {device.metadata.cpu && (
-              <div>CPU: <span className="text-gray-300">{device.metadata.cpu}</span></div>
+              <div>
+                CPU:{" "}
+                <span className="text-gray-300">{device.metadata.cpu}</span>
+              </div>
             )}
           </div>
         </div>
@@ -246,63 +287,85 @@ const DeviceCard = ({ device }: { device: Device }) => {
           <div className="flex items-start">
             <Share2 className="w-5 h-5 mr-2 text-blue-400 mt-0.5" />
             <div>
-              <p className="text-sm text-blue-400 font-medium">Hedera Consensus Service</p>
+              <p className="text-sm text-blue-400 font-medium">
+                Hedera Consensus Service
+              </p>
               <p className="text-xs text-gray-400 mt-1">
-                HCS Topic: <span className="text-blue-400">{device.consensusDetails.topicId}</span>
+                HCS Topic:{" "}
+                <span className="text-blue-400">
+                  {device.consensusDetails.topicId}
+                </span>
               </p>
               <p className="text-xs text-gray-400">
-                Checker nodes: <span className="text-blue-400">{device.consensusDetails.checkerCount}</span>
+                Checker nodes:{" "}
+                <span className="text-blue-400">
+                  {device.consensusDetails.checkerCount}
+                </span>
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {device.status === 'error' && (
+      {device.status === "error" && (
         <div className="mt-2 p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
           <div className="flex items-start">
             <FiXCircle className="w-5 h-5 mr-2 text-red-400 mt-0.5" />
             <div>
-              <p className="text-sm text-red-400 font-medium">Error checking device</p>
+              <p className="text-sm text-red-400 font-medium">
+                Error checking device
+              </p>
               <p className="text-xs text-gray-400 mt-1">{device.error}</p>
             </div>
           </div>
         </div>
       )}
 
-      {device.status === 'skipped' && (
+      {device.status === "skipped" && (
         <div className="mt-2 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-lg">
           <div className="flex items-start">
             <FiClock className="w-5 h-5 mr-2 text-yellow-400 mt-0.5" />
             <div>
-              <p className="text-sm text-yellow-400 font-medium">Device skipped</p>
+              <p className="text-sm text-yellow-400 font-medium">
+                Device skipped
+              </p>
               <p className="text-xs text-gray-400 mt-1">{device.reason}</p>
             </div>
           </div>
         </div>
       )}
     </motion.div>
-  )
-}
+  );
+};
 
 // SearchForm component
-const SearchForm = ({ onSearch, isLoading }: { onSearch: (address: string, numChecks: number) => void, isLoading: boolean }) => {
-  const [deviceAddress, setDeviceAddress] = useState('')
-  const [numChecks, setNumChecks] = useState(5)
+const SearchForm = ({
+  onSearch,
+  isLoading,
+}: {
+  onSearch: (address: string, numChecks: number) => void;
+  isLoading: boolean;
+}) => {
+  const [deviceAddress, setDeviceAddress] = useState("");
+  const [numChecks, setNumChecks] = useState(5);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (deviceAddress.trim() || deviceAddress === '') { // Allow empty for all devices
-      onSearch(deviceAddress.trim(), numChecks)
+    e.preventDefault();
+    if (deviceAddress.trim() || deviceAddress === "") {
+      // Allow empty for all devices
+      onSearch(deviceAddress.trim(), numChecks);
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-4xl mx-auto mb-8">
       <div className="bg-black/50 backdrop-blur-sm border border-[#00FF88]/30 rounded-xl p-5">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
-            <label htmlFor="deviceAddress" className="block text-sm font-medium text-gray-300 mb-1">
+            <label
+              htmlFor="deviceAddress"
+              className="block text-sm font-medium text-gray-300 mb-1"
+            >
               Device Address (optional)
             </label>
             <div className="relative">
@@ -319,7 +382,10 @@ const SearchForm = ({ onSearch, isLoading }: { onSearch: (address: string, numCh
           </div>
 
           <div className="w-full md:w-48">
-            <label htmlFor="numChecks" className="block text-sm font-medium text-gray-300 mb-1">
+            <label
+              htmlFor="numChecks"
+              className="block text-sm font-medium text-gray-300 mb-1"
+            >
               Number of Checks
             </label>
             <select
@@ -338,17 +404,34 @@ const SearchForm = ({ onSearch, isLoading }: { onSearch: (address: string, numCh
             <button
               type="submit"
               disabled={isLoading}
-              className={`w-full md:w-auto px-6 py-3 rounded-lg ${isLoading
-                  ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
-                  : 'bg-[#00FF88] text-black hover:bg-[#00FF88]/90'
-                } transition-colors flex items-center justify-center font-medium`}
+              className={`w-full md:w-auto px-6 py-3 rounded-lg ${
+                isLoading
+                  ? "bg-gray-700 text-gray-300 cursor-not-allowed"
+                  : "bg-[#00FF88] text-black hover:bg-[#00FF88]/90"
+              } transition-colors flex items-center justify-center font-medium`}
             >
               {isLoading ? (
                 <>
                   <span className="animate-spin mr-2">
-                    <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="w-5 h-5"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
                   </span>
                   Checking...
@@ -364,8 +447,8 @@ const SearchForm = ({ onSearch, isLoading }: { onSearch: (address: string, numCh
         </div>
       </div>
     </form>
-  )
-}
+  );
+};
 
 // Function to fetch device metadata from Pinata URL
 const fetchDeviceMetadata = async (metadataUrl: string) => {
@@ -375,89 +458,90 @@ const fetchDeviceMetadata = async (metadataUrl: string) => {
       console.error(`Failed to fetch metadata: ${response.status}`);
       return null;
     }
-    
+
     return await response.json();
   } catch (error) {
-    console.error('Error fetching device metadata:', error);
+    console.error("Error fetching device metadata:", error);
     return null;
   }
 };
 
 export default function DeviceCheckerPage() {
-  const [devices, setDevices] = useState<Device[]>([])
-  const [selectedDevices, setSelectedDevices] = useState<string[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [isRegistering, setIsRegistering] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [selectedDevices, setSelectedDevices] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [hcsInfo, setHcsInfo] = useState<HcsInfo>({
-    network: 'Loading...',
-    deviceRegistryTopicId: 'Loading...',
-    checkerRegistryTopicId: 'Loading...',
-    lastRefreshed: new Date().toLocaleString()
-  })
+    network: "Loading...",
+    deviceRegistryTopicId: "Loading...",
+    checkerRegistryTopicId: "Loading...",
+    lastRefreshed: new Date().toLocaleString(),
+  });
 
   // Fetch initial HCS info
   useEffect(() => {
     const fetchHcsInfo = async () => {
       try {
-        const response = await fetch('/api/register-checker')
+        const response = await fetch("/api/register-checker");
         if (!response.ok) {
-          throw new Error('Failed to fetch HCS info')
+          throw new Error("Failed to fetch HCS info");
         }
-        const data = await response.json()
-        setHcsInfo(data.hcsInfo)
+        const data = await response.json();
+        setHcsInfo(data.hcsInfo);
       } catch (err: any) {
-        console.error('Error fetching HCS info:', err)
-        setError(err.message || 'Failed to fetch HCS info')
+        console.error("Error fetching HCS info:", err);
+        setError(err.message || "Failed to fetch HCS info");
       }
-    }
-    fetchHcsInfo()
-  }, [])
+    };
+    fetchHcsInfo();
+  }, []);
 
   // Function to search devices by address
   const searchDevices = async (deviceAddress: string, numChecks: number) => {
-    setIsLoading(true)
-    setError(null)
-    setSelectedDevices([]) // Reset selected devices when loading new ones
+    setIsLoading(true);
+    setError(null);
+    setSelectedDevices([]); // Reset selected devices when loading new ones
 
     try {
-      const queryParams = new URLSearchParams()
+      const queryParams = new URLSearchParams();
       if (deviceAddress) {
-        queryParams.append('deviceAddress', deviceAddress.toLowerCase())
+        queryParams.append("deviceAddress", deviceAddress.toLowerCase());
       }
-      queryParams.append('numRetrievals', numChecks.toString())
+      queryParams.append("numRetrievals", numChecks.toString());
 
-      const response = await fetch(`/api/device-checker?${queryParams.toString()}`)
+      const response = await fetch(
+        `/api/device-checker?${queryParams.toString()}`
+      );
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to check devices')
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to check devices");
       }
 
-      const data = await response.json()
-      
+      const data = await response.json();
+
       // The API now includes metadata directly, so we don't need to fetch it separately
       if (data.results && Array.isArray(data.results)) {
         // Just set the devices directly, metadata is already included in the API response
-        setDevices(data.results)
+        setDevices(data.results);
       } else {
         // Handle empty results
-        setDevices([])
+        setDevices([]);
       }
-
     } catch (err: any) {
-      console.error('Error checking devices:', err)
-      setError(err.message || 'An error occurred while checking devices')
+      console.error("Error checking devices:", err);
+      setError(err.message || "An error occurred while checking devices");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // Function to toggle device selection
   const toggleDeviceSelection = (deviceAddress: string) => {
-    setSelectedDevices(prev => {
+    setSelectedDevices((prev) => {
       if (prev.includes(deviceAddress)) {
-        return prev.filter(addr => addr !== deviceAddress);
+        return prev.filter((addr) => addr !== deviceAddress);
       } else {
         return [...prev, deviceAddress];
       }
@@ -471,146 +555,148 @@ export default function DeviceCheckerPage() {
       setSelectedDevices([]);
     } else {
       // Otherwise, select all
-      setSelectedDevices(devices.map(device => device.deviceAddress));
+      setSelectedDevices(devices.map((device) => device.deviceAddress));
     }
   };
 
   // Function to trigger self-check using our server
   const triggerServerSelfCheck = async () => {
     if (devices.length === 0) {
-      setError('No devices to check. Please search for devices first.')
-      return
+      setError("No devices to check. Please search for devices first.");
+      return;
     }
 
-    setIsLoading(true)
-    setError(null)
-    setSelectedDevices([])
+    setIsLoading(true);
+    setError(null);
+    setSelectedDevices([]);
 
     try {
       // Call self-check API with empty deviceAddresses to check all devices
-      const response = await fetch('/api/self-check', {
-        method: 'POST',
+      const response = await fetch("/api/self-check", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ deviceAddresses: [] })
-      })
+        body: JSON.stringify({ deviceAddresses: [] }),
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to perform self-check')
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to perform self-check");
       }
 
-      const data = await response.json()
-      
+      const data = await response.json();
+
       // Set devices directly from the API response, which now includes metadata
       if (data.results && Array.isArray(data.results)) {
-        setDevices(data.results)
+        setDevices(data.results);
       } else {
-        setDevices([])
+        setDevices([]);
       }
 
       // Refresh devices to show updated reputation after a short delay
       setTimeout(() => {
-        searchDevices('', 5)
-      }, 5000) // 5-second delay to allow HCS to process
+        searchDevices("", 5);
+      }, 5000); // 5-second delay to allow HCS to process
     } catch (err: any) {
-      console.error('Error performing self-check:', err)
-      setError(err.message || 'An error occurred while performing self-check')
+      console.error("Error performing self-check:", err);
+      setError(err.message || "An error occurred while performing self-check");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // Function to trigger manual self-check for all or selected devices
   const triggerManualCheck = async (checkAll: boolean = false) => {
     if (devices.length === 0) {
-      setError('No devices to check. Please search for devices first.')
-      return
+      setError("No devices to check. Please search for devices first.");
+      return;
     }
 
     if (!checkAll && selectedDevices.length === 0) {
-      setError('Please select at least one device to check or use "Check All Devices".')
-      return
+      setError(
+        'Please select at least one device to check or use "Check All Devices".'
+      );
+      return;
     }
 
-    setIsLoading(true)
-    setError(null)
-    setSelectedDevices([])
+    setIsLoading(true);
+    setError(null);
+    setSelectedDevices([]);
 
     try {
       // Determine which device addresses to include
-      const deviceAddresses = checkAll 
+      const deviceAddresses = checkAll
         ? [] // Empty array means check all devices on the backend
         : selectedDevices;
 
       // Call self-check API
-      const response = await fetch('/api/self-check', {
-        method: 'POST',
+      const response = await fetch("/api/self-check", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ deviceAddresses })
-      })
+        body: JSON.stringify({ deviceAddresses }),
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to perform self-check')
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to perform self-check");
       }
 
-      const data = await response.json()
-      
+      const data = await response.json();
+
       // Set devices directly from the API response, which now includes metadata
       if (data.results && Array.isArray(data.results)) {
-        setDevices(data.results)
+        setDevices(data.results);
       } else {
-        setDevices([])
+        setDevices([]);
       }
 
       // Refresh devices to show updated reputation after a short delay
       setTimeout(() => {
-        searchDevices('', 5)
-      }, 5000) // 5-second delay to allow HCS to process
+        searchDevices("", 5);
+      }, 5000); // 5-second delay to allow HCS to process
     } catch (err: any) {
-      console.error('Error performing self-check:', err)
-      setError(err.message || 'An error occurred while performing self-check')
+      console.error("Error performing self-check:", err);
+      setError(err.message || "An error occurred while performing self-check");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // Function to register server as checker
   const registerAsChecker = async () => {
-    setIsRegistering(true)
-    setError(null)
-    
+    setIsRegistering(true);
+    setError(null);
+
     try {
-      const response = await fetch('/api/register-checker', {
-        method: 'POST',
+      const response = await fetch("/api/register-checker", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          walletAddress: '0.0.5868472', // Hedera account ID format
-          serverUrl: window.location.origin // Current server URL
-        })
-      })
+          walletAddress: "0.0.5868472", // Hedera account ID format
+          serverUrl: window.location.origin, // Current server URL
+        }),
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to register checker')
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to register checker");
       }
 
-      const data = await response.json()
-      console.log('Registration successful:', data)
-      alert('Successfully registered as a checker node!')
+      const data = await response.json();
+      console.log("Registration successful:", data);
+      alert("Successfully registered as a checker node!");
     } catch (err: any) {
-      console.error('Error registering checker:', err)
-      setError(err.message || 'Failed to register as checker')
+      console.error("Error registering checker:", err);
+      setError(err.message || "Failed to register as checker");
     } finally {
-      setIsRegistering(false)
+      setIsRegistering(false);
     }
-  }
+  };
 
   return (
     <>
@@ -628,21 +714,23 @@ export default function DeviceCheckerPage() {
               DePIN Device Checker
             </h1>
             <p className="text-xl mb-6 text-[#AAAAAA] max-w-4xl mx-auto">
-              Verify device reliability and build reputation scores based on content retrieval from Pinata buckets.
+              Verify device reliability and build reputation scores based on
+              content retrieval from Hedera Topics.
             </p>
             <p className="text-md mb-6 text-[#888888] max-w-3xl mx-auto">
-              The Checker Network creates verifiable quality of service metrics for DePIN nodes,
-              measuring data retrieval success rates and response times.
+              The Checker Network creates verifiable quality of service metrics
+              for DePIN nodes, measuring data retrieval success rates and
+              response times.
             </p>
-            
+
             {/* Register as Checker Button */}
-            <button
+            {/* <button
               onClick={registerAsChecker}
               disabled={isRegistering}
               className={`px-6 py-3 rounded-lg text-black font-medium mb-8 ${
                 isRegistering
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-[#00FF88] hover:bg-[#00FF88]/90'
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-[#00FF88] hover:bg-[#00FF88]/90"
               }`}
             >
               {isRegistering ? (
@@ -651,9 +739,9 @@ export default function DeviceCheckerPage() {
                   Registering...
                 </>
               ) : (
-                'Register as Checker Node'
+                "Register as Checker Node"
               )}
-            </button>
+            </button> */}
           </motion.div>
         </div>
       </section>
@@ -681,7 +769,9 @@ export default function DeviceCheckerPage() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00FF88]"></div>
               </div>
               <p className="text-gray-300">Checking devices, please wait...</p>
-              <p className="text-gray-500 text-sm mt-2">This may take a few moments to complete</p>
+              <p className="text-gray-500 text-sm mt-2">
+                This may take a few moments to complete
+              </p>
             </div>
           )}
 
@@ -691,7 +781,9 @@ export default function DeviceCheckerPage() {
                 <FiServer className="h-12 w-12 text-gray-400" />
               </div>
               <p className="text-gray-300">No devices found</p>
-              <p className="text-gray-500 text-sm mt-2">Try searching for a different device address</p>
+              <p className="text-gray-500 text-sm mt-2">
+                Try searching for a different device address
+              </p>
             </div>
           )}
 
@@ -708,16 +800,32 @@ export default function DeviceCheckerPage() {
                       disabled={isLoading}
                       className={`px-4 py-2 rounded-lg flex items-center text-sm ${
                         isLoading
-                          ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
-                          : 'bg-[#00FF88] hover:bg-[#00FF88]/90 text-black'
+                          ? "bg-gray-700 text-gray-300 cursor-not-allowed"
+                          : "bg-[#00FF88] hover:bg-[#00FF88]/90 text-black"
                       } transition-colors`}
                     >
                       {isLoading ? (
                         <>
                           <span className="animate-spin mr-2">
-                            <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            <svg
+                              className="w-4 h-4"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
                             </svg>
                           </span>
                           Server Checking...
@@ -734,16 +842,32 @@ export default function DeviceCheckerPage() {
                       disabled={isLoading}
                       className={`px-4 py-2 rounded-lg flex items-center text-sm ${
                         isLoading
-                          ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
-                          : 'bg-[#00FF88] hover:bg-[#00FF88]/90 text-black'
+                          ? "bg-gray-700 text-gray-300 cursor-not-allowed"
+                          : "bg-[#00FF88] hover:bg-[#00FF88]/90 text-black"
                       } transition-colors`}
                     >
                       {isLoading ? (
                         <>
                           <span className="animate-spin mr-2">
-                            <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            <svg
+                              className="w-4 h-4"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
                             </svg>
                           </span>
                           Checking All...
@@ -760,16 +884,32 @@ export default function DeviceCheckerPage() {
                       disabled={isLoading || selectedDevices.length === 0}
                       className={`px-4 py-2 rounded-lg flex items-center text-sm ${
                         isLoading && selectedDevices.length === 0
-                          ? 'bg-gray-700 text-gray-300 cursor-not-allowed'
-                          : 'bg-[#00FF88] hover:bg-[#00FF88]/90 text-black'
+                          ? "bg-gray-700 text-gray-300 cursor-not-allowed"
+                          : "bg-[#00FF88] hover:bg-[#00FF88]/90 text-black"
                       } transition-colors`}
                     >
                       {isLoading && selectedDevices.length === 0 ? (
                         <>
                           <span className="animate-spin mr-2">
-                            <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            <svg
+                              className="w-4 h-4"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
                             </svg>
                           </span>
                           Checking Selected...
@@ -783,7 +923,8 @@ export default function DeviceCheckerPage() {
                     </button>
                   </div>
                   <span className="text-sm text-gray-400">
-                    {devices.length} device{devices.length !== 1 ? 's' : ''} found
+                    {devices.length} device{devices.length !== 1 ? "s" : ""}{" "}
+                    found
                   </span>
                 </div>
               </div>
@@ -795,27 +936,33 @@ export default function DeviceCheckerPage() {
                     onClick={selectAllDevices}
                     className="text-sm text-[#00FF88] hover:underline focus:outline-none"
                   >
-                    {selectedDevices.length === devices.length 
-                      ? 'Unselect All' 
-                      : selectedDevices.length === 0 
-                        ? 'Select All' 
-                        : `Select All (${selectedDevices.length}/${devices.length} selected)`}
+                    {selectedDevices.length === devices.length
+                      ? "Unselect All"
+                      : selectedDevices.length === 0
+                      ? "Select All"
+                      : `Select All (${selectedDevices.length}/${devices.length} selected)`}
                   </button>
                 </div>
                 <div className="text-xs text-gray-400">
-                  Select devices to check or use "Check All Devices" to test everything
+                  Select devices to check or use "Check All Devices" to test
+                  everything
                 </div>
               </div>
 
               <div className="space-y-4">
                 {devices.map((device, index) => (
-                  <div key={device.deviceAddress || index} className="flex items-start">
+                  <div
+                    key={device.deviceAddress || index}
+                    className="flex items-start"
+                  >
                     <div className="pt-5 pr-3">
                       <input
                         type="checkbox"
                         id={`device-${device.deviceAddress}`}
                         checked={selectedDevices.includes(device.deviceAddress)}
-                        onChange={() => toggleDeviceSelection(device.deviceAddress)}
+                        onChange={() =>
+                          toggleDeviceSelection(device.deviceAddress)
+                        }
                       />
                     </div>
                     <div className="flex-1">
@@ -829,5 +976,5 @@ export default function DeviceCheckerPage() {
         </div>
       </section>
     </>
-  )
+  );
 }
