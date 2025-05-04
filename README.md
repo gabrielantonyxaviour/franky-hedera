@@ -3,6 +3,12 @@
 
 FrankyAgent is a decentralized framework for deploying and monetizing local AI agents running directly on user devices (e.g. phones). It enables on-device inference using lightweight LLMs, tracks agent performance through a private Hedera Consensus Service, and incentivizes high-uptime nodes using \$HBAR. Agent ownership is recorded using NFTs minted via the Hedera Token Service.
 
+## Contract Information
+
+Franky is deployed on Hedera Testnet with the following contract details:
+
+- **Franky Contract**: `0.0.5937360` [View on HashScan](https://hashscan.io/testnet/contract/0.0.5937360)
+- **Implementation Address**: `0x2f2c723f79D40667E1f850Ec4f969BD08B143445` [View on HashScan](https://hashscan.io/testnet/address/0x2f2c723f79D40667E1f850Ec4f969BD08B143445)
 
 ## Table of Contents
 - [Key Features](#-key-features)
