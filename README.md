@@ -322,7 +322,7 @@ This section provides a detailed breakdown of where and how various Hedera techn
 
 HIP-991 enables custom fees for HCS topics, allowing monetization of message submission.
 
-- **Topic Creation with Custom Fees** - [agent-framework/src/utils/hip991-agent.ts:183-226](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+- **Topic Creation with Custom Fees** - [agent-framework/src/utils/hip991-agent.ts:183-226](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/agent-framework/src/utils/hip991-agent.ts)
   ```typescript
   export async function createMonetizedTopic(
     serverClient: Client, 
@@ -348,7 +348,7 @@ HIP-991 enables custom fees for HCS topics, allowing monetization of message sub
   }
   ```
 
-- **Regular Topic Creation for Responses** - [agent-framework/src/utils/hip991-agent.ts:231-268](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+- **Regular Topic Creation for Responses** - [agent-framework/src/utils/hip991-agent.ts:231-268](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/agent-framework/src/utils/hip991-agent.ts)
   ```typescript
   export async function createResponseTopic(
     serverClient: Client, 
@@ -368,7 +368,7 @@ HIP-991 enables custom fees for HCS topics, allowing monetization of message sub
 
 HCS-10 provides a standardized message format for agent communication.
 
-- **HCS Message Structure in Agent Framework** - [agent-framework/src/types/index.ts:129-140](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+- **HCS Message Structure in Agent Framework** - [agent-framework/src/types/index.ts:129-140](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/agent-framework/src/types/index.ts)
   ```typescript
   export type HCSMessage = {
     consensus_timestamp: string;
@@ -383,7 +383,7 @@ HCS-10 provides a standardized message format for agent communication.
 
 HCS provides a private consensus mechanism for device reputation.
 
-- **HCS Service Initialization** - [frontend/src/lib/services/hcs-service.ts:110-146](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+- **HCS Service Initialization** - [frontend/src/lib/services/hcs-service.ts:110-146](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/frontend/src/lib/services/hcs-service.ts)
   ```typescript
   private initializeClient(): void {
     // Initialize operator credentials
@@ -399,7 +399,7 @@ HCS provides a private consensus mechanism for device reputation.
   }
   ```
 
-- **HCS Topic Creation** - [frontend/src/lib/services/hcs-service.ts:246-299](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+- **HCS Topic Creation** - [frontend/src/lib/services/hcs-service.ts:246-299](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/frontend/src/lib/services/hcs-service.ts)
   ```typescript
   private async createTopic(name: string, memo: string): Promise<TopicId> {
     // Create a new topic with memo and submit key
@@ -414,7 +414,7 @@ HCS provides a private consensus mechanism for device reputation.
   }
   ```
 
-- **HCS Message Submission** - [frontend/src/lib/services/hcs-service.ts:306-347](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+- **HCS Message Submission** - [frontend/src/lib/services/hcs-service.ts:306-347](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/frontend/src/lib/services/hcs-service.ts)
   ```typescript
   private async submitMessage(topicId: TopicId, message: any): Promise<string> {
     const messageString = typeof message === 'string' 
@@ -429,7 +429,7 @@ HCS provides a private consensus mechanism for device reputation.
   }
   ```
 
-- **Device Reputation Consensus** - [frontend/src/lib/services/hcs-service.ts:614-690](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+- **Device Reputation Consensus** - [frontend/src/lib/services/hcs-service.ts:614-690](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/frontend/src/lib/services/hcs-service.ts)
   ```typescript
   async getDeviceReputation(deviceAddress: string, checkCount: number = 10): Promise<any> {
     // Get the topic for this device
@@ -454,7 +454,7 @@ HCS provides a private consensus mechanism for device reputation.
 
 Hedera AgentKit provides a framework for building agents on Hedera, with MCP (Model-Controller-Prompter) enabling AI integration.
 
-- **AgentKit Initialization** - [agent-framework/routes/character-mcp-api.ts:133-152](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+- **AgentKit Initialization** - [agent-framework/routes/character-mcp-api.ts:133-152](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/agent-framework/routes/character-mcp-api.ts)
   ```typescript
   const privateKey = PrivateKey.fromStringECDSA(formattedPrivateKey);
   
@@ -466,7 +466,7 @@ Hedera AgentKit provides a framework for building agents on Hedera, with MCP (Mo
   );
   ```
 
-- **MCP Server Setup** - [agent-framework/routes/character-mcp-api.ts:167-175](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+- **MCP Server Setup** - [agent-framework/routes/character-mcp-api.ts:167-175](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/agent-framework/routes/character-mcp-api.ts)
   ```typescript
   // Create the LangChain-compatible tools
   const tools = createHederaTools(hederaKit);
@@ -476,7 +476,7 @@ Hedera AgentKit provides a framework for building agents on Hedera, with MCP (Mo
   await mcpServer.start();
   ```
 
-- **MCP Client** - [`agent/api-server.js:35-56`](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+- **MCP Client** - [`agent/api-server.js:35-56`](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/agent/api-server.js)
   ```javascript
   // Initialize HederaAgentKit
   const hederaKit = new HederaAgentKit(
@@ -492,7 +492,7 @@ Hedera AgentKit provides a framework for building agents on Hedera, with MCP (Mo
   
   ```
 
-- **HCS Topic-related Tools** - [`agent-framework/src/langchain/tools/hcs/submit_topic_message_tool.ts:8-44`](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+- **HCS Topic-related Tools** - [`agent-framework/src/langchain/tools/hcs/submit_topic_message_tool.ts:8-44`](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/agent-framework/src/langchain/tools/hcs/submit_topic_message_tool.ts)
   ```typescript
   export class HederaSubmitTopicMessageTool extends Tool {
     name = 'hedera_submit_topic_message';
@@ -516,7 +516,7 @@ Hedera AgentKit provides a framework for building agents on Hedera, with MCP (Mo
 
 The Mirror Node provides a REST API for accessing Hedera network data.
 
-- **Mirror Node Client Definition** - [frontend/src/utils/mirror-node-client.tsx:1-15](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+- **Mirror Node Client Definition** - [frontend/src/utils/mirror-node-client.tsx:1-15](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/frontend/src/utils/mirror-node-client.tsx)
   ```typescript
   export class MirrorNodeClient {
     url: string;
@@ -532,7 +532,7 @@ The Mirror Node provides a REST API for accessing Hedera network data.
   }
   ```
 
-- **Mirror Node URL Configuration** - [frontend/src/config/networks.ts:1-10](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+- **Mirror Node URL Configuration** - [frontend/src/config/networks.ts:1-10](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/frontend/src/config/networks.ts)
   ```typescript
   export const networkConfig: NetworkConfigs = {
     testnet: {
@@ -544,7 +544,7 @@ The Mirror Node provides a REST API for accessing Hedera network data.
   }
   ```
 
-- **HCS Message Retrieval from Mirror Node** - [frontend/src/lib/services/hcs-service.ts:352-381](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+- **HCS Message Retrieval from Mirror Node** - [frontend/src/lib/services/hcs-service.ts:352-381](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/frontend/src/lib/services/hcs-service.ts)
   ```typescript
   private async getMessages(topicId: TopicId, limit: number = 100): Promise<any[]> {
     const networkType = process.env.HEDERA_NETWORK || 'testnet';
