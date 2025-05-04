@@ -3,6 +3,19 @@
 
 FrankyAgent is a decentralized framework for deploying and monetizing local AI agents running directly on user devices (e.g. phones). It enables on-device inference using lightweight LLMs, tracks agent performance through a private Hedera Consensus Service, and incentivizes high-uptime nodes using \$HBAR. Agent ownership is recorded using NFTs minted via the Hedera Token Service.
 
+
+## Table of Contents
+- [Key Features](#-key-features)
+- [Flow Overview](#-flow-overview)
+- [Privacy & Security](#-privacy--security)
+- [Use Cases](#-use-cases)
+- [Technologies Used](#-technologies-used)
+- [Roadmap](#-roadmap)
+- [Getting Started](#-getting-started)
+- [How to Interact with Our Agents](#how-to-interact-with-our-agents)
+- [Hedera Consensus Service for Device Reputation Scores](#hedera-consensus-service-for-device-reputation-scores)
+- [Hedera Line of Code](#hedera-line-of-code)
+
 ## 🧠 Key Features
 
 * **♻️ Local LLM on Phones**
@@ -292,3 +305,258 @@ Franky's DePIN (Decentralized Physical Infrastructure Network) architecture leve
    - Historical performance tracking enables identification of performance trends
 
 This HCS-based reputation system creates the foundation for Franky's trust layer, ensuring users can rely on device performance metrics when selecting hosts for their AI agents while rewarding reliable device operators with more opportunities to earn $HBAR.
+
+---
+
+## Hedera Line of Code
+
+This section provides a detailed breakdown of where and how various Hedera technologies are integrated within the codebase.
+
+### 1. Hedera HIP991 Topics
+
+HIP-991 enables custom fees for HCS topics, allowing monetization of message submission.
+
+- **Topic Creation with Custom Fees** - [agent-framework/src/utils/hip991-agent.ts:183-226](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+  ```typescript
+  export async function createMonetizedTopic(
+    serverClient: Client, 
+    serverAccountId: AccountId, 
+    serverKey: PrivateKey,
+    userAccountId: AccountId,
+    userPublicKey: any,
+    fee: number = 0.5
+  ): Promise<TopicId> {
+    // Create a fixed fee with the specified HBAR amount
+    const customFee = new CustomFixedFee()
+      .setHbarAmount(new Hbar(fee))
+      .setFeeCollectorAccountId(serverAccountId);
+    
+    // Create a monetized topic following HIP-991
+    const topicCreateTx = new TopicCreateTransaction()
+      .setTopicMemo(memo)
+      .setMaxTransactionFee(new Hbar(50))
+      .setAdminKey(serverKey.publicKey)
+      .setSubmitKey(userPublicKey)
+      .setCustomFees([customFee])
+      .setFeeScheduleKey(serverKey.publicKey);
+    // ... execution code omitted for brevity
+  }
+  ```
+
+- **Regular Topic Creation for Responses** - [agent-framework/src/utils/hip991-agent.ts:231-268](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+  ```typescript
+  export async function createResponseTopic(
+    serverClient: Client, 
+    serverKey: PrivateKey,
+    userAccountId: AccountId
+  ): Promise<TopicId> {
+    // Create a topic with the server as the sole submitter
+    const topicCreateTx = new TopicCreateTransaction()
+      .setTopicMemo(memo)
+      .setMaxTransactionFee(new Hbar(50))
+      .setAdminKey(serverKey.publicKey)
+      .setSubmitKey(serverKey.publicKey); // Only server can post responses
+    // ... execution code omitted for brevity
+  }
+  ```
+
+### 2. Hedera HCS-10 Standard
+
+HCS-10 provides a standardized message format for agent communication.
+
+- **HCS Message Structure in Agent Framework** - [agent-framework/src/types/index.ts:129-140](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+  ```typescript
+  export type HCSMessage = {
+    consensus_timestamp: string;
+    message: string;
+    payer_account_id: string;
+    sequence_number: number;
+    topic_id: string;
+    // ... other fields omitted for brevity
+  };
+  ```
+
+### 3. Hedera HCS Topics
+
+HCS provides a private consensus mechanism for device reputation.
+
+- **HCS Service Initialization** - [frontend/src/lib/services/hcs-service.ts:110-146](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+  ```typescript
+  private initializeClient(): void {
+    // Initialize operator credentials
+    this.operatorId = AccountId.fromString(OPERATOR_ID);
+    this.operatorKey = process.env.HEDERA_KEY_TYPE === "ECDSA" 
+      ? PrivateKey.fromStringECDSA(OPERATOR_KEY)
+      : PrivateKey.fromString(OPERATOR_KEY);
+    
+    // Create client based on network setting
+    this.client = HEDERA_NETWORK === 'mainnet' 
+      ? Client.forMainnet()
+      : Client.forTestnet();
+    
+
+  }
+  ```
+
+- **HCS Topic Creation** - [frontend/src/lib/services/hcs-service.ts:246-299](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+  ```typescript
+  private async createTopic(name: string, memo: string): Promise<TopicId> {
+    // Create a new topic with memo and submit key
+    const transaction = await (
+      new TopicCreateTransaction()
+        .setTopicMemo(memo)
+        .setAdminKey(this.operatorKey.publicKey)
+        .setSubmitKey(this.operatorKey.publicKey)
+        .setMaxTransactionFee(new Hbar(2))
+        .freezeWith(this.client)
+    );
+  }
+  ```
+
+- **HCS Message Submission** - [frontend/src/lib/services/hcs-service.ts:306-347](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+  ```typescript
+  private async submitMessage(topicId: TopicId, message: any): Promise<string> {
+    // Convert message to string if it's an object
+    const messageString = typeof message === 'string' 
+      ? message 
+      : JSON.stringify(message);
+    
+    // Create and execute the transaction
+    const transaction = new TopicMessageSubmitTransaction({
+      topicId: topicId,
+      message: messageString,
+    })
+    .setMaxTransactionFee(new Hbar(2));
+  }
+  ```
+
+- **Device Reputation Consensus** - [frontend/src/lib/services/hcs-service.ts:614-690](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+  ```typescript
+  async getDeviceReputation(deviceAddress: string, checkCount: number = 10): Promise<any> {
+    // Get the topic for this device
+    const deviceTopicId = await this.getDeviceTopicMapping(deviceAddress);
+    
+    // Get messages from the device topic
+    const messages = await this.getMessages(deviceTopic, checkCount);
+    
+    // Extract check results
+    const checkResults = messages
+      .filter(msg => {
+
+      })
+      .map(msg => {
+      });
+    
+    // Calculate consensus reputation
+    const reputationScore = this.calculateReputationConsensus(checkResults);
+  }
+  ```
+
+### 4. Hedera AgentKit and MCP
+
+Hedera AgentKit provides a framework for building agents on Hedera, with MCP (Model-Controller-Prompter) enabling AI integration.
+
+- **AgentKit Initialization** - [agent-framework/routes/character-mcp-api.ts:133-152](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+  ```typescript
+  const privateKey = PrivateKey.fromStringECDSA(formattedPrivateKey);
+  
+  const hederaKit = new HederaAgentKit(
+    process.env.HEDERA_ACCOUNT_ID!,
+    privateKey.toString(),
+    process.env.HEDERA_PUBLIC_KEY!,
+    (process.env.HEDERA_NETWORK_TYPE as "mainnet" | "testnet" | "previewnet") || "testnet"
+  );
+  ```
+
+- **MCP Server Setup** - [agent-framework/routes/character-mcp-api.ts:167-175](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+  ```typescript
+  // Create the LangChain-compatible tools
+  const tools = createHederaTools(hederaKit);
+  
+  // Start MCP server
+  const mcpServer = new MCPServer(tools, 3001);
+  await mcpServer.start();
+  ```
+
+- **MCP Client** - [`agent/api-server.js:35-56`](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+  ```javascript
+  // Initialize HederaAgentKit
+  const hederaKit = new HederaAgentKit(
+
+  );
+  
+  // Create tools
+  const tools = createHederaTools(hederaKit);
+  
+  // Start MCP server
+  const mcpServer = new MCPServer(tools, port);
+  await mcpServer.start();
+  
+  ```
+
+- **HCS Topic-related Tools** - [`agent-framework/src/langchain/tools/hcs/submit_topic_message_tool.ts:8-44`](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+  ```typescript
+  export class HederaSubmitTopicMessageTool extends Tool {
+    name = 'hedera_submit_topic_message';
+  
+    description = `Submit a message to a topic on Hedera
+  Inputs (input is a JSON string):
+  topicId: string, the ID of the topic to submit the message to e.g. 0.0.123456,
+  message: string, the message to submit to the topic e.g. "Hello, Hedera!"`;
+  
+    protected override async _call(input: any, _runManager?: CallbackManagerForToolRun, config?: ToolRunnableConfig): Promise<string> {
+      const parsedInput = JSON.parse(input);
+      const topicId = TopicId.fromString(parsedInput.topicId);
+      return await this.hederaKit
+        .submitTopicMessage(topicId, parsedInput.message, isCustodial)
+        .then(response => response.getStringifiedResponse());
+    }
+  }
+  ```
+
+### 5. Hedera Mirror Node
+
+The Mirror Node provides a REST API for accessing Hedera network data.
+
+- **Mirror Node Client Definition** - [frontend/src/utils/mirror-node-client.tsx:1-15](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+  ```typescript
+  export class MirrorNodeClient {
+    url: string;
+    constructor(networkConfig: NetworkConfig) {
+      this.url = networkConfig.mirrorNodeUrl;
+    }
+  
+    async getAccountInfo(accountId: AccountId) {
+      const accountInfo = await fetch(`${this.url}/api/v1/accounts/${accountId}`, { method: "GET" });
+      const accountInfoJson = await accountInfo.json();
+      return accountInfoJson;
+    }
+  }
+  ```
+
+- **Mirror Node URL Configuration** - [frontend/src/config/networks.ts:1-10](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+  ```typescript
+  export const networkConfig: NetworkConfigs = {
+    testnet: {
+      network: "testnet",
+      jsonRpcUrl: "https://testnet.hashio.io/api",
+      mirrorNodeUrl: "https://testnet.mirrornode.hedera.com",
+      chainId: "0x128",
+    }
+  }
+  ```
+
+- **HCS Message Retrieval from Mirror Node** - [frontend/src/lib/services/hcs-service.ts:352-381](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
+  ```typescript
+  private async getMessages(topicId: TopicId, limit: number = 100): Promise<any[]> {
+    const networkType = process.env.HEDERA_NETWORK || 'testnet';
+    const baseUrl = networkType === 'mainnet' 
+      ? 'https://mainnet-public.mirrornode.hedera.com'
+      : 'https://testnet.mirrornode.hedera.com';
+      
+    let url = `${baseUrl}/api/v1/topics/${topicId.toString()}/messages?encoding=UTF-8&limit=${limit}&order=desc`;
+    const messages: any[] = [];
+  
+    return messages;
+  }
+  ```
