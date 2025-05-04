@@ -345,7 +345,6 @@ HIP-991 enables custom fees for HCS topics, allowing monetization of message sub
       .setSubmitKey(userPublicKey)
       .setCustomFees([customFee])
       .setFeeScheduleKey(serverKey.publicKey);
-    // ... execution code omitted for brevity
   }
   ```
 
@@ -362,7 +361,6 @@ HIP-991 enables custom fees for HCS topics, allowing monetization of message sub
       .setMaxTransactionFee(new Hbar(50))
       .setAdminKey(serverKey.publicKey)
       .setSubmitKey(serverKey.publicKey); // Only server can post responses
-    // ... execution code omitted for brevity
   }
   ```
 
@@ -378,7 +376,6 @@ HCS-10 provides a standardized message format for agent communication.
     payer_account_id: string;
     sequence_number: number;
     topic_id: string;
-    // ... other fields omitted for brevity
   };
   ```
 
@@ -399,8 +396,6 @@ HCS provides a private consensus mechanism for device reputation.
     this.client = HEDERA_NETWORK === 'mainnet' 
       ? Client.forMainnet()
       : Client.forTestnet();
-    
-
   }
   ```
 
@@ -422,12 +417,10 @@ HCS provides a private consensus mechanism for device reputation.
 - **HCS Message Submission** - [frontend/src/lib/services/hcs-service.ts:306-347](https://github.com/user-attachments/assets/f0c938d4-0667-4859-a839-4ec2d6f30e21)
   ```typescript
   private async submitMessage(topicId: TopicId, message: any): Promise<string> {
-    // Convert message to string if it's an object
     const messageString = typeof message === 'string' 
       ? message 
       : JSON.stringify(message);
     
-    // Create and execute the transaction
     const transaction = new TopicMessageSubmitTransaction({
       topicId: topicId,
       message: messageString,
@@ -445,7 +438,6 @@ HCS provides a private consensus mechanism for device reputation.
     // Get messages from the device topic
     const messages = await this.getMessages(deviceTopic, checkCount);
     
-    // Extract check results
     const checkResults = messages
       .filter(msg => {
 
