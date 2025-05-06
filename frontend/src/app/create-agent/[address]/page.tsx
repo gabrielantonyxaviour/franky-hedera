@@ -1103,46 +1103,15 @@ function CreateAgentContent({
           setIsPending(false);
           return;
         } else {
-          const agentAddress = `0x${(receipt.logs[0].topics[2] as string).slice(
-            -40
-          )}`;
+          const agentAddress = `0x${(receipt.logs[0].topics[2] as string).slice(-40)}`;
           
-          const createAgentsRequest = await fetch(`/api/db/agents`, {
-            method: "POST",
-            body: JSON.stringify({
-              name: agentName,
-              subname: agentName.toLowerCase(),
-              description: constructedCharacter.description,
-              personality: constructedCharacter.personality,
-              scenario: constructedCharacter.scenario,
-              first_mes: constructedCharacter.first_mes,
-              mes_example: constructedCharacter.mes_example,
-              creator_comment: constructedCharacter.creatorcomment,
-              tags: constructedCharacter.tags,
-              talkativeness: constructedCharacter.talkativeness,
-              is_favorite: constructedCharacter.fav,
-              device_address: deviceInfo.id.toLowerCase(),
-              owner_address: accountId?.toLowerCase(),
-              per_api_call_fee: parseEther(perApiCallFee).toString(),
-              is_public: isPublic,
-              metadata_url: characterConfigUrl,
-              tools: selectedTools.map((tool) => tool.id),
-              tx_hash: hash,
-              agent_address: `0x${(receipt.logs[0].topics[2] as string).slice(
-                -40
-              )}`,
-            }),
-          });
-          const createAgentResponse = await createAgentsRequest.json();
-          console.log("Agent created in Supabase:", createAgentResponse);
-          
-          // Create HCS-10 agent with proper topics and register in registry in one call
+          // MODIFIED FLOW: First create Hedera agent to get metadata
           toast.info("Creating agent in Hedera...", {
             description: "Setting up inbound and outbound topics for your agent"
           });
           
           try {
-            // Call the combined create-agent API
+            // First call the create-agent API to get the metadata
             const createHederaAgentResponse = await fetch("/api/hedera/create-agent", {
               method: "POST",
               headers: {
@@ -1160,11 +1129,7 @@ function CreateAgentContent({
                 tags: constructedCharacter.tags,
                 talkativeness: constructedCharacter.talkativeness,
                 traits: {},
-                imageUrl: avatarUrl,
-                agentAddress: `0x${(receipt.logs[0].topics[2] as string).slice(
-                  -40
-                )}`,
-                perApiCallFee: parseEther(perApiCallFee).toString()
+                imageUrl: avatarUrl
               })
             });
 
@@ -1180,7 +1145,45 @@ function CreateAgentContent({
             }
 
             console.log("Agent created in Hedera with topics:", hederaAgentData.agent);
-            console.log("Agent registered in registry:", hederaAgentData.registration);
+            
+            // Now we have the metadata, let's store it in Supabase
+            const createAgentsRequest = await fetch(`/api/db/agents`, {
+              method: "POST",
+              body: JSON.stringify({
+                name: agentName,
+                subname: agentName.toLowerCase(),
+                description: constructedCharacter.description,
+                personality: constructedCharacter.personality,
+                scenario: constructedCharacter.scenario,
+                first_mes: constructedCharacter.first_mes,
+                mes_example: constructedCharacter.mes_example,
+                creator_comment: constructedCharacter.creatorcomment,
+                tags: constructedCharacter.tags,
+                talkativeness: constructedCharacter.talkativeness,
+                is_favorite: constructedCharacter.fav,
+                device_address: deviceInfo.id.toLowerCase(),
+                owner_address: accountId?.toLowerCase(),
+                per_api_call_fee: parseEther(perApiCallFee).toString(),
+                is_public: isPublic,
+                metadata_url: characterConfigUrl,
+                tools: selectedTools.map((tool) => tool.id),
+                tx_hash: hash,
+                agent_address: agentAddress,
+                // Add Hedera-specific metadata
+                account_id: hederaAgentData.agent.accountId,
+                inbound_topic_id: hederaAgentData.agent.inboundTopicId,
+                outbound_topic_id: hederaAgentData.agent.outboundTopicId,
+                profile_topic_id: hederaAgentData.agent.profileTopicId
+              }),
+            });
+            
+            if (!createAgentsRequest.ok) {
+              const errorText = await createAgentsRequest.text();
+              throw new Error(`Failed to store agent in database: ${errorText}`);
+            }
+            
+            const createAgentResponse = await createAgentsRequest.json();
+            console.log("Agent created in Supabase with Hedera metadata:", createAgentResponse);
             
             toast.success("Agent created and registered in Hedera", {
               description: `Created agent with inbound topic: ${hederaAgentData.agent.inboundTopicId.substring(0, 10)}...`
