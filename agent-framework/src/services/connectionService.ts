@@ -1,4 +1,4 @@
-import { HCS10Client } from '@hashgraphonline/standards-sdk';
+import { HCS10Client, TransactionResult } from '@hashgraphonline/standards-sdk';
 import { logger } from '../utils/logger';
 import { getHederaClient, createCustomClient } from './hederaService';
 import * as storageService from './storageService';
@@ -49,16 +49,12 @@ export class ConnectionService {
       const userClient = await createCustomClient(userAccountId, userPrivateKey);
       
       // Submit connection request to agent's inbound topic
-      const result = await userClient.submitConnectionRequest(
+      const receipt = await userClient.submitConnectionRequest(
         inboundTopicId,
         memo
       );
       
-      if (!result.success) {
-        throw new Error(`Connection request failed: ${result.error}`);
-      }
-      
-      const requestId = result.topicSequenceNumber!.toNumber();
+      const requestId = receipt.topicSequenceNumber!.toNumber();
       logger.info(CONTEXT_CONNECTION, `Connection request sent with ID: ${requestId}`);
       
       return {
@@ -108,12 +104,8 @@ export class ConnectionService {
         pollingIntervalMs
       );
       
-      if (!confirmation.success) {
-        throw new Error(`Connection confirmation failed: ${confirmation.error}`);
-      }
-      
       const connectionTopicId = confirmation.connectionTopicId;
-      const targetAccountId = confirmation.targetAccountId;
+      const targetAccountId = confirmation.confirmedBy.split('@')[1]; // Extract account ID from operator ID
       
       logger.info(CONTEXT_CONNECTION, `Connection confirmed with topic ${connectionTopicId}`);
       
@@ -189,10 +181,6 @@ export class ConnectionService {
         ttlSeconds
       );
       
-      if (!result.success) {
-        throw new Error(`Failed to handle connection request: ${result.error}`);
-      }
-      
       const connectionTopicId = result.connectionTopicId;
       logger.info(CONTEXT_CONNECTION, `Created connection topic: ${connectionTopicId}`);
       
@@ -258,11 +246,15 @@ export class ConnectionService {
       // Format message if it's an object
       const formattedMessage = typeof message === 'object' ? JSON.stringify(message) : message;
       
-      // Send message to connection topic
-      const receipt = await senderClient.sendMessage(
+      // Send message to connection topic using the HCS10Client's submitPayload method
+      const receipt = await senderClient.submitPayload(
         connectionTopicId,
-        formattedMessage,
-        memo
+        {
+          p: 'hcs-10',
+          op: 'message',
+          data: formattedMessage,
+          m: memo
+        }
       );
       
       const messageId = `msg-${uuidv4()}`;
@@ -289,14 +281,12 @@ export class ConnectionService {
    * @param connectionTopicId The connection topic ID
    * @param accountId The account ID to use for authentication
    * @param privateKey The private key to use for authentication
-   * @param options Optional parameters like start time
    * @returns Array of messages
    */
   async getMessages(
     connectionTopicId: string,
     accountId: string,
-    privateKey: string,
-    options?: { startTime?: string }
+    privateKey: string
   ): Promise<any[]> {
     try {
       logger.info(CONTEXT_CONNECTION, `Getting messages from connection topic ${connectionTopicId}`);
@@ -305,7 +295,7 @@ export class ConnectionService {
       const client = await createCustomClient(accountId, privateKey);
       
       // Get messages from the connection topic
-      const { messages } = await client.getMessages(connectionTopicId, options);
+      const { messages } = await client.getMessages(connectionTopicId);
       
       logger.info(CONTEXT_CONNECTION, `Retrieved ${messages.length} messages from ${connectionTopicId}`);
       
@@ -340,15 +330,18 @@ export class ConnectionService {
       // Create a client with given credentials
       const client = await createCustomClient(accountId, privateKey);
       
-      // Send a close notification message
-      await client.sendMessage(
+      // Send a close notification message using submitPayload
+      await client.submitPayload(
         connectionTopicId,
-        JSON.stringify({
-          type: 'close_connection',
-          reason,
-          timestamp: Date.now()
-        }),
-        'Connection close'
+        {
+          p: 'hcs-10',
+          op: 'close_connection',
+          data: JSON.stringify({
+            reason,
+            timestamp: Date.now()
+          }),
+          m: 'Connection close'
+        }
       );
       
       // Update connection status

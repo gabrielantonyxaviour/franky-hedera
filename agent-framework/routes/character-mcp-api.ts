@@ -62,6 +62,7 @@ import { dirname } from 'path';
 import { MonitorService, registerFeeGatedConnection } from "../src/services/monitorService.js";
 import { generateCharacterResponse } from "../src/services/aiService.js";
 import { FeeConfig } from "../src/utils/feeUtils.js";
+import { HCS11Client } from "@hashgraphonline/standards-sdk";
 
 // Get __dirname equivalent in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -485,7 +486,7 @@ async function getServerWalletPrivateKey(
 ): Promise<{ privateKey: string | null; error: string | null }> {
   // Return hardcoded private key
   return {
-    privateKey: "380c56cf5607c879be45c358b81b60a769e0e8d9064dd7c4ad9fdc0e1cbe7d14",
+    privateKey: "f22ee3d62bfc11b720a635d8d09c9a1c974e08a5f9bd875a6058ddfbe62415bf",
     error: null
   };
   
@@ -679,13 +680,15 @@ interface AgentData {
   id: string;
   device_address: string;
   owner_address: string;
-  per_api_call_fee: string;
+  perApiCallFee: string;
   metadata_url: string;
-  inbound_topic_id: string;
-  outbound_topic_id: string;
+  inboundTopicId: string;
+  outboundTopicId: string;
   is_public: boolean;
   created_at: string;
   updated_at: string;
+  account_id: string | null;
+  profile_topic_id: string | null;
 }
 
 // Add a helper function to fetch agent details and character data
@@ -726,9 +729,16 @@ async function fetchAgentAndCharacterData(agentAddress: string): Promise<{
     if (!metadataUrl) {
       logger.error("Agent Init", "No character config found in agent data");
       return {
-        agent: agentData,
+        agent: {
+          ...agentData,
+          inboundTopicId: agentData.inboundTopicId,
+          outboundTopicId: agentData.outboundTopicId,
+          perApiCallFee: agentData.perApiCallFee,
+          profile_topic_id: agentData.profileTopicId,
+          account_id: agentData.accountId
+        },
         character: null,
-        feeInHbar: 0.5,
+        feeInHbar: agentData.perApiCallFee,
         error: "No character config found in agent data",
       };
     }
@@ -748,9 +758,16 @@ async function fetchAgentAndCharacterData(agentAddress: string): Promise<{
         `Failed to fetch character data: ${errorText}`
       );
       return {
-        agent: agentData,
+        agent: {
+          ...agentData,
+          inboundTopicId: agentData.inboundTopicId,
+          outboundTopicId: agentData.outboundTopicId,
+          perApiCallFee: agentData.perApiCallFee,
+          profile_topic_id: agentData.profileTopicId,
+          account_id: agentData.accountId
+        },
         character: null,
-        feeInHbar: 0.5,
+        feeInHbar: agentData.perApiCallFee,
         error: `Failed to fetch character data: ${characterResponse.status} ${errorText}`,
       };
     }
@@ -782,8 +799,10 @@ async function fetchAgentAndCharacterData(agentAddress: string): Promise<{
           id: enhancedCharacter.id || frankyData.id,
           characterId: enhancedCharacter.characterId || frankyData.id,
           // Add inbound/outbound topic IDs for the client reference
-          inboundTopicId: agentData.inbound_topic_id,
-          outboundTopicId: agentData.outbound_topic_id
+          inboundTopicId: agentData.inboundTopicId,
+          outboundTopicId: agentData.outboundTopicId,
+          profileTopicId: agentData.profileTopicId,
+          accountId: agentData.accountId
         };
         
         logger.info("Agent Init", `Enhanced character data with Franky details`);
@@ -802,7 +821,18 @@ async function fetchAgentAndCharacterData(agentAddress: string): Promise<{
 
     logger.info("Agent Init", `Agent fee set to ${feeInHbar} HBAR`);
 
-    return { agent: agentData, character: enhancedCharacter, feeInHbar };
+    return { 
+      agent: {
+        ...agentData,
+        inboundTopicId: agentData.inboundTopicId,
+        outboundTopicId: agentData.outboundTopicId,
+        perApiCallFee: agentData.perApiCallFee,
+        profile_topic_id: agentData.profileTopicId,
+        account_id: agentData.accountId
+      }, 
+      character: enhancedCharacter, 
+      feeInHbar 
+    };
   } catch (error) {
     logger.error("Agent Init", "Error fetching agent or character data", error);
     return {
@@ -914,69 +944,89 @@ async function startServer() {
         });
       }
 
-      // Check if user already has a mapping for this agent
-      getUserAgentMapping(accountId).then(existingMapping => {
-        if (existingMapping && existingMapping.agentAddress === agentAddress) {
-          // User already has a connection to this agent
-          logger.info("API", `User ${accountId} already has connection to agent ${agentAddress}`);
-          
-          // Return the existing connection details
-          return res.status(200).json({
-            success: true,
-            agent: {
-              address: agentAddress,
-              inboundTopicId: existingMapping.inboundTopicId,
-              outboundTopicId: existingMapping.outboundTopicId,
-              connectionTopicId: existingMapping.connectionTopicId,
-              // Note: We don't have fee info here, but it's already set up
-            },
-            character: getCharacterData(existingMapping.characterId) || {
-              id: existingMapping.characterId,
-              name: "Agent",
-              description: "An AI assistant",
-              inboundTopicId: existingMapping.inboundTopicId,
-              outboundTopicId: existingMapping.outboundTopicId,
-              connectionTopicId: existingMapping.connectionTopicId,
-            },
-            message: "Using existing connection"
-          });
-        } else {
-          // No existing connection or different agent, proceed with initialization
-          initializeNewConnection();
+      // Convert EVM address to Hedera account ID if needed
+      const convertToHederaId = async (address: string): Promise<string> => {
+        if (address.startsWith("0x")) {
+          try {
+            const response = await fetch(
+              `https://testnet.mirrornode.hedera.com/api/v1/accounts/${address}`
+            );
+            if (!response.ok) {
+              throw new Error(`Failed to get account ID for EVM address: ${response.statusText}`);
+            }
+            const data = await response.json();
+            logger.debug("API", `Resolved EVM address ${address} to Hedera account ID ${data.account}`);
+            return data.account;
+          } catch (error) {
+            logger.error("API", `Error resolving EVM address ${address}`, error);
+            throw new Error(`Error resolving EVM address: ${error instanceof Error ? error.message : String(error)}`);
+          }
         }
-      }).catch(err => {
-        // Error checking mapping, proceed with initialization
-        logger.error("API", `Error checking user mapping: ${err}`);
-        initializeNewConnection();
-      });
+        return address;
+      };
+
+      // Convert only the user's account ID to Hedera format
+      convertToHederaId(accountId)
+        .then((hederaAccountId) => {
+          // Check if user already has a mapping for this agent
+          getUserAgentMapping(hederaAccountId).then(existingMapping => {
+            if (existingMapping && existingMapping.agentAddress === agentAddress) {
+              // User already has a connection to this agent
+              logger.info("API", `User ${hederaAccountId} already has connection to agent ${agentAddress}`);
+              
+              // Return the existing connection details
+              return res.status(200).json({
+                success: true,
+                agent: {
+                  address: agentAddress,
+                  inboundTopicId: existingMapping.inboundTopicId,
+                  outboundTopicId: existingMapping.outboundTopicId,
+                  connectionTopicId: existingMapping.connectionTopicId,
+                },
+                character: getCharacterData(existingMapping.characterId) || {
+                  id: existingMapping.characterId,
+                  name: "Agent",
+                  description: "An AI assistant",
+                  inboundTopicId: existingMapping.inboundTopicId,
+                  outboundTopicId: existingMapping.outboundTopicId,
+                  connectionTopicId: existingMapping.connectionTopicId,
+                },
+                message: "Using existing connection"
+              });
+            } else {
+              // No existing connection or different agent, proceed with initialization
+              initializeNewConnection(hederaAccountId);
+            }
+          }).catch(err => {
+            // Error checking mapping, proceed with initialization
+            logger.error("API", `Error checking user mapping: ${err}`);
+            initializeNewConnection(hederaAccountId);
+          });
+        }).catch(error => {
+          return res.status(500).json({
+            error: `Error converting account ID to Hedera format: ${error.message}`,
+          });
+        });
 
       // Function to initialize a new connection
-      function initializeNewConnection() {
+      function initializeNewConnection(hederaAccountId: string) {
         // First get the server wallet private key
-      getServerWalletPrivateKey(accountId)
-        .then(async ({ privateKey, error: walletError }) => {
-          if (walletError) {
+        getServerWalletPrivateKey(hederaAccountId)
+          .then(async ({ privateKey, error: walletError }) => {
+            if (walletError) {
               return res.status(500).json({
                 error: `Error retrieving server wallet: ${walletError}`,
-            });
-          }
+              });
+            }
 
-          if (!privateKey) {
+            if (!privateKey) {
               return res.status(500).json({
                 error: "Failed to retrieve private key for server wallet",
               });
             }
 
-          try {
-            // Create user client using the decrypted private key
-              const userClient = new HCS10Client({
-                network: "testnet",
-                operatorId: accountId,
-                operatorPrivateKey: privateKey,
-                logLevel: "info",
-              });
-
-              // Fetch agent details and character data
+            try {
+              // Fetch agent details and character data first
               const {
                 agent,
                 character: agentCharacter,
@@ -984,219 +1034,234 @@ async function startServer() {
                 error: fetchError,
               } = await fetchAgentAndCharacterData(agentAddress);
 
-              if (fetchError || !agent || !agent.inbound_topic_id || !agent.outbound_topic_id) {
-                return res.status(404).json({
+              if (fetchError || !agent || !agent.inboundTopicId || !agent.outboundTopicId) {
+                return res.status(500).json({
                   error: fetchError || "Failed to retrieve agent data or topic IDs",
                 });
               }
 
+              // Create HCS11Client to update account memo with profile topic ID
+              if (agent.profile_topic_id && agent.account_id) {
+                const hcs11Client = new HCS11Client({
+                  network: "testnet",
+                  auth: {
+                    operatorId: agent.account_id,
+                    privateKey: privateKey
+                  },
+                  logLevel: "info"
+                });
+
+                try {
+                  await hcs11Client.updateAccountMemoWithProfile(agent.account_id, agent.profile_topic_id);
+                  logger.info("API", `Updated account memo with profile topic ID ${agent.profile_topic_id} for agent account ${agent.account_id}`);
+                } catch (memoError) {
+                  logger.error("API", `Failed to update account memo for agent ${agent.account_id}: ${memoError}`);
+                  // Continue anyway as this is not critical
+                }
+              }
+
+              // Create user client using the decrypted private key
+              const userClient = new HCS10Client({
+                network: "testnet",
+                operatorId: hederaAccountId,
+                operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
+                logLevel: "info"
+              });
+
               // Send connection request to agent's inbound topic
               logger.info(
                 "API",
-                `Sending connection request to agent's inbound topic: ${agent.inbound_topic_id}`
+                `Sending connection request to agent's inbound topic: ${agent.inboundTopicId}`
               );
 
-              // Wait for connection topic to be created
+              // Submit the connection request directly to avoid profile checks
+              const result = await userClient.submitPayload(
+                agent.inboundTopicId,
+                {
+                  type: "CONNECTION_REQUEST",
+                  timestamp: Date.now(),
+                  userId: hederaAccountId
+                },
+                undefined, // No submit key needed
+                false // No fee required for connection request
+              );
+
+              if (!result || !result.topicSequenceNumber) {
+                throw new Error("Failed to submit connection request");
+              }
+
+              // Get connection request ID
+              const requestId = result.topicSequenceNumber.toNumber();
+
+              // Wait for connection confirmation
               logger.info("API", "Waiting for connection topic creation...");
-              const connectionTopic = new Promise<string | null>((resolve, reject) => {
-                // Set up timeout
-                const timeout = setTimeout(() => {
-                  logger.error("API", "Connection request timed out");
-                  reject(new Error("Connection request timed out"));
-                }, 30000); // 30-second timeout
-        
-                // Check for new messages every few seconds
-                const pollInterval = setInterval(async () => {
-                  try {
-                    // Get messages from the outbound topic
-                    const result = await userClient.getMessages(agent.outbound_topic_id);
-                    
-                    if (result && result.messages) {
-                      // Look for connection confirmation message
-                      for (const message of result.messages) {
-                        if (message.data) {
-                          try {
-                            const parsedMessage = JSON.parse(message.data);
-                            logger.debug("API", "Received message on outbound topic", parsedMessage);
-                            
-                            // Check if it's a connection confirmation
-                            if (parsedMessage.type === "CONNECTION_CREATED" && parsedMessage.topic_id) {
-                              clearTimeout(timeout);
-                              clearInterval(pollInterval);
-                              logger.info("API", `Connection topic created: ${parsedMessage.topic_id}`);
-                              resolve(parsedMessage.topic_id);
-                              return;
-                            }
-                          } catch (parseError) {
-                            // Skip invalid JSON messages
+              
+              // Poll for connection confirmation
+              let connectionTopicId: string | null = null;
+              let attempts = 0;
+              const maxAttempts = 30; // 30 attempts * 2 seconds = 60 seconds max wait
+              
+              while (!connectionTopicId && attempts < maxAttempts) {
+                attempts++;
+                
+                try {
+                  const messages = await userClient.getMessages(agent.outboundTopicId);
+                  
+                  if (messages && messages.messages) {
+                    for (const message of messages.messages) {
+                      if (message.data) {
+                        try {
+                          const parsedMessage = JSON.parse(message.data);
+                          if (
+                            parsedMessage.type === "CONNECTION_CONFIRMATION" && 
+                            parsedMessage.requestId === requestId &&
+                            parsedMessage.connectionTopicId
+                          ) {
+                            connectionTopicId = parsedMessage.connectionTopicId;
+                            break;
                           }
+                        } catch (parseError) {
+                          // Skip invalid JSON messages
+                          continue;
                         }
                       }
                     }
-                  } catch (error) {
-                    logger.error("API", "Error polling for messages", error);
                   }
-                }, 2000);
-        
-                // Clean up on timeout
-                timeout.unref();
-        
-                // Send the connection request
-                userClient.sendMessage(
-                  agent.inbound_topic_id,
-                  JSON.stringify({
-                    type: "CONNECTION_REQUEST",
-                    id: Date.now().toString(),
-                    user_id: accountId
-                  }),
-                  "Connection request"
-                ).then(() => {
-                  logger.info("API", `Connection request sent to inbound topic ${agent.inbound_topic_id}`);
-                }).catch((error) => {
-                  clearTimeout(timeout);
-                  clearInterval(pollInterval);
-                  logger.error("API", "Error sending connection request", error);
-                  reject(error);
-                });
-              });
-        
-              try {
-                // Get the connection topic ID
-                const connectionTopicId = await connectionTopic;
-                
-                if (!connectionTopicId) {
-                  return res.status(500).json({
-                    error: "Failed to get connection topic ID"
-                  });
-                }
-
-                // Make sure we have agent character data
-                if (!agentCharacter) {
-                  return res.status(500).json({
-                    error: "Agent character data not available"
-                  });
-                }
-
-                // Set up fee gating for the connection topic if needed
-                if (agentFee > 0) {
-                  logger.info("API", `Setting up fee gating for connection topic ${connectionTopicId} with fee ${agentFee} HBAR`);
                   
-                  const feeConfig: FeeConfig = {
-                    feeAmount: agentFee,
-                    feeCollector: agent.owner_address,
-                    useHip991: true,
-                    exemptAccounts: [agent.owner_address, accountId] // Exempt the agent owner and user for initial setup
-                  };
-                  
-                  // Register the fee configuration
-                  registerFeeGatedConnection(connectionTopicId, feeConfig);
-                  
-                  logger.info("API", `Fee gating configured for connection topic ${connectionTopicId}`);
-                }
-
-                // Store connection information
-                try {
-                  // Define directories
-                  const characterId = agentCharacter.id || agentCharacter.characterId || "default";
-                  
-                  // Save connection information
-                  const connectionInfo: ConnectionInfo = {
-                    connectionTopicId,
-                    userAccountId: accountId,
-                    agentAccountId: agent.owner_address,
-                    characterId: characterId,
-                    createdAt: new Date().toISOString()
-                  };
-                  
-                  // Save the connection details
-                  saveConnection(connectionInfo);
-                  
-                  // Save the character data for future use
-                  saveCharacterData(characterId, agentCharacter);
-                  
-                  // Save user-agent mapping
-                  const mappingData: UserAgentMapping = {
-                    agentAddress,
-                    connectionTopicId,
-                    characterId,
-                    inboundTopicId: agent.inbound_topic_id,
-                    outboundTopicId: agent.outbound_topic_id,
-                    lastActive: new Date().toISOString()
-                  };
-                  
-                  saveUserAgentMapping(accountId, mappingData);
-                  
-                  logger.info("API", `Saved all connection and mapping information for ${connectionTopicId}`);
-                } catch (storageError) {
-                  logger.error("API", "Error saving connection information", storageError);
-                  // Continue even if storage fails
-                }
-
-                // Set up monitoring for messages on the connection topic
-                try {
-                  // Create a new monitor service if not already created
-                  if (!monitorServices.has(connectionTopicId)) {
-                    logger.info("API", `Setting up message monitoring for topic ${connectionTopicId}`);
-                    
-                    const monitorService = new MonitorService(userClient);
-                    
-                    // Set the character for this topic
-                    monitorService.setCharacterForTopic(connectionTopicId, agentCharacter);
-                    
-                    // Start monitoring for messages
-                    await monitorService.startMonitoringTopic(connectionTopicId);
-                    
-                    // Register the topic type
-                    monitorService.registerTopicType(connectionTopicId, 'connection', {
-                      characterId: agentCharacter.id || agentCharacter.characterId,
-                      userId: accountId
-                    });
-                    
-                    // Store the monitor service instance for future use
-                    monitorServices.set(connectionTopicId, monitorService);
-                    
-                    logger.info("API", `Started monitoring topic ${connectionTopicId} for responses`);
+                  if (!connectionTopicId) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
                   }
-                } catch (monitorError) {
-                  logger.error("API", `Error setting up monitoring for topic: ${monitorError}`);
-                  // Continue even if monitoring setup fails
+                } catch (error) {
+                  logger.error("API", "Error polling for connection confirmation", error);
+                  await new Promise(resolve => setTimeout(resolve, 2000));
                 }
+              }
+              
+              if (!connectionTopicId) {
+                throw new Error("Connection request timed out");
+              }
 
-                // Return success with connection details
-                return res.status(200).json({
-                  success: true,
-              agent: {
-                    address: agentAddress,
-                    inboundTopicId: agent.inbound_topic_id,
-                    outboundTopicId: agent.outbound_topic_id,
-                    connectionTopicId: connectionTopicId,
-                    feePerMessage: agentFee,
-                  },
-                  character: {
-                    ...agentCharacter,
-                    // Make sure topic IDs are also available in the character object
-                    inboundTopicId: agent.inbound_topic_id,
-                    outboundTopicId: agent.outbound_topic_id,
-                    connectionTopicId: connectionTopicId,
-                  } as ExtendedCharacter,
-            });
-          } catch (error) {
-                logger.error("API", "Error initializing connection", error);
+              logger.info("API", `Connection topic created: ${connectionTopicId}`);
+
+              // Make sure we have agent character data
+              if (!agentCharacter) {
                 return res.status(500).json({
-                  error: `Error initializing connection: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
-            });
-          }
+                  error: "Agent character data not available"
+                });
+              }
+
+              // Set up fee gating for the connection topic if needed
+              if (agentFee > 0) {
+                logger.info("API", `Setting up fee gating for connection topic ${connectionTopicId} with fee ${agentFee} HBAR`);
+                
+                const feeConfig: FeeConfig = {
+                  feeAmount: agentFee,
+                  feeCollector: agent.owner_address,
+                  useHip991: true,
+                  exemptAccounts: [agent.owner_address, hederaAccountId] // Exempt the agent owner and user for initial setup
+                };
+                
+                // Register the fee configuration
+                registerFeeGatedConnection(connectionTopicId, feeConfig);
+                
+                logger.info("API", `Fee gating configured for connection topic ${connectionTopicId}`);
+              }
+
+              // Store connection information
+              try {
+                // Define directories
+                const characterId = agentCharacter.id || agentCharacter.characterId || "default";
+                
+                // Save connection information
+                const connectionInfo: ConnectionInfo = {
+                  connectionTopicId,
+                  userAccountId: hederaAccountId,
+                  agentAccountId: agent.owner_address,
+                  characterId: characterId,
+                  createdAt: new Date().toISOString()
+                };
+                
+                // Save the connection details
+                saveConnection(connectionInfo);
+                
+                // Save the character data for future use
+                saveCharacterData(characterId, agentCharacter);
+                
+                // Save user-agent mapping
+                const mappingData: UserAgentMapping = {
+                  agentAddress: agentAddress,
+                  connectionTopicId,
+                  characterId,
+                  inboundTopicId: agent.inboundTopicId,
+                  outboundTopicId: agent.outboundTopicId,
+                  lastActive: new Date().toISOString()
+                };
+                
+                saveUserAgentMapping(hederaAccountId, mappingData);
+                
+                logger.info("API", `Saved all connection and mapping information for ${connectionTopicId}`);
+              } catch (storageError) {
+                logger.error("API", "Error saving connection information", storageError);
+                // Continue even if storage fails
+              }
+
+              // Set up monitoring for messages on the connection topic
+              try {
+                // Create a new monitor service if not already created
+                if (!monitorServices.has(connectionTopicId)) {
+                  logger.info("API", `Setting up message monitoring for topic ${connectionTopicId}`);
+                  
+                  const monitorService = new MonitorService(userClient);
+                  
+                  // Set the character for this topic
+                  monitorService.setCharacterForTopic(connectionTopicId, agentCharacter);
+                  
+                  // Start monitoring for messages
+                  await monitorService.startMonitoringTopic(connectionTopicId);
+                  
+                  // Register the topic type
+                  monitorService.registerTopicType(connectionTopicId, 'connection', {
+                    characterId: agentCharacter.id || agentCharacter.characterId,
+                    userId: hederaAccountId
+                  });
+                  
+                  // Store the monitor service instance for future use
+                  monitorServices.set(connectionTopicId, monitorService);
+                  
+                  logger.info("API", `Started monitoring topic ${connectionTopicId} for responses`);
+                }
+              } catch (monitorError) {
+                logger.error("API", `Error setting up monitoring for topic: ${monitorError}`);
+                // Continue even if monitoring setup fails
+              }
+
+              // Return success with connection details
+              return res.status(200).json({
+                success: true,
+                agent: {
+                  address: agentAddress,
+                  inboundTopicId: agent.inboundTopicId,
+                  outboundTopicId: agent.outboundTopicId,
+                  connectionTopicId: connectionTopicId,
+                  feePerMessage: agentFee,
+                },
+                character: {
+                  ...agentCharacter,
+                  // Make sure topic IDs are also available in the character object
+                  inboundTopicId: agent.inboundTopicId,
+                  outboundTopicId: agent.outboundTopicId,
+                  connectionTopicId: connectionTopicId,
+                } as ExtendedCharacter,
+              });
             } catch (error) {
               logger.error("API", "Error initializing connection", error);
               return res.status(500).json({
                 error: `Error initializing connection: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          });
+                  error instanceof Error ? error.message : String(error)
+                }`,
+              });
             }
-        });
+          });
       }
     });
 
@@ -1221,7 +1286,7 @@ async function startServer() {
         if (!mapping) {
           // No mapping found, return error
           logger.warn("API", `No agent mapping found for user ${accountId}`);
-                return res.status(400).json({
+          return res.status(400).json({
             error: "No existing agent connection found. Please initialize first." 
           });
         }
@@ -1462,7 +1527,7 @@ async function startServer() {
           // Verify the provided topic ID matches the mapping
           if (topicId !== mapping.connectionTopicId) {
             logger.warn("API", `Provided topic ID ${topicId} does not match mapped connection ${mapping.connectionTopicId} for user ${accountId}`);
-                return res.status(400).json({
+            return res.status(400).json({
               error: "The provided topic ID does not match your active agent connection."
             });
           }
@@ -1559,16 +1624,16 @@ async function startServer() {
             }
           })
           .catch((error) => {
-          logger.error(
-            "API",
+            logger.error(
+              "API",
               "Unexpected error in server wallet retrieval",
-            error
-          );
+              error
+            );
             res.status(500).json({
               error: `Unexpected error retrieving server wallet: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          });
+                error instanceof Error ? error.message : String(error)
+              }`,
+            });
           });
       }
     });
@@ -1586,7 +1651,7 @@ async function startServer() {
       getUserAgentMapping(accountId).then(async mapping => {
         if (!mapping) {
           logger.warn("API", `No agent mapping found for user ${accountId}`);
-                return res.status(400).json({
+          return res.status(400).json({
             error: "No active agent to destruct."
           });
         }
@@ -1596,7 +1661,7 @@ async function startServer() {
         
         if (walletError || !privateKey) {
           logger.error("API", `Error getting server wallet for cleanup: ${walletError}`);
-              return res.status(500).json({
+          return res.status(500).json({
             error: `Error retrieving server wallet: ${walletError || "No private key returned"}`
           });
         }
@@ -1643,8 +1708,8 @@ async function startServer() {
           userAgentMappings.delete(accountId);
           
           // Return success
-              res.json({
-                status: "success",
+          res.json({
+            status: "success",
             message: "Agent connection cleaned up successfully",
             connectionTopicId: mapping.connectionTopicId,
             agentAddress: mapping.agentAddress,
@@ -1659,10 +1724,10 @@ async function startServer() {
         }
       }).catch(err => {
         logger.error("API", `Error checking user agent mapping: ${err}`);
-            res.status(500).json({
+        res.status(500).json({
           error: `Error retrieving user agent mapping: ${err instanceof Error ? err.message : String(err)}` 
-            });
-          });
+        });
+      });
     });
 
     // List available characters
@@ -1759,7 +1824,7 @@ async function startServer() {
         destroyAgent(state.serverClient!, resolvedAccountId)
           .then((success) => {
             if (success) {
-            res.json({
+              res.json({
                 status: "success",
                 info: "Agent destroyed successfully",
               });

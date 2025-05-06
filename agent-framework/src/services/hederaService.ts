@@ -1,5 +1,5 @@
 // Import our custom HCS10Client implementation
-import { HCS10Client } from '@hashgraphonline/standards-sdk';
+import { HCS10Client, HCS11Client } from '@hashgraphonline/standards-sdk';
 import { Logger } from '@hashgraphonline/standards-sdk';
 import { logger } from '../utils/logger';
 
@@ -9,7 +9,7 @@ let hederaClient: HCS10Client | null = null;
 /**
  * Get or initialize the Hedera client
  */
-export const getHederaClient = async (): Promise<HCS10Client> => {
+export const getHederaClient = async (profileTopicId?: string): Promise<HCS10Client> => {
   if (hederaClient) {
     return hederaClient;
   }
@@ -37,6 +37,28 @@ export const getHederaClient = async (): Promise<HCS10Client> => {
       feeAmount: process.env.DEFAULT_FEE_AMOUNT ? parseFloat(process.env.DEFAULT_FEE_AMOUNT) : 0.5,
     });
 
+    // If profile topic ID is provided, update the account memo
+    if (profileTopicId) {
+      try {
+        const hcs11Client = new HCS11Client({
+          network: (process.env.HEDERA_NETWORK || 'testnet') as any,
+          auth: {
+            operatorId: process.env.HEDERA_ACCOUNT_ID,
+            privateKey: process.env.HEDERA_PRIVATE_KEY,
+          },
+          logLevel: 'info',
+        });
+
+        await hcs11Client.updateAccountMemoWithProfile(
+          process.env.HEDERA_ACCOUNT_ID,
+          profileTopicId
+        );
+        logger.info('HEDERA', `Set profile topic ID ${profileTopicId} in account memo`);
+      } catch (memoError) {
+        logger.error('HEDERA', `Failed to set profile topic ID in account memo: ${memoError}`, memoError);
+      }
+    }
+
     logger.info('HEDERA', `Initialized Hedera client for account ${process.env.HEDERA_ACCOUNT_ID} on ${process.env.HEDERA_NETWORK}`);
     return hederaClient;
   } catch (error) {
@@ -50,7 +72,8 @@ export const getHederaClient = async (): Promise<HCS10Client> => {
  */
 export const createCustomClient = async (
   accountId: string,
-  privateKey: string
+  privateKey: string,
+  profileTopicId?: string
 ): Promise<HCS10Client> => {
   try {
     // Create HCS10Client with custom credentials using standards-sdk
@@ -62,6 +85,25 @@ export const createCustomClient = async (
       prettyPrint: true,
       guardedRegistryBaseUrl: process.env.REGISTRY_URL,
     });
+
+    // If profile topic ID is provided, update the account memo
+    if (profileTopicId) {
+      try {
+        const hcs11Client = new HCS11Client({
+          network: (process.env.HEDERA_NETWORK || 'testnet') as any,
+          auth: {
+            operatorId: accountId,
+            privateKey: privateKey,
+          },
+          logLevel: 'info',
+        });
+
+        await hcs11Client.updateAccountMemoWithProfile(accountId, profileTopicId);
+        logger.info('HEDERA', `Set profile topic ID ${profileTopicId} in account memo for ${accountId}`);
+      } catch (memoError) {
+        logger.error('HEDERA', `Failed to set profile topic ID in account memo: ${memoError}`, memoError);
+      }
+    }
 
     logger.info('HEDERA', `Created custom Hedera client for account ${accountId}`);
     return client;
