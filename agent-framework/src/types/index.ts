@@ -195,4 +195,5 @@ export interface Character {
     mes_example: string;
     creator_notes: string;
     system_prompt: string;
+    traits?: Record<string, any>;
 }
