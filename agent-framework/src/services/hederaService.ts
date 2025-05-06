@@ -81,10 +81,9 @@ export const createCustomClient = async (
     const client = new HCS10Client({
       network: (process.env.HEDERA_NETWORK || 'testnet') as any,
       operatorId: accountId,
-      operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
+      operatorPrivateKey: privateKey,
       logLevel: (process.env.LOG_LEVEL as any) || 'info',
       prettyPrint: true,
-      guardedRegistryBaseUrl: process.env.REGISTRY_URL,
     });
 
     // If profile topic ID is provided, update the account memo

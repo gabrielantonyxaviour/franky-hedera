@@ -1,4 +1,4 @@
-import { HCS10Client, HCSMessage, FeeConfigBuilder, NetworkType, Logger as SDKLogger } from '@hashgraphonline/standards-sdk';
+import { HCS10Client, HCSMessage } from '@hashgraphonline/standards-sdk';
 import { logger } from '../utils/logger';
 import { EventEmitter } from 'events';
 import { FeeConfig } from '../utils/feeUtils';
@@ -33,21 +33,6 @@ export const isFeeGatedConnection = (connectionTopicId: string): boolean => {
 export const getFeeConfigForConnection = (connectionTopicId: string): FeeConfig | null => {
   return feeGatedConnections.get(connectionTopicId) || null;
 };
-
-/**
- * Helper function to get the agent's fee amount from agent info
- * @param agentInfo The agent information object
- * @returns The fee amount in HBAR
- */
-function getAgentFeeAmount(agentInfo: any): number {
-  // Try to get fee from the perApiCallFee property
-  if (agentInfo.perApiCallFee && !isNaN(parseFloat(agentInfo.perApiCallFee))) {
-    return parseFloat(agentInfo.perApiCallFee);
-  }
-  
-  // Fallback to default fee if not found (0.5 HBAR)
-  return 0.5;
-}
 
 /**
  * Service to monitor message topics according to HCS-10 standard and verify fee payments
@@ -387,56 +372,14 @@ export class MonitorService {
           this.processedConnectionRequests.add(requestId);
 
           try {
-            // Get the agent fee from the agent info
-            const agentFee = getAgentFeeAmount(agentInfo);
-            
-            // Create a fee configuration for the connection
-            logger.info('MONITOR', `Creating fee-gated connection topic with fee amount ${agentFee} HBAR`);
-            
-            // Create a proper SDK Logger instance for FeeConfigBuilder
-            const sdkLogger = SDKLogger.getInstance({
-              level: 'info',
-              module: 'FeeConfig',
-              prettyPrint: true
-            });
-            
-            // Create a FeeConfigBuilder instance with HIP-991 support
-            const feeConfigBuilder = new FeeConfigBuilder({
-              network: 'testnet' as NetworkType,
-              logger: sdkLogger,
-              defaultCollectorAccountId: operatorId
-            });
-            
-            // Add HBAR fee with HIP-991 support
-            feeConfigBuilder.addHbarFee(
-              agentFee,    // Fee amount in HBAR from agent info
-              operatorId,                // Fee collector (the agent)
-              [operatorId, requesterAccountId]  // Exempt both the agent and the user for initial setup
-            );
-            
-            // Handle the connection request with fee configuration
+            // Try to create connection topic with both user and agent keys
             const { connectionTopicId } = await agentClient.handleConnectionRequest(
               topicId,
               requesterAccountId,
-              message.sequence_number,
-              feeConfigBuilder,  // Pass the fee config builder
-              60  // TTL in seconds
+              message.sequence_number
             );
             
-            logger.info('MONITOR', `Created fee-gated connection topic: ${connectionTopicId}`);
-            
-            // Register the fee configuration for this connection
-            const feeConfig: FeeConfig = {
-              feeAmount: agentFee,
-              feeCollector: operatorId,
-              useHip991: true,  // Enable HIP-991 fee collection
-              exemptAccounts: [operatorId, requesterAccountId]  // Exempt the agent and requesting user
-            };
-            
-            // Register the fee configuration
-            registerFeeGatedConnection(connectionTopicId, feeConfig);
-            
-            logger.info('MONITOR', `Registered fee configuration for topic ${connectionTopicId}`);
+            logger.info('MONITOR', `Created connection topic: ${connectionTopicId}`);
 
             // Send confirmation message ONLY on outbound topic in HCS-10 format
             const outboundTopicId = agentInfo.outboundTopicId;
@@ -471,68 +414,39 @@ export class MonitorService {
             if (characterData) {
               this.setCharacterForTopic(connectionTopicId, characterData);
             }
-            
-            // Send a welcome message on the connection topic
-            try {
-              await agentClient.sendMessage(
-                connectionTopicId,
-                JSON.stringify({
-                  type: 'welcome',
-                  message: `Welcome! I'm ready to assist you. This connection requires a fee of ${agentFee} HBAR per message.`,
+
+            await agentClient.submitPayload(
+              connectionTopicId,
+              {
+                p: 'hcs-10',
+                op: 'message',
+                data: JSON.stringify({
+                  type: 'GREETING',
+                  content: `Hello! I'm ${characterData?.name || 'your AI assistant'}. How can I help you today?`,
                   timestamp: Date.now()
                 }),
-                'Welcome message'
-              );
-              logger.info('MONITOR', 'Sent welcome message on connection topic');
-            } catch (welcomeError) {
-              logger.error('MONITOR', `Error sending welcome message: ${welcomeError}`);
-              // Non-critical error, continue
-            }
-          } catch (connectionError: any) {
-            logger.error('MONITOR', `Error creating connection topic: ${connectionError}`);
+                operator_id: `${connectionTopicId}@${operatorId}`,
+                m: 'Welcome message'
+              },
+              undefined,
+              false
+            );
             
-            if (connectionError.message && connectionError.message.includes('profile')) {
-              logger.warn('MONITOR', 'Profile fetching failed, attempting direct connection with fees');
+            logger.info('MONITOR', `Sent welcome message on connection topic ${connectionTopicId}`);
+
+          } catch (error: any) {
+            // If the error is related to profile fetching, try a direct connection without profile validation
+            if (error.message?.includes('Error fetching profile') || error.message?.includes('does not have a valid HCS-11 memo')) {
+              logger.warn('MONITOR', 'Profile fetching failed, attempting direct connection');
               
-              // Get the agent fee from the agent info
-              const agentFee = getAgentFeeAmount(agentInfo);
-              
-              // Create a proper SDK Logger instance for FeeConfigBuilder
-              const sdkLogger = SDKLogger.getInstance({
-                level: 'info',
-                module: 'FeeConfig',
-                prettyPrint: true
-              });
-              
-              // Create a fee configuration
-              const feeConfig = new FeeConfigBuilder({
-                network: 'testnet' as NetworkType,
-                logger: sdkLogger,
-                defaultCollectorAccountId: operatorId
-              })
-              .addHbarFee(
-                agentFee,    // Fee amount in HBAR from agent info
-                operatorId,                // Fee collector (the agent)
-                [operatorId, requesterAccountId]  // Exempt both the agent and the user for initial setup
-              );
-              
-              // Create a new connection topic directly with fees
+              // Create a new connection topic directly
               const connectionTopicId = await agentClient.createTopic(
                 `hcs-10:connection:${requesterAccountId}:${Date.now()}`,
-                true,   // Use operator key as admin key
-                true,   // Use operator key as submit key
-                feeConfig.build()  // Use the built fee configuration
+                true,
+                true
               );
 
-              logger.info('MONITOR', `Created direct fee-gated connection topic: ${connectionTopicId}`);
-              
-              // Register the fee configuration for internal tracking
-              registerFeeGatedConnection(connectionTopicId, {
-                feeAmount: agentFee,
-                feeCollector: operatorId,
-                useHip991: true,  // Enable HIP-991 fee collection
-                exemptAccounts: [operatorId, requesterAccountId]  // Exempt the agent and requesting user
-              });
+              logger.info('MONITOR', `Created direct connection topic: ${connectionTopicId}`);
 
               // Send confirmation ONLY on outbound topic
               const outboundTopicId = agentInfo.outboundTopicId;
@@ -566,34 +480,35 @@ export class MonitorService {
               if (characterData) {
                 this.setCharacterForTopic(connectionTopicId, characterData);
               }
-              
-              // Send a welcome message on the connection topic
-              try {
-                await agentClient.sendMessage(
-                  connectionTopicId,
-                  JSON.stringify({
-                    type: 'welcome',
-                    message: `Welcome! I'm ready to assist you. This connection requires a fee of ${agentFee} HBAR per message.`,
+
+              // Send welcome message on the new connection topic
+              await agentClient.submitPayload(
+                connectionTopicId,
+                {
+                  p: 'hcs-10',
+                  op: 'message',
+                  data: JSON.stringify({
+                    type: 'GREETING',
+                    content: `Hello! I'm ${characterData?.name || 'your AI assistant'}. How can I help you today?`,
                     timestamp: Date.now()
                   }),
-                  'Welcome message'
-                );
-                logger.info('MONITOR', 'Sent welcome message on connection topic');
-              } catch (welcomeError) {
-                logger.error('MONITOR', `Error sending welcome message: ${welcomeError}`);
-                // Non-critical error, continue
-              }
+                  operator_id: `${connectionTopicId}@${operatorId}`,
+                  m: 'Welcome message'
+                },
+                undefined,
+                false
+              );
             } else {
-              // If it's not a profile error, rethrow
-              throw connectionError;
+              // If it's not a profile fetching error, rethrow
+              throw error;
             }
           }
-        } catch (error) {
-          logger.error('MONITOR', `Error handling connection request: ${error}`);
+        } catch (err) {
+          logger.error('MONITOR', `Error handling connection request: ${err}`, err);
         }
       }
     } catch (error) {
-      logger.error('MONITOR', `Error processing inbound message: ${error}`);
+      logger.error('MONITOR', `Error processing inbound message: ${error}`, error);
     }
   }
   

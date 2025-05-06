@@ -3,6 +3,7 @@ import { logger } from '../utils/logger';
 import { getHederaClient, createCustomClient } from './hederaService';
 import * as storageService from './storageService';
 import { v4 as uuidv4 } from 'uuid';
+import { PrivateKey } from '@hashgraph/sdk';
 
 // Define context for logging
 const CONTEXT_CONNECTION = 'CONNECTION';
@@ -421,7 +422,7 @@ export const getConnectionService = async (): Promise<ConnectionService> => {
     const client = new HCS10Client({
       network: (process.env.HEDERA_NETWORK || 'testnet') as any,
       operatorId: process.env.HEDERA_ACCOUNT_ID,
-      operatorPrivateKey: process.env.HEDERA_PRIVATE_KEY,
+      operatorPrivateKey: PrivateKey.fromStringECDSA(process.env.HEDERA_PRIVATE_KEY).toString(),
       logLevel: 'debug', // Set to debug for detailed logs
       prettyPrint: true,
       guardedRegistryBaseUrl: process.env.REGISTRY_URL,

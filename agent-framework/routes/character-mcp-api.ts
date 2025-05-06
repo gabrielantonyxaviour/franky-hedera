@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import express, { Request, Response } from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
+import { v4 as uuidv4 } from 'uuid';
 import { logger, LogLevel } from "../src/utils/logger.js";
 import {
   mightRequireTools,
@@ -44,7 +45,6 @@ import {
   HIP991Agent,
   TopicMessage,
 } from "../src/utils/hip991-agent.js";
-import { v4 as uuidv4 } from "uuid";
 // Import node-fetch for making HTTP requests
 import fetch from "node-fetch";
 import {
@@ -60,11 +60,12 @@ import { promises as fsPromises } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { MonitorService, isFeeGatedConnection, getFeeConfigForConnection, registerFeeGatedConnection } from "../src/services/monitorService.js";
+import { MonitorService, registerFeeGatedConnection } from "../src/services/monitorService.js";
 import { generateCharacterResponse } from "../src/services/aiService.js";
 import { FeeConfig } from "../src/utils/feeUtils.js";
 import { HCS11Client } from "@hashgraphonline/standards-sdk";
 import * as storageService from "../src/services/storageService.js";
+import { getConnectionService } from '../src/services/connectionService.js';
 
 // Get __dirname equivalent in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -1402,61 +1403,50 @@ async function startServer() {
               .json({ error: "Server wallet not found or not accessible" });
           }
 
-          // IMPORTANT: Create HCS-10 client with the ORIGINAL private key, NOT converted
-          // This matches how it's done in the initialization endpoint
-          logger.debug("API", `Creating HCS10Client for chat with operatorId: ${hederaAccountId}`);
+          logger.info("API", `Sending message to connection topic ${topicId}`);
           
-          const userClient = new HCS10Client({
-            network: 'testnet' as NetworkType,
-            operatorId: hederaAccountId,
-            operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(), // Use the raw private key without conversion
-            logLevel: 'info',
-          });
-
-          // Check if this topic is fee-gated
-          const monitorService = monitorServices.get(topicId);
-          const isFeeGated = isFeeGatedConnection(topicId);
-          const feeConfig = getFeeConfigForConnection(topicId);
+          // Get the connection service
+          const connectionService = await getConnectionService();
           
-          if (isFeeGated) {
-            logger.info("API", `Topic ${topicId} is fee-gated with fee amount ${feeConfig?.feeAmount}`);
-          }
-
-          // Format message as expected by the agent
-          const messageId = `msg-${Date.now()}`;
-          const responseId = `resp-${Date.now()}`;
-          const messagePayload = JSON.stringify({
+          // Generate unique IDs for message and response tracking
+          const messageId = `msg-${uuidv4()}`;
+          const responseId = `resp-${uuidv4()}`;
+          
+          // Format the message with appropriate IDs for HCS-10 standard
+          const formattedMessage = {
             id: messageId,
             prompt: message,
-            timestamp: Date.now(),
             response_id: responseId,
-          });
-
-          logger.debug("API", `Sending message to topic ${topicId} from account ${hederaAccountId}`);
+            timestamp: Date.now()
+          };
           
-          // This part is critical - use the HCS-10 payload structure exactly as expected
-          const receipt = await userClient.submitPayload(
+          console.log("privateKey",privateKey);
+          console.log("formattedMessage",formattedMessage);
+          console.log("hederaAccountId",hederaAccountId);
+          console.log("topicId",topicId);
+          // Send message using the ConnectionService
+          const sendResult = await connectionService.sendMessage(
             topicId,
-            {
-              p: 'hcs-10',
-              op: 'message',
-              data: messagePayload,
-              // Use a simple operator ID format - don't include the topic ID
-              operator_id: hederaAccountId,
-              m: 'User message'
-            },
-            undefined, // No submit key needed
-            isFeeGated // Set requiresFee based on whether the topic is fee-gated
+            formattedMessage,
+            hederaAccountId,
+            privateKey,
+            'User message'
           );
-
-          // Check receipt for success
-          if (!receipt) {
-            throw new Error('Failed to send message');
-          }
           
+          logger.info("API", `Successfully sent message to connection topic ${topicId} with sequence number ${sendResult.sequenceNumber}`);
+
           // Make sure we're monitoring this topic for responses
           if (!monitorServices.has(topicId)) {
             logger.info("API", `Setting up message monitoring for topic ${topicId}`);
+            
+            // Create HCS-10 client with user credentials
+            const userClient = new HCS10Client({
+              network: 'testnet' as NetworkType,
+              operatorId: hederaAccountId,
+              operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
+              logLevel: 'info',
+              prettyPrint: true
+            });
             
             // Create a new monitor service for the user
             const monitorService = new MonitorService(userClient);
@@ -1497,7 +1487,7 @@ async function startServer() {
             message: "Message sent successfully",
             messageId: messageId,
             responseId: responseId,
-            sequenceNumber: receipt.toString(),
+            sequenceNumber: sendResult.sequenceNumber,
             hederaAccountId: hederaAccountId // Include the resolved Hedera account ID in the response
           });
         } catch (error) {
