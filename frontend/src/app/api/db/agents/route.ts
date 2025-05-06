@@ -24,6 +24,10 @@ export interface Agent {
   created_at: string;
   updated_at: string;
   agent_address: string;
+  account_id: string | null;
+  inbound_topic_id: string | null;
+  outbound_topic_id: string | null;
+  profile_topic_id: string | null;
 }
 
 // GET /api/db/agents - Get all agents
@@ -115,6 +119,10 @@ export async function POST(request: Request) {
       tools = [],
       tx_hash,
       agent_address,
+      account_id,
+      inbound_topic_id,
+      outbound_topic_id,
+      profile_topic_id,
     } = json;
 
     console.log(`Creating new agent with subname: ${subname}`);
@@ -140,6 +148,10 @@ export async function POST(request: Request) {
           tx_hash,
           metadata_url,
           agent_address,
+          account_id,
+          inbound_topic_id,
+          outbound_topic_id,
+          profile_topic_id,
         },
         null,
         2
@@ -168,6 +180,10 @@ export async function POST(request: Request) {
           tx_hash,
           metadata_url,
           agent_address,
+          account_id,
+          inbound_topic_id,
+          outbound_topic_id,
+          profile_topic_id,
         },
       ])
       .select()
