@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { HCS10Client, AgentBuilder, AIAgentCapability, InboundTopicType } from '@hashgraphonline/standards-sdk';
+import { HCS10Client, AgentBuilder, AIAgentCapability, InboundTopicType, HCS11Client } from '@hashgraphonline/standards-sdk';
 import { PrivateKey } from "@hashgraph/sdk";
 
 // Initialize HCS10Client with environment variables
@@ -93,6 +93,30 @@ export async function POST(request: Request) {
         { error: `Failed to create agent: ${result.error}` },
         { status: 500 }
       );
+    }
+
+    // Ensure the profile is registered with HCS-11
+    if (result.metadata?.accountId && result.metadata?.privateKey && result.metadata?.profileTopicId) {
+      try {
+        const hcs11Client = new HCS11Client({
+          network: process.env.HEDERA_NETWORK as 'mainnet' | 'testnet' || 'testnet',
+          auth: {
+            operatorId: result.metadata.accountId,
+            privateKey: result.metadata.privateKey
+          },
+          logLevel: 'info'
+        });
+
+        await hcs11Client.updateAccountMemoWithProfile(
+          result.metadata.accountId,
+          result.metadata.profileTopicId
+        );
+        
+        console.log(`Updated account memo with profile topic ID ${result.metadata.profileTopicId} for agent ${result.metadata.accountId}`);
+      } catch (memoError) {
+        console.error('Failed to update account memo:', memoError);
+        // Continue anyway as the agent is created
+      }
     }
     
     console.log(`Successfully created agent: ${result.metadata?.accountId}`);

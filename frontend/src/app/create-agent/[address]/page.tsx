@@ -1147,7 +1147,8 @@ function CreateAgentContent({
 
             console.log("Agent created in Hedera with topics:", hederaAgentData.agent);
 
-            const encryptedPrivateKey = encodeBase58(hederaAgentData.agent.privateKey);
+            // Store the private key directly in ECDSA format, no need for base58 encoding
+            const agentPrivateKey = hederaAgentData.agent.privateKey;
             
             // Now we have the metadata, let's store it in Supabase
             const createAgentsRequest = await fetch(`/api/db/agents`, {
@@ -1177,7 +1178,7 @@ function CreateAgentContent({
                 inbound_topic_id: hederaAgentData.agent.inboundTopicId,
                 outbound_topic_id: hederaAgentData.agent.outboundTopicId,
                 profile_topic_id: hederaAgentData.agent.profileTopicId,
-                encrypted_private_key: encryptedPrivateKey
+                encrypted_private_key: agentPrivateKey  // Store ECDSA key directly
               }),
             });
             

@@ -488,7 +488,7 @@ async function getServerWalletPrivateKey(
 ): Promise<{ privateKey: string | null; error: string | null }> {
   // Return hardcoded private key
   return {
-    privateKey: "f22ee3d62bfc11b720a635d8d09c9a1c974e08a5f9bd875a6058ddfbe62415bf",
+    privateKey: "92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e",
     error: null
   };
   
@@ -1014,7 +1014,7 @@ async function startServer() {
       // Function to initialize a new connection
       function initializeNewConnection(hederaAccountId: string) {
         // First get the server wallet private key
-        getServerWalletPrivateKey(hederaAccountId)
+        getServerWalletPrivateKey(accountId)
           .then(async ({ privateKey, error: walletError }) => {
             if (walletError) {
               return res.status(500).json({
@@ -1049,7 +1049,7 @@ async function startServer() {
                   network: "testnet",
                   auth: {
                     operatorId: agent.account_id,
-                    privateKey: privateKey
+                    privateKey: PrivateKey.fromStringDer(agent.encryptedPrivateKey || '').toString()
                   },
                   logLevel: "info"
                 });
@@ -1063,13 +1063,12 @@ async function startServer() {
                 }
               }
 
-              // Create agent HCS10Client using the decrypted private key - this will be used for agent monitoring
-              const decodedPrivateKey = decodeBase58(agent.encryptedPrivateKey || '');
+              // Create agent HCS10Client using the decrypted private key
               const agentClient = new HCS10Client({
                 network: "testnet",
                 operatorId: agent.account_id || '',
-                operatorPrivateKey: PrivateKey.fromStringECDSA(decodedPrivateKey).toString(),
-                logLevel: "debug" // Set to debug for more detailed logs
+                operatorPrivateKey: PrivateKey.fromStringDer(agent.encryptedPrivateKey || '').toString(),  // Already in ECDSA format
+                logLevel: "debug"
               });
               
               // IMPORTANT: Set up monitoring for the agent's inbound topic before sending any requests
@@ -1104,11 +1103,11 @@ async function startServer() {
               
               logger.info("API", `Successfully set up monitoring for agent's topics`);
               
-              // Store agent info with the correct ID and keys
+              // Store agent info with the private key in ECDSA format
               await storageService.saveAgentInfo({
                 characterId: agentCharacter?.id || agentCharacter?.characterId || '',
                 accountId: agent.account_id || '',
-                privateKey: decodedPrivateKey,
+                privateKey: agent.encryptedPrivateKey || '',  // Store ECDSA key directly
                 inboundTopicId: agent.inboundTopicId,
                 outboundTopicId: agent.outboundTopicId
               });
@@ -1119,8 +1118,8 @@ async function startServer() {
               const userClient = new HCS10Client({
                 network: "testnet",
                 operatorId: hederaAccountId,
-                operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
-                logLevel: "debug" // Set to debug for more detailed logs
+                operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),  // Already in ECDSA format
+                logLevel: "debug"
               });
 
               // Send connection request in HCS-10 format
@@ -1325,223 +1324,176 @@ async function startServer() {
         return res.status(400).json({ error: "Message is required" });
       }
 
-      // Get the account ID from headers
-      const accountId = req.headers["x-account-id"] as string;
-      // Topic ID is now optional - we'll automatically use the user's mapped agent
-      let topicId = req.headers["topic-id"] as string;
-
-      if (!accountId) {
-        return res.status(400).json({ error: "x-account-id header is required" });
+      // Get the account ID or EVM address from headers
+      const userAddress = (req.headers["x-account-id"] || req.headers["account-id"]) as string;
+      if (!userAddress) {
+        return res.status(400).json({ error: "Account ID header (x-account-id or account-id) is required" });
       }
 
-      // Always check for a user agent mapping first, regardless of whether a topic ID was provided
-      getUserAgentMapping(accountId).then(mapping => {
-        if (!mapping) {
-          // No mapping found, return error
-          logger.warn("API", `No agent mapping found for user ${accountId}`);
-                return res.status(400).json({
-            error: "No existing agent connection found. Please initialize first." 
-          });
-        }
-        
-        // If topic ID is not provided, use the one from the mapping
-        if (!topicId) {
-          topicId = mapping.connectionTopicId;
-          logger.info("API", `Using mapped agent connection for user ${accountId}: ${topicId}`);
-        } else {
-          // Verify the provided topic ID matches the mapping
-          if (topicId !== mapping.connectionTopicId) {
-            logger.warn("API", `Provided topic ID ${topicId} does not match mapped connection ${mapping.connectionTopicId} for user ${accountId}`);
+      // Convert EVM address to Hedera account ID if needed
+      (async () => {
+        try {
+          let hederaAccountId = userAddress;
+          
+          // Check if the input is an EVM address
+          if (userAddress.startsWith("0x")) {
+            logger.info("API", `Converting EVM address ${userAddress} to Hedera account ID`);
+            
+            // Query the mirror node to get the Hedera account ID
+            const response = await fetch(
+              `https://testnet.mirrornode.hedera.com/api/v1/accounts/${userAddress}`
+            );
+
+            if (!response.ok) {
+              logger.error("API", `Failed to get account ID for EVM address: ${response.statusText}`);
+              return res.status(400).json({
+                error: `Failed to get account ID for EVM address: ${response.statusText}`
+              });
+            }
+
+            const data = await response.json();
+            hederaAccountId = data.account;
+            logger.info("API", `Converted EVM address ${userAddress} to Hedera account ID ${hederaAccountId}`);
+          }
+
+          // Check for user agent mapping using the Hedera account ID
+          const mapping = await getUserAgentMapping(hederaAccountId);
+          if (!mapping) {
+            logger.warn("API", `No agent mapping found for user ${hederaAccountId}`);
             return res.status(400).json({
-              error: "The provided topic ID does not match your active agent connection."
+              error: "No existing agent connection found. Please initialize first." 
             });
           }
-          logger.info("API", `Using provided topic ID ${topicId} which matches mapped connection`);
+          
+          // Use the connection topic ID from the mapping
+          const topicId = mapping.connectionTopicId;
+          logger.info("API", `Using mapped agent connection for user ${hederaAccountId}: ${topicId}`);
+          
+          // Continue processing with the topic ID and Hedera account ID
+          await processChatRequest(topicId, hederaAccountId);
+        } catch (err) {
+          logger.error("API", `Error processing account ID: ${err}`);
+          return res.status(500).json({ 
+            error: `Error processing account ID: ${err instanceof Error ? err.message : String(err)}` 
+          });
         }
-        
-        // Continue processing with the topic ID
-        processChatRequest();
-      }).catch(err => {
-        logger.error("API", `Error getting user agent mapping: ${err}`);
-        return res.status(500).json({ error: "Error retrieving user agent mapping" });
-      });
+      })();
 
-      // Process the chat request with the topic ID
-      function processChatRequest() {
-        // Get the server wallet private key
-        getServerWalletPrivateKey(accountId)
-          .then(async ({ privateKey, error }) => {
-            if (error) {
-              logger.error("API", "Error getting server wallet", {
-                accountId,
-                error,
-              });
-              return res
-                .status(401)
-                .json({ error: `Server wallet access error: ${error}` });
-            }
+      // Process the chat request with the topic ID and Hedera account ID
+      async function processChatRequest(topicId: string, hederaAccountId: string) {
+        try {
+          // Get the server wallet private key
+          const { privateKey, error } = await getServerWalletPrivateKey(hederaAccountId);
+          
+          if (error) {
+            logger.error("API", "Error getting server wallet", {
+              accountId: hederaAccountId,
+              error,
+            });
+            return res
+              .status(401)
+              .json({ error: `Server wallet access error: ${error}` });
+          }
 
-            if (!privateKey) {
-              logger.error("API", "No private key returned", { accountId });
-              return res
-                .status(404)
-                .json({ error: "Server wallet not found or not accessible" });
-            }
+          if (!privateKey) {
+            logger.error("API", "No private key returned", { accountId: hederaAccountId });
+            return res
+              .status(404)
+              .json({ error: "Server wallet not found or not accessible" });
+          }
 
+          // Create HCS-10 client with user credentials
+          const userClient = new HCS10Client({
+            network: 'testnet' as NetworkType,
+            operatorId: hederaAccountId,
+            operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
+            logLevel: 'info',
+            prettyPrint: true
+          });
+
+          // Format message as expected by the agent
+          const messageId = `msg-${Date.now()}`;
+          const responseId = `resp-${Date.now()}`;
+          const messagePayload = JSON.stringify({
+            id: messageId,
+            prompt: message,
+            timestamp: Date.now(),
+            response_id: responseId,
+          });
+
+          // Send message with fee handling
+          const receipt = await userClient.submitPayload(
+            topicId,
+            {
+              p: 'hcs-10',
+              op: 'message',
+              data: messagePayload,
+              operator_id: `${topicId}@${hederaAccountId}`,
+              m: 'User message'
+            },
+            undefined, // No submit key needed
+            false // No fee required for messages
+          );
+
+          // Check receipt for success
+          if (!receipt) {
+            throw new Error('Failed to send message');
+          }
+
+          // Make sure we're monitoring this topic for responses
+          if (!monitorServices.has(topicId)) {
+            logger.info("API", `Setting up message monitoring for topic ${topicId}`);
+            
+            // Create a new monitor service for the user
+            const monitorService = new MonitorService(userClient);
+            
             try {
-              // Create HCS-10 client with user credentials
-              const userClient = new HCS10Client({
-                network: 'testnet' as NetworkType,
-                operatorId: accountId,
-                operatorPrivateKey: privateKey,
-                logLevel: 'info',
-                prettyPrint: true
-              });
-
-              // Format message as expected by the agent
-              const messageId = `msg-${Date.now()}`;
-              const responseId = `resp-${Date.now()}`;
-              const messagePayload = JSON.stringify({
-                id: messageId,
-                prompt: message,
-                timestamp: Date.now(),
-                response_id: responseId,
-              });
-
-              // Send message with fee handling
-              const receipt = await userClient.sendMessage(
-                topicId,
-                messagePayload,
-                'User message'
-              );
-
-              // Check receipt for success
-              if (!receipt) {
-                throw new Error('Failed to send message');
-              }
-
-              // Make sure we're monitoring this topic for responses
-              if (!monitorServices.has(topicId)) {
-                logger.info("API", `Setting up message monitoring for topic ${topicId}`);
-                
-                // Create a new monitor service for the user
-                const monitorService = new MonitorService(userClient);
-                
-                try {
-                  // Try to find character data for this connection
-                  let characterData = null;
-                  
-                  // Try to get character data from user-agent mapping
-                  const mapping = await getUserAgentMapping(accountId);
-                  if (mapping) {
-                    characterData = getCharacterData(mapping.characterId);
-                    if (characterData) {
-                      logger.info("API", `Using character data for ${mapping.characterId} from mapping`);
-                    }
-                  }
-                  
-                  // If no character data found, try searching connection files
-                  if (!characterData) {
-                    logger.info("API", `No character data from mapping, checking connection directories`);
-                    // Search all character directories for character data matching this connection
-                    if (fs.existsSync(CONNECTION_DIR)) {
-                      const characterDirs = fs.readdirSync(CONNECTION_DIR);
-                      
-                      outer: for (const characterId of characterDirs) {
-                        const characterDir = path.join(CONNECTION_DIR, characterId);
-                        
-                        if (fs.statSync(characterDir).isDirectory()) {
-                          const connectionFiles = fs.readdirSync(characterDir);
-                          
-                          for (const file of connectionFiles) {
-                            if (file.endsWith('.json')) {
-                              try {
-                                const connectionData = JSON.parse(fs.readFileSync(path.join(characterDir, file), 'utf8'));
-                                if (connectionData.connectionTopicId === topicId) {
-                                  // Found the connection, now try to get character data
-                                  try {
-                                    characterData = getCharacterData(characterId);
-                                    if (characterData) {
-                                      logger.info("API", `Found character data for ${characterId} for topic ${topicId}`);
-                                      break outer; // Exit both loops
-                                    }
-                                  } catch (err) {
-                                    logger.error("API", `Error reading character data: ${err}`);
-                                  }
-                                }
-                              } catch (err) {
-                                // Skip malformed JSON files
-                                logger.error("API", `Error parsing connection file: ${err}`);
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                  
-                  // Use default character if no specific one found
-                  if (!characterData) {
-                    characterData = state.activeCharacter || {
-                      name: "Assistant",
-                      description: "A helpful AI assistant."
-                    };
-                    logger.info("API", `Using default character for topic ${topicId}`);
-                  }
-                  
-                  // Set the character for this topic
+              // Try to get character data from user-agent mapping
+              const mapping = await getUserAgentMapping(hederaAccountId);
+              if (mapping) {
+                const characterData = getCharacterData(mapping.characterId);
+                if (characterData) {
+                  logger.info("API", `Using character data for ${mapping.characterId}`);
                   monitorService.setCharacterForTopic(topicId, characterData);
-                  
-                  // Start monitoring for messages
-                  await monitorService.startMonitoringTopic(topicId);
-                  
-                  // Register the topic type based on mapping if available
-                  const topicType = mapping ? 'connection' : 'unknown';
-                  const metadata = mapping ? 
-                    { characterId: mapping.characterId, userId: accountId } : 
-                    { userId: accountId };
-                    
-                  monitorService.registerTopicType(topicId, topicType as any, metadata);
-                  
-                  // Store the monitor service instance for future use
-                  monitorServices.set(topicId, monitorService);
-                  
-                  logger.info("API", `Started monitoring topic ${topicId} for responses`);
-                } catch (monitorError) {
-                  logger.error("API", `Error setting up monitoring for topic: ${monitorError}`);
-                  // Continue even if monitoring setup fails
                 }
               }
-
-              // Return success with the sequence number for tracking
-              res.json({
-                status: "success",
-                message: "Message sent successfully",
-                messageId: messageId,
-                responseId: responseId,
-                sequenceNumber: receipt.toString()
+              
+              // Start monitoring for messages
+              await monitorService.startMonitoringTopic(topicId);
+              
+              // Register the topic type
+              monitorService.registerTopicType(topicId, 'connection', {
+                characterId: mapping?.characterId,
+                userId: hederaAccountId
               });
-            } catch (error) {
-              logger.error("API", "Error sending message", error);
-              res.status(500).json({
-                error: `Error sending message: ${
-                  error instanceof Error ? error.message : String(error)
-                }`,
-              });
+              
+              // Store the monitor service instance for future use
+              monitorServices.set(topicId, monitorService);
+              
+              logger.info("API", `Started monitoring topic ${topicId} for responses`);
+            } catch (monitorError) {
+              logger.error("API", `Error setting up monitoring for topic: ${monitorError}`);
+              // Continue even if monitoring setup fails
             }
-          })
-          .catch((error) => {
-            logger.error(
-              "API",
-              "Unexpected error in server wallet retrieval",
-              error
-            );
-            res.status(500).json({
-              error: `Unexpected error retrieving server wallet: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
-            });
+          }
+
+          // Return success with message tracking info
+          res.json({
+            status: "success",
+            message: "Message sent successfully",
+            messageId: messageId,
+            responseId: responseId,
+            sequenceNumber: receipt.toString(),
+            hederaAccountId: hederaAccountId // Include the resolved Hedera account ID in the response
           });
+        } catch (error) {
+          logger.error("API", "Error sending message", error);
+          res.status(500).json({
+            error: `Error sending message: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          });
+        }
       }
     });
 
@@ -1621,7 +1573,7 @@ async function startServer() {
               const hcs10Client = new HCS10Client({
                 network: 'testnet' as NetworkType,
                 operatorId: accountId,
-                operatorPrivateKey: privateKey,
+                operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
                 logLevel: 'info',
                 prettyPrint: true
               });
@@ -1726,7 +1678,7 @@ async function startServer() {
           const userClient = new HCS10Client({
             network: 'testnet' as NetworkType,
             operatorId: accountId,
-            operatorPrivateKey: privateKey,
+            operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
             logLevel: 'info',
             prettyPrint: true
           });

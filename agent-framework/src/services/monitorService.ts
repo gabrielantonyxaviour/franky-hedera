@@ -56,6 +56,10 @@ export class MonitorService {
     userId?: string
   }> = new Map();
 
+  // Track last processed connection request timestamp
+  private lastConnectionRequestTime: Map<string, number> = new Map();
+  private processedConnectionRequests: Set<string> = new Set();
+
   constructor(client: HCS10Client) {
     this.client = client;
     this.messageEmitter = new EventEmitter();
@@ -225,7 +229,26 @@ export class MonitorService {
       );
 
       if (isConnectionRequest) {
-        logger.info('MONITOR', `Received connection request on inbound topic: ${topicId}`);
+        // Create a unique identifier for this connection request
+        const requestId = `${message.sequence_number}-${messageData?.userId || ''}`;
+        
+        // Check if we've already processed this request
+        if (this.processedConnectionRequests.has(requestId)) {
+          logger.debug('MONITOR', `Skipping already processed connection request: ${requestId}`);
+          return;
+        }
+
+        // Get the timestamp from the message data
+        const messageTimestamp = messageData?.timestamp || Date.now();
+        const lastProcessedTime = this.lastConnectionRequestTime.get(topicId) || 0;
+
+        // Only process if this is a newer request
+        if (messageTimestamp <= lastProcessedTime) {
+          logger.debug('MONITOR', `Skipping older connection request from timestamp ${messageTimestamp}`);
+          return;
+        }
+
+        logger.info('MONITOR', `Processing new connection request on inbound topic: ${topicId}`);
 
         try {
           // Extract requester account ID from operator_id
@@ -255,7 +278,6 @@ export class MonitorService {
           }
           
           const operatorId = agentInfo.accountId;
-          // Use the private key directly - it's already in the correct format
           const agentPrivateKey = agentInfo.privateKey;
           
           if (!operatorId || !agentPrivateKey) {
@@ -265,79 +287,158 @@ export class MonitorService {
           
           logger.info('MONITOR', `Using agent ${operatorId} to handle connection request from ${requesterAccountId}`);
           
-          // Create a new connection topic with the private key
+          // Create a new connection topic
           const agentClient = new HCS10Client({
             network: 'testnet',
             operatorId: operatorId,
-            operatorPrivateKey: PrivateKey.fromStringECDSA(agentPrivateKey).toString(),
+            operatorPrivateKey: agentPrivateKey,
             logLevel: 'debug'
           });
 
-          // Create connection topic with both user and agent keys
-          const { connectionTopicId } = await agentClient.handleConnectionRequest(
-            topicId,
-            requesterAccountId,
-            message.sequence_number
-          );
-          
-          logger.info('MONITOR', `Created connection topic: ${connectionTopicId}`);
+          try {
+            // Create connection topic with both user and agent keys
+            const { connectionTopicId } = await agentClient.handleConnectionRequest(
+              topicId,
+              requesterAccountId,
+              message.sequence_number
+            );
+            
+            logger.info('MONITOR', `Created connection topic: ${connectionTopicId}`);
 
-          // Send confirmation message on outbound topic in HCS-10 format
-          const outboundTopicId = agentInfo.outboundTopicId;
-          if (outboundTopicId) {
-            // Send standard HCS-10 connection_created message
+            // Send confirmation message ONLY on outbound topic in HCS-10 format
+            const outboundTopicId = agentInfo.outboundTopicId;
+            if (outboundTopicId) {
+              // Send standard HCS-10 connection_created message
+              await agentClient.submitPayload(
+                outboundTopicId,  // Send only to outbound topic
+                {
+                  p: 'hcs-10',
+                  op: 'connection_created',
+                  connection_topic_id: connectionTopicId,
+                  connection_id: message.sequence_number,
+                  operator_id: `${outboundTopicId}@${operatorId}`,  // Use outbound topic in operator ID
+                  connected_account_id: requesterAccountId,
+                  m: 'Connection confirmed',
+                  created: new Date().toISOString()
+                },
+                undefined,
+                false
+              );
+              logger.info('MONITOR', `Sent connection confirmation on outbound topic ${outboundTopicId}`);
+            }
+            
+            // Start monitoring the new connection topic
+            await this.startMonitoringTopic(connectionTopicId);
+            
+            // Register as a connection topic
+            this.registerTopicType(connectionTopicId, 'connection', {
+              characterId,
+              userId: requesterAccountId
+            });
+            
+            // Set character for this connection topic
+            const characterData = this.activeCharacters.get(topicId);
+            if (characterData) {
+              this.setCharacterForTopic(connectionTopicId, characterData);
+            }
+
+            // Send welcome message on the new connection topic
             await agentClient.submitPayload(
-              outboundTopicId,
+              connectionTopicId,
               {
                 p: 'hcs-10',
-                op: 'connection_created',
-                connection_topic_id: connectionTopicId,
-                connection_id: message.sequence_number,
-                operator_id: `${topicId}@${operatorId}`,
-                connected_account_id: requesterAccountId,
-                m: 'Connection confirmed',
-                created: new Date().toISOString()
+                op: 'message',
+                data: JSON.stringify({
+                  type: 'GREETING',
+                  content: `Hello! I'm ${characterData?.name || 'your AI assistant'}. How can I help you today?`,
+                  timestamp: Date.now()
+                }),
+                operator_id: `${connectionTopicId}@${operatorId}`,
+                m: 'Welcome message'
               },
               undefined,
               false
             );
-            logger.info('MONITOR', `Sent connection confirmation on outbound topic ${outboundTopicId}`);
-          }
-          
-          // Start monitoring the new connection topic
-          await this.startMonitoringTopic(connectionTopicId);
-          
-          // Register as a connection topic
-          this.registerTopicType(connectionTopicId, 'connection', {
-            characterId,
-            userId: requesterAccountId
-          });
-          
-          // Set character for this connection topic
-          const characterData = this.activeCharacters.get(topicId);
-          if (characterData) {
-            this.setCharacterForTopic(connectionTopicId, characterData);
-          }
+            
+            logger.info('MONITOR', `Sent welcome message on connection topic ${connectionTopicId}`);
 
-          // Send welcome message on the new connection topic
-          await agentClient.submitPayload(
-            connectionTopicId,
-            {
-              p: 'hcs-10',
-              op: 'message',
-              data: JSON.stringify({
-                type: 'GREETING',
-                content: `Hello! I'm ${characterData?.name || 'your AI assistant'}. How can I help you today?`,
-                timestamp: Date.now()
-              }),
-              operator_id: `${connectionTopicId}@${operatorId}`,
-              m: 'Welcome message'
-            },
-            undefined,
-            false
-          );
-          
-          logger.info('MONITOR', `Sent welcome message on connection topic ${connectionTopicId}`);
+            // Update tracking information
+            this.lastConnectionRequestTime.set(topicId, messageTimestamp);
+            this.processedConnectionRequests.add(requestId);
+
+          } catch (error: any) {
+            // If the error is related to profile fetching, try a direct connection without profile validation
+            if (error.message?.includes('Error fetching profile')) {
+              logger.warn('MONITOR', 'Profile fetching failed, attempting direct connection');
+              
+              // Create a new connection topic directly
+              const connectionTopicId = await agentClient.createTopic(
+                `hcs-10:connection:${requesterAccountId}:${Date.now()}`,
+                true,
+                true
+              );
+
+              logger.info('MONITOR', `Created direct connection topic: ${connectionTopicId}`);
+
+              // Send confirmation ONLY on outbound topic
+              const outboundTopicId = agentInfo.outboundTopicId;
+              if (outboundTopicId) {
+                await agentClient.submitPayload(
+                  outboundTopicId,  // Send only to outbound topic
+                  {
+                    p: 'hcs-10',
+                    op: 'connection_created',
+                    connection_topic_id: connectionTopicId,
+                    connection_id: message.sequence_number,
+                    operator_id: `${outboundTopicId}@${operatorId}`,  // Use outbound topic in operator ID
+                    connected_account_id: requesterAccountId,
+                    m: 'Connection confirmed',
+                    created: new Date().toISOString()
+                  },
+                  undefined,
+                  false
+                );
+                logger.info('MONITOR', `Sent connection confirmation on outbound topic ${outboundTopicId}`);
+              }
+
+              // Set up monitoring and character data
+              await this.startMonitoringTopic(connectionTopicId);
+              this.registerTopicType(connectionTopicId, 'connection', {
+                characterId,
+                userId: requesterAccountId
+              });
+
+              const characterData = this.activeCharacters.get(topicId);
+              if (characterData) {
+                this.setCharacterForTopic(connectionTopicId, characterData);
+              }
+
+              // Send welcome message on the new connection topic
+              await agentClient.submitPayload(
+                connectionTopicId,
+                {
+                  p: 'hcs-10',
+                  op: 'message',
+                  data: JSON.stringify({
+                    type: 'GREETING',
+                    content: `Hello! I'm ${characterData?.name || 'your AI assistant'}. How can I help you today?`,
+                    timestamp: Date.now()
+                  }),
+                  operator_id: `${connectionTopicId}@${operatorId}`,
+                  m: 'Welcome message'
+                },
+                undefined,
+                false
+              );
+
+              // Update tracking information
+              this.lastConnectionRequestTime.set(topicId, messageTimestamp);
+              this.processedConnectionRequests.add(requestId);
+            } else {
+              // If it's not a profile fetching error, rethrow
+              throw error;
+            }
+          }
         } catch (err) {
           logger.error('MONITOR', `Error handling connection request: ${err}`, err);
         }
