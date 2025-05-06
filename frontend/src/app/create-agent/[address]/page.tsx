@@ -485,6 +485,91 @@ async function checkEnsAvailability(
   }
 }
 
+// Add HCS registry registration function before the CreateAgentContent component
+async function registerAgentInHCSRegistry(agentData: {
+  agentAddress: string;
+  perApiCallFee: string;
+  characterId: string;
+  name: string;
+  description: string;
+  agentAccountId: string;
+  inboundTopicId: string;
+  outboundTopicId: string;
+  imageUrl?: string;
+  personality?: string;
+  scenario?: string;
+  first_mes?: string;
+  mes_example?: string;
+  creatorcomment?: string;
+  tags?: string[];
+  talkativeness?: number;
+  traits?: Record<string, any>;
+  [key: string]: any;
+}): Promise<{ success: boolean; error?: string; transactionId?: string }> {
+  try {
+    // Get registry topic ID from environment variable
+    const registryTopicId = process.env.NEXT_PUBLIC_CHARACTER_REGISTRY_TOPIC_ID || "0.0.5949688";
+    
+    // Prepare registration data according to HCS-10 standard
+    const registrationData = {
+      type: "agent_registration",
+      agentAddress: agentData.agentAddress,
+      perApiCallFee: agentData.perApiCallFee,
+      characterId: agentData.characterId,
+      name: agentData.name,
+      description: agentData.description || `Character agent for ${agentData.name}`,
+      agentAccountId: agentData.agentAccountId,
+      inboundTopicId: agentData.inboundTopicId,
+      outboundTopicId: agentData.outboundTopicId,
+      imageUrl: agentData.imageUrl,
+      // Include all character details
+      personality: agentData.personality,
+      scenario: agentData.scenario,
+      first_mes: agentData.first_mes,
+      mes_example: agentData.mes_example,
+      creatorcomment: agentData.creatorcomment,
+      tags: agentData.tags || [],
+      talkativeness: agentData.talkativeness,
+      traits: agentData.traits || {},
+      registrationTimestamp: Date.now()
+    };
+    
+    console.log("Registering agent in HCS registry:", registrationData);
+    
+    // Call backend API to send message to HCS topic
+    const response = await fetch('/api/hedera/register-agent', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        registryTopicId,
+        registrationData
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Failed to register agent in HCS registry:", errorText);
+      return { success: false, error: `Failed to register agent: ${errorText}` };
+    }
+    
+    const result = await response.json();
+    console.log("Successfully registered agent in HCS registry:", result);
+    
+    return { 
+      success: true, 
+      transactionId: result.transactionId 
+    };
+  } catch (error: any) {
+    console.error("Error registering agent in HCS registry:", error);
+    return { 
+      success: false, 
+      error: error.message || "Unknown error registering agent" 
+    };
+  }
+}
+
 // Confirmation Modal Component
 function ConfirmationModal({
   isOpen,
@@ -969,7 +1054,8 @@ function CreateAgentContent({
     setShowConfirmModal(true);
   }
 
-  // Update handleConfirmCreateAgent to include avatar and secrets
+  // Now modify the handleConfirmCreateAgent function to include the HCS registry step
+  // Inside CreateAgentContent component
   async function handleConfirmCreateAgent() {
     if (
       !deviceInfo?.id ||
@@ -1114,6 +1200,10 @@ function CreateAgentContent({
           setIsPending(false);
           return;
         } else {
+          const agentAddress = `0x${(receipt.logs[0].topics[2] as string).slice(
+            -40
+          )}`;
+          
           const createAgentsRequest = await fetch(`/api/db/agents`, {
             method: "POST",
             body: JSON.stringify({
@@ -1141,7 +1231,101 @@ function CreateAgentContent({
             }),
           });
           const createAgentResponse = await createAgentsRequest.json();
-          console.log("Agent created:", createAgentResponse);
+          console.log("Agent created in Supabase:", createAgentResponse);
+          
+          // After successful Supabase update, create HCS-10 agent with proper topics
+          toast.info("Creating agent in Hedera...", {
+            description: "Setting up inbound and outbound topics for your agent"
+          });
+          
+          try {
+            // Call the create-agent API to create a proper agent with topics
+            const createHederaAgentResponse = await fetch("/api/hedera/create-agent", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                characterId: subname,
+                name: constructedCharacter.name,
+                description: constructedCharacter.description,
+                personality: constructedCharacter.personality,
+                scenario: constructedCharacter.scenario,
+                first_mes: constructedCharacter.first_mes,
+                mes_example: constructedCharacter.mes_example,
+                creatorcomment: constructedCharacter.creatorcomment,
+                tags: constructedCharacter.tags,
+                talkativeness: constructedCharacter.talkativeness,
+                traits: {},
+                imageUrl: avatarUrl
+              })
+            });
+
+            if (!createHederaAgentResponse.ok) {
+              const errorText = await createHederaAgentResponse.text();
+              throw new Error(`Failed to create Hedera agent: ${errorText}`);
+            }
+
+            const hederaAgentData = await createHederaAgentResponse.json();
+            
+            if (!hederaAgentData.success || !hederaAgentData.agent) {
+              throw new Error("Hedera agent creation returned invalid response");
+            }
+
+            console.log("Agent created in Hedera with topics:", hederaAgentData.agent);
+            
+            // Get the real topic IDs from the agent creation
+            const agentAccountId = hederaAgentData.agent.accountId;
+            const inboundTopicId = hederaAgentData.agent.inboundTopicId;
+            const outboundTopicId = hederaAgentData.agent.outboundTopicId;
+            
+            toast.success("Agent created in Hedera", {
+              description: `Created agent with inbound topic: ${inboundTopicId.substring(0, 10)}...`
+            });
+            
+            // Register the agent in the HCS registry with the real topic IDs
+            toast.info("Registering agent in Hedera registry...", {
+              description: "Publishing agent details to the HCS registry topic"
+            });
+            
+            const hcsRegistryResult = await registerAgentInHCSRegistry({
+              agentAddress: agentAddress,
+              perApiCallFee: perApiCallFee,
+              characterId: subname,
+              name: constructedCharacter.name,
+              description: constructedCharacter.description,
+              agentAccountId: agentAccountId,
+              inboundTopicId: inboundTopicId,
+              outboundTopicId: outboundTopicId,
+              imageUrl: avatarUrl,
+              personality: constructedCharacter.personality,
+              scenario: constructedCharacter.scenario,
+              first_mes: constructedCharacter.first_mes,
+              mes_example: constructedCharacter.mes_example,
+              creatorcomment: constructedCharacter.creatorcomment,
+              tags: constructedCharacter.tags,
+              talkativeness: constructedCharacter.talkativeness,
+              traits: {}
+            });
+            
+            if (hcsRegistryResult.success) {
+              console.log("Agent registered in HCS registry:", hcsRegistryResult);
+              toast.success("Agent registered in Hedera registry", {
+                description: "Your agent is now discoverable in the HCS registry"
+              });
+            } else {
+              console.error("Failed to register agent in HCS registry:", hcsRegistryResult.error);
+              toast.error("Warning: Agent created but registry update failed", {
+                description: hcsRegistryResult.error
+              });
+            }
+          } catch (hederaError: any) {
+            console.error("Error creating Hedera agent:", hederaError);
+            toast.error("Warning: Agent created but Hedera setup failed", {
+              description: hederaError.message || "Unknown error in Hedera setup"
+            });
+          }
+          
           toast.promise(
             new Promise((resolve) => {
               setTimeout(() => {

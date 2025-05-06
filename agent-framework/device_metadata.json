@@ -1,0 +1,13 @@
+{
+  "deviceModel": "Apple Inc. Mac14,2",
+  "ram": "16 GB",
+  "storage": "1376.1 GB",
+  "cpu": "Apple M2 (8 cores)",
+  "os": "macOS 15.1.1",
+  "timestamp": "2025-05-05T23:56:12.391Z",
+  "ngrokLink": "https://1e2b-106-219-182-119.ngrok-free.app",
+  "bytes32Data": "0x66ed80ce9ecacd44f0b8997b963fd0c5404207c9c99d3a5e06908de473cd2524",
+  "signature": "0x916c154c25a330169785d8022a1bae28296d955954ed76d886e45419d0a36a9f0dcbb139f88a298c40179a4c0266685904d1ee385e3e746ebe6604befb799f861b",
+  "walletAddress": "0x0280be61d5613eaf0c19b7c7bbcbb233c6b7ae0d",
+  "accountId": "0.0.113981"
+}

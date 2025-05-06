@@ -17,6 +17,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@hashgraph/hedera-wallet-connect": "^1.2.0",
     "@hashgraph/sdk": "^2.34.0",
+    "@hashgraphonline/standards-sdk": "^0.0.95",
     "@lit-protocol/accs-schemas": "^0.0.24",
     "@lit-protocol/constants": "^7.0.10-alpha.0",
     "@lit-protocol/contracts": "^0.0.90",

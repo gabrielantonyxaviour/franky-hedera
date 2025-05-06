@@ -9,6 +9,7 @@ METADATA_TOPIC_FILE="device_metadata_topic.txt"
 MAX_RETRIES=30
 RETRY_INTERVAL=20
 API_PORT=8080
+PORT=3002  # This is for the main Express server in src/index.ts
 API_LOG_FILE="api_server.log"
 METADATA_FILE="device_metadata.json"
 
@@ -174,6 +175,10 @@ setup_environment_variables() {
     log_success "OpenAI API key received."
   fi
   
+  # Set character registry topic ID
+  CHARACTER_REGISTRY_TOPIC_ID="0.0.5949688"
+  log_status "Using character registry topic ID: ${CHARACTER_REGISTRY_TOPIC_ID}"
+  
   # Create a .env file or use existing one
   if [ ! -f ".env" ]; then
     log_status "Creating .env file with default values..."
@@ -192,6 +197,7 @@ USE_HYBRID_MODEL=true
 LOG_LEVEL=0
 TAVILY_API_KEY=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
 TEMP_AUTH_PRIVATE_KEY=$PRIVATE_KEY
+CHARACTER_REGISTRY_TOPIC_ID=$CHARACTER_REGISTRY_TOPIC_ID
 EOL
   else
     # Update the .env file with the generated keys and new API key
@@ -208,6 +214,13 @@ EOL
       sed -i'.bak' "s|^TEMP_AUTH_PRIVATE_KEY=.*|TEMP_AUTH_PRIVATE_KEY=$PRIVATE_KEY|" .env.temp
     else
       echo "TEMP_AUTH_PRIVATE_KEY=$PRIVATE_KEY" >> .env.temp
+    fi
+    # Ensure CHARACTER_REGISTRY_TOPIC_ID is set
+    if grep -q "CHARACTER_REGISTRY_TOPIC_ID" .env.temp; then
+      log_status "Found existing CHARACTER_REGISTRY_TOPIC_ID in .env file. Keeping it."
+    else
+      log_status "Adding CHARACTER_REGISTRY_TOPIC_ID to .env file."
+      echo "CHARACTER_REGISTRY_TOPIC_ID=$CHARACTER_REGISTRY_TOPIC_ID" >> .env.temp
     fi
     # Replace the original file
     mv .env.temp .env

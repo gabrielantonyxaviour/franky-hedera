@@ -1,212 +1,325 @@
-# Hedera Agent Kit
+# Franky Agent Framework using HCS-10 Standard
 
-Welcome to the **Hedera Agent Kit**! This project aims to provide a LangChain-compatible toolkit for interacting with the Hedera Network. The focus is on a minimal, easy-to-use set of functions, while staying flexible for future enhancements.
+This repository implements the [HCS-10 standard](https://github.com/hashgraph/hedera-improvement-proposal/blob/master/HCS/0010-hcs10-connecting-agents.md) for AI agent interactions on Hedera. It provides a standardized way for users to interact with character agents through Hedera Consensus Service topics.
 
 ## Overview
 
-- **Agent Interaction**: Make on-chain calls to Hedera (e.g., create tokens, post messages to consensus).
-- **Lightweight**: Designed to get you started quickly with a minimal set of features.
-- **Community-Driven**: We encourage developers of all skill levels to contribute.
+The framework provides:
 
-## Current Features
+- **Character-based Agents**: Create and manage AI characters with unique personalities
+- **Fee-based Interactions**: Monetize agent interactions using HIP-991 fee-collection
+- **Secure Communication**: Establish secure communication channels between users and agents
+- **Registry System**: Discover and select available character agents
+- **Standardized Protocol**: Based on the HCS-10 standard for agent communication
 
-1. **Native Hedera Token Service (HTS)**:
-    - Create fungible tokens with minimal parameters (name, symbol, decimals, supply, etc.).
-    - Mint additional tokens to existing token accounts.
+## Architecture
 
-2. **Token Operations**:
-    - **Create Fungible Tokens (FT)**: Easily create and configure new fungible tokens.
-    - **Create Non-fungible Tokens (NFT)**: Easily create and configure new non-fungible tokens.
-    - **Transfer Tokens**: Transfer tokens between accounts.
-    - **Associate / Dissociate Tokens**: Associate a token to an account or dissociate it as needed.
-    - **Reject Tokens**: Reject a token from an account.
+The system follows a standardized architecture based on the HCS-10 protocol:
 
-3. **HBAR Transactions**:
-    - Transfer HBAR between accounts.
+1. **Registry Topic**: A central topic that stores all character-agent mappings
+2. **Inbound Topics**: Each agent has a fee-based topic where users can send connection requests
+3. **Outbound Topics**: Each agent has a topic to confirm connections
+4. **Connection Topics**: Dedicated topics for secure user-agent communication
 
-4. **Airdrop Management**:
-    - Airdrop tokens to multiple recipients.
-    - Claim a pending airdrop.
+## Prerequisites
 
-5. **Token Balance Queries**:
-    - Get HBAR balances of an account.
-    - Get HTS token balances for a specific token ID.
-    - Retrieve all token balances for an account.
-    - Get token holders for a specific token.
+- Node.js 16 or later
+- Hedera Testnet or Mainnet account
+- Hedera account ID and private key
 
-6. **Topic Management (HCS)**:
-    - **Create Topics**: Create new topics for Hedera Consensus Service (HCS).
-    - **Delete Topics**: Delete an existing topic.
-    - **Submit Topic Messages**: Send messages to a specific topic.
-    - **Get Topic Info**: Retrieve information about a specific topic.
-    - **Get Topic Messages**: Fetch messages from a specific topic.
+## Installation
 
-### Note
-The methods in the HederaAgentKit class are fully implemented and functional for interacting with the Hedera network (e.g., creating tokens, transferring assets, managing airdrops). However, Langchain tools for most of these methods and operations are not implemented by default.
-
-### Details
-For further details check [HederaAgentKit Readme](./src/agent/README.md).
-
-## Getting Started
-
-```bash
-npm i hedera-agent-kit
-```
-
-LangChain/ LangGraph quick start:
-
-```js
-import { HederaAgentKit, createHederaTools } from 'hedera-agent-kit';
-import { ToolNode } from '@langchain/langgraph/prebuilt';
-
-const hederaAgentKit = new HederaAgentKit(
-  '0.0.12345', // Replace with your account ID
-  '0x.......', // Replace with your private key
-  'testnet',   // Replace with your selected network
-);
-const hederaAgentKitTools = createHederaTools(hederaAgentKit);
-const toolsNode = new ToolNode(tools);
-
-```
-- `hederaAgentKitTools` is an array of `Tool` instances
-  (from `@langchain/core/tools`).
-- `toolsNode` can be used in any LangGraph workflow,
-  for example `workflow.addNode('toolsNode', toolsNode)`.
-
-## Local development
-
-1. **Clone** the repo:
-
-```bash
-git clone https://github.com/hedera-dev/hedera-agent-kit.git
+1. Clone the repository:
+   ```
+   git clone https://github.com/yourusername/franky-hedera.git
+   cd franky-hedera/agent-framework
 ```
 
 2. Install dependencies:
-
-```bash
-cd hedera-agent-kit
+   ```
 npm install
 ```
 
-3. Configure environment variables (e.g., `OPENAI_API_KEY`, `HEDERA_ACCOUNT_ID`, `HEDERA_PRIVATE_KEY`) in a `.env` file.
+3. Configure environment variables:
+   ```
+   cp sample.env .env
+   ```
+   
+   Then edit `.env` with your Hedera account details:
+   ```
+   HEDERA_NETWORK=testnet
+   HEDERA_ACCOUNT_ID=YOUR_ACCOUNT_ID
+   HEDERA_PRIVATE_KEY=YOUR_PRIVATE_KEY
+   OPENAI_API_KEY=YOUR_OPENAI_API_KEY
+   ```
 
-4. Test the kit:
+## Running the Server
 
-```bash
- npm run test
-```
+1. Build the project:
+   ```
+   npm run build
+   ```
 
-## Hybrid Mode
+2. Start the server:
+   ```
+   npm start
+   ```
 
-The kit implements a hybrid approach to using language models:
+The server will start on port 3000 by default (configurable in `.env`).
 
-1. **Local Ollama Model**: Used for general knowledge questions and non-blockchain queries
-2. **OpenAI (o3-mini)**: Used specifically for blockchain operations that require specialized tools
+## API Endpoints
 
-This hybrid approach helps reduce API costs while maintaining high-quality responses for specialized blockchain operations. The system automatically routes queries to the appropriate model based on content analysis.
+### Character Management
 
-### Configuration:
+- **GET /characters** - List all available characters
+- **GET /characters/:characterId** - Get details about a specific character
+- **POST /admin/characters** - Add a new character
+- **DELETE /admin/characters/:characterId** - Mark a character as deleted
 
-```
-# In your .env file
-OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=qwen2.5:14b
-# Set to 'false' to disable hybrid mode and use OpenAI for all queries
-USE_HYBRID_MODEL=true
-```
-
-### Testing Hybrid Mode:
-
-1. Make sure Ollama is running: `npm run test-ollama`
-2. Run the main test interface: `npm run test`
-3. Try both general queries and blockchain-specific queries to see routing in action
-
-## Model Context Protocol (MCP) Mode
-
-The kit now includes a Model Context Protocol implementation that allows OpenAI to interact with Hedera tools in a standardized way. This approach creates a REST API that serves as an intermediary between OpenAI and the blockchain tools.
-
-### MCP Features:
-
-1. **API Server**: Exposes all Hedera tools via a REST API
-2. **OpenAPI Schema**: Generates an OpenAPI schema for all tools
-3. **OpenAI Integration**: Provides a simple client for OpenAI to interact with tools
-
-### Configuration:
-
-```
-# In your .env file
-OPENAI_API_KEY=your_openai_api_key
-OPENAI_MODEL=gpt-3.5-turbo
-MCP_SERVER_PORT=3000
-```
-
-### Testing MCP Mode:
-
-1. Run the MCP test interface: `npm run test-mcp`
-2. Interact with the AI which now has access to all Hedera tools through the MCP server
-
-The MCP implementation provides a cleaner separation between the LLM and tools, making it easier to switch between different LLM providers while maintaining the same tool functionality.
-
-## Character Mode
-
-The kit now supports a character roleplay mode for the Ollama LLM, similar to SillyTavern. This feature allows:
-
-1. **Character-Based Responses**: The Ollama model can respond as different characters.
-2. **Hybrid Approach**: General queries go to Ollama (with character mode), while blockchain operations still use OpenAI.
-3. **Configuration**: Characters are defined in JSON files in the `characters/` directory.
-
-### Character JSON Format
-
+Example: Adding a new character
 ```json
+POST /admin/characters
 {
-    "name": "Character Name",
-    "description": "Physical appearance description",
-    "personality": "Personality traits",
-    "scenario": "Background setting",
-    "first_mes": "First message in chat",
-    "mes_example": "Example messages",
-    "creator_notes": "Notes from creator",
-    "system_prompt": "System instructions for AI"
+  "characterId": "sherlock-holmes",
+  "name": "Sherlock Holmes",
+  "description": "A brilliant detective known for his logical reasoning",
+  "imageUrl": "https://example.com/sherlock.jpg",
+  "traits": {
+    "personality": ["analytical", "observant", "intelligent"],
+    "background": "Private detective from London",
+    "speaking_style": "Precise and formal"
+  }
 }
 ```
 
-### Using Character Mode
+### Agent Interaction
 
-1. Place character JSON files in the `characters/` directory.
-2. Run `npm run test` and choose the "character" mode.
-3. Select a character from the list.
-4. Start chatting with the character!
+- **POST /initialize** - Initialize an agent for interaction
+- **POST /chat** - Send a message to an agent
+- **GET /viewresponse/:messageId** - View a response to a message
+- **POST /destruct** - Cleanup an agent connection
 
-The character mode is only applied to Ollama responses, while OpenAI remains focused on blockchain operations.
+All endpoints requiring a user account ID should include an `account-id` header.
 
-## Contributing
+Example: Initializing an agent
+```json
+POST /initialize
+Headers: account-id: 0.0.12345
+{
+  "characterId": "sherlock-holmes"
+}
+```
 
-We welcome contributions! Please see our [CONTRIBUTING.md](https://github.com/hedera-dev/hedera-agent-kit/blob/main/CONTRIBUTING.md) for details on our process, how to get started, and how to sign your commits under the DCO.
+Example: Sending a message
+```json
+POST /chat
+Headers: account-id: 0.0.12345
+{
+  "characterId": "sherlock-holmes",
+  "message": "Can you help me solve a mystery?"
+}
+```
 
-## Roadmap
+Example: View a response
+```
+GET /viewresponse/550e8400-e29b-41d4-a716-446655440000
+Headers: account-id: 0.0.12345
+```
 
-For details on upcoming features, check out our [ROADMAP.md](https://github.com/hedera-dev/hedera-agent-kit/blob/main/ROADMAP.md). If you'd like to tackle one of the tasks, look at the open issues on GitHub or create a new one if you don't see what you're looking for.
+Example: Cleanup
+```json
+POST /destruct
+Headers: account-id: 0.0.12345
+{
+  "characterId": "sherlock-holmes"
+}
+```
+
+## Message Flow
+
+1. **User Initialization**:
+   - User selects a character agent
+   - System creates or reuses an agent for the character
+   - System establishes a connection topic for communication
+
+2. **Conversation**:
+   - User sends messages to the connection topic
+   - Agent monitors the connection topic for new messages
+   - Agent generates responses and sends them to the same topic
+   - User retrieves responses from the connection topic
+
+3. **Cleanup**:
+   - User requests to end the conversation
+   - System sends a close message to the connection topic
+   - System stops monitoring the connection
+
+## Development
+
+### Project Structure
+
+```
+agent-framework/
+├── src/
+│   ├── controllers/    - API endpoint controllers
+│   ├── services/       - Business logic services
+│   ├── utils/          - Utility functions
+│   ├── routes/         - API route definitions
+│   ├── index.ts        - Main application entry point
+├── data/               - Storage for agent state
+├── dist/               - Compiled JavaScript files
+├── .env                - Environment configuration
+└── package.json        - Project dependencies
+```
+
+### Adding New Features
+
+1. **Create a New Character**:
+   - Add a character to the registry using the `/admin/characters` endpoint
+   - The character will be available for users to initialize
+
+2. **Custom Response Generation**:
+   - Modify the `aiService.ts` file to customize how character responses are generated
+   - You can integrate different AI models or custom logic
+
+3. **Custom Fee Structure**:
+   - Adjust the `getDefaultFeeAmount` function in `hederaService.ts`
+   - Modify the fee configuration in `agentController.ts`
+
+## Troubleshooting
+
+- **Connection Issues**: Make sure your Hedera account has enough HBAR for transactions
+- **Missing Responses**: Check that the agent monitoring service is running correctly
+- **Fee Errors**: Ensure the user account has enough balance to pay fees
 
 ## License
 
 Apache 2.0
 
-# Private Key Formatting
+## Acknowledgments
 
-When using this project with Hedera, it's crucial to ensure your private keys are in the correct format:
+This project is based on the [HCS-10 standard](https://github.com/hashgraph/hedera-improvement-proposal/blob/master/HCS/0010-hcs10-connecting-agents.md) and uses the [standards-sdk](https://github.com/hashgraphonline/standards-sdk) for Hedera communication.
 
-1. **Remove any `0x` prefix**: Hedera SDK expects private keys as raw hex strings without the `0x` prefix that's common in Ethereum.
+# Agent Framework with Fee-Gated Connection Topics
 
-2. **Use the correct key type**: Set `HEDERA_KEY_TYPE=ECDSA` in your .env file if using ECDSA keys.
+This implementation provides a framework for agent-based interactions using Hedera's Consensus Service (HCS), with support for fee-gated connection topics. The system follows a specific architecture to ensure that initial connection requests are free, while ongoing conversations require a fee payment.
 
-3. **Common errors**: If you encounter an `INVALID_SIGNATURE` error, check your private key format first.
+## Architecture
 
-Example of correct format in `.env`:
-```
-HEDERA_PRIVATE_KEY=f22ee3d62bfc11b720a635d8d09c9a1c974e08a5f9bd875a6058ddfbe62415bf
-```
+### Free Inbound Topics & Fee-Gated Connection Topics
 
-NOT:
-```
-HEDERA_PRIVATE_KEY=0xf22ee3d62bfc11b720a635d8d09c9a1c974e08a5f9bd875a6058ddfbe62415bf
-```
+The implementation uses a clear distinction between different types of topics:
+
+1. **Inbound Topics**: Free topics that any user can post to. These are used solely for connection requests to establish a conversation with an agent.
+
+2. **Connection Topics**: Fee-gated topics for ongoing conversations. Once a connection is established, users must pay a fee to post messages to these topics.
+
+### Fee Structure Implementation
+
+The system implements a fee structure based on the following components:
+
+- **FeeConfigBuilder**: A utility class for creating fee configurations with customizable properties like fee amount, collector account, and exempt accounts.
+
+- **MonitorService**: Responsible for tracking fee-gated connections and verifying fee payments when messages are processed.
+
+- **HCS10Client**: Enhanced client for creating and managing fee-gated topics, with support for creating HIP-991 fee schedules.
+
+### Connection Flow
+
+The connection flow follows this sequence:
+
+1. User sends a connection request to the agent's free inbound topic.
+2. Agent processes the request and creates a fee-gated connection topic.
+3. Agent sends a confirmation message with the connection topic ID.
+4. User and agent communicate through the fee-gated connection topic.
+
+### Fee Verification
+
+When messages are received on a fee-gated connection topic:
+
+1. The system checks if the topic is registered as fee-gated.
+2. If the sender is not in the exempt accounts list, the fee payment is verified.
+3. If the fee is not paid, the message is rejected.
+
+## API Endpoints
+
+The framework provides the following API endpoints:
+
+- `POST /api/agents/initialize`: Initialize an agent for a character
+- `POST /api/agents/connect`: Connect to an agent by inbound topic ID
+- `POST /api/agents/message`: Send a message to an agent on a connection topic
+- `POST /api/agents/monitor`: Start monitoring for an agent
+- `POST /api/agents/fee-config`: Create a fee configuration
+
+## Usage Example
+
+Here's an example of how to use the system:
+
+1. **Initialize an Agent**
+   ```javascript
+   // Create an agent for a character
+   fetch('/api/agents/initialize', {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({
+       characterId: 'character-123',
+       accountId: 'agent-account-id',
+       privateKey: 'agent-private-key'
+     })
+   });
+   ```
+
+2. **Connect to an Agent**
+   ```javascript
+   // Connect to an agent using its inbound topic
+   fetch('/api/agents/connect', {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({
+       inboundTopicId: 'agent-inbound-topic-id',
+       userAccountId: 'user-account-id',
+       userPrivateKey: 'user-private-key'
+     })
+   });
+   ```
+
+3. **Send a Message**
+   ```javascript
+   // Send a message to the connection topic (with fee payment)
+   fetch('/api/agents/message', {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({
+       connectionTopicId: 'connection-topic-id',
+       message: 'Hello agent!',
+       userAccountId: 'user-account-id',
+       userPrivateKey: 'user-private-key'
+     })
+   });
+   ```
+
+## HIP-991 Support
+
+The system includes support for HIP-991 fee schedules, allowing for standardized fee management. The `createHip991FeeSchedule` method in the `HCS10Client` class creates fee schedules according to the HIP-991 standard.
+
+## Installation
+
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Run the server: `npm start`
+
+## Configuration
+
+The system can be configured through environment variables:
+
+- `PORT`: Server port (default: 3000)
+- `HEDERA_NETWORK`: Hedera network to use (default: testnet)
+- `LOG_LEVEL`: Logging level (default: info)
+
+## Future Enhancements
+
+Future versions could include:
+
+- Complete implementation of HIP-991 fee schedules
+- Improved fee verification using Hedera Record API
+- Support for token-based fees
+- Enhanced message encryption and privacy features

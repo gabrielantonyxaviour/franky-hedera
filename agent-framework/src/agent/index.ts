@@ -93,7 +93,10 @@ import {
     CustodialAssetAllowanceResult,
     NonCustodialAssetAllowanceResult
 } from "../tools";
-import { logger } from "../utils/logger";
+import { Logger, logger } from "../utils/logger";
+
+// Define a context constant for this module
+const CONTEXT_AGENT = 'AGENT';
 
 export class HederaAgentKit {
     public client: Client
@@ -109,7 +112,7 @@ export class HederaAgentKit {
         publicKey?: string | undefined,
         network: 'mainnet' | 'testnet' | 'previewnet' = 'mainnet',
     ) {
-        logger.info('HederaAgentKit', 'Initializing HederaAgentKit', {
+        logger.info(CONTEXT_AGENT, 'Initializing HederaAgentKit', {
             accountId,
             hasPrivateKey: !!privateKey,
             hasPublicKey: !!publicKey,
@@ -117,17 +120,34 @@ export class HederaAgentKit {
         });
 
         if(privateKey){
-            logger.debug('HederaAgentKit', 'Initializing in custodial mode');
-            // @ts-ignore
-            this.client = Client.forNetwork(network).setOperator(accountId, privateKey);
+            logger.debug(CONTEXT_AGENT, 'Initializing in custodial mode');
+            switch (network) {
+                case 'mainnet':
+                    this.client = Client.forMainnet();
+                    break;
+                case 'previewnet':
+                    this.client = Client.forPreviewnet();
+                    break;
+                default:
+                    this.client = Client.forTestnet();
+            }
+            this.client.setOperator(accountId, privateKey);
             this.privateKey = privateKey;
             this.isCustodial = true;
         } else {
-            logger.debug('HederaAgentKit', 'Initializing in non-custodial mode');
-            // @ts-ignore
-            this.client = Client.forNetwork(network);
+            logger.debug(CONTEXT_AGENT, 'Initializing in non-custodial mode');
+            switch (network) {
+                case 'mainnet':
+                    this.client = Client.forMainnet();
+                    break;
+                case 'previewnet':
+                    this.client = Client.forPreviewnet();
+                    break;
+                default:
+                    this.client = Client.forTestnet();
+            }
             if(!publicKey) {
-                logger.error('HederaAgentKit', 'Public key is missing for non-custodial mode');
+                logger.error(CONTEXT_AGENT, 'Public key is missing for non-custodial mode');
                 throw new Error("Public key is missing. To perform non custodial action you should pass public key!");
             }
             this.isCustodial = false;
@@ -135,15 +155,15 @@ export class HederaAgentKit {
         
         try {
             this.publicKey = PublicKey.fromString(publicKey!);
-            logger.debug('HederaAgentKit', 'Public key parsed successfully');
+            logger.debug(CONTEXT_AGENT, 'Public key parsed successfully');
         } catch (error) {
-            logger.error('HederaAgentKit', 'Failed to parse public key', error);
+            logger.error(CONTEXT_AGENT, 'Failed to parse public key', error);
             throw error;
         }
         
         this.network = network;
         this.accountId = accountId;
-        logger.info('HederaAgentKit', 'HederaAgentKit initialized successfully', {
+        logger.info(CONTEXT_AGENT, 'HederaAgentKit initialized successfully', {
             accountId: this.accountId,
             network: this.network,
             isCustodial: this.isCustodial
@@ -151,7 +171,7 @@ export class HederaAgentKit {
     }
 
     private isClient(x: any): x is Client {
-        logger.debug('HederaAgentKit', 'Checking if object is a Hedera Client', {
+        logger.debug(CONTEXT_AGENT, 'Checking if object is a Hedera Client', {
             hasSetOperator: typeof x.setOperator === 'function'
         });
         return typeof x.setOperator === 'function';
@@ -162,7 +182,7 @@ export class HederaAgentKit {
         isSubmitKey: boolean,
         custodial?: boolean,
     ): Promise<BaseResult<string> | BaseResult<CreateTopicResult>> {
-        logger.info('HederaAgentKit', 'Creating topic', {
+        logger.info(CONTEXT_AGENT, 'Creating topic', {
             topicMemo,
             isSubmitKey,
             custodialParam: custodial,
@@ -170,11 +190,11 @@ export class HederaAgentKit {
         });
         
         const useCustodial = custodial ?? this.isCustodial;
-        logger.debug('HederaAgentKit', `Using ${useCustodial ? 'custodial' : 'non-custodial'} mode`);
+        logger.debug(CONTEXT_AGENT, `Using ${useCustodial ? 'custodial' : 'non-custodial'} mode`);
 
         if (useCustodial) {
             if (!this.privateKey) {
-                logger.error('HederaAgentKit', 'Private key missing for custodial operation');
+                logger.error(CONTEXT_AGENT, 'Private key missing for custodial operation');
                 throw new Error("Private key is missing. To perform custodial action you should pass private key!");
             }
             return this.createTopicCustodial(topicMemo, isSubmitKey);
@@ -187,25 +207,25 @@ export class HederaAgentKit {
         topicMemo: string,
         isSubmitKey: boolean,
     ) : Promise<CustodialCreateTopicResult> {
-        logger.debug('HederaAgentKit', 'Creating topic (custodial mode)', {
+        logger.debug(CONTEXT_AGENT, 'Creating topic (custodial mode)', {
             topicMemo,
             isSubmitKey
         });
         
         if(!this.privateKey) {
-            logger.error('HederaAgentKit', 'Private key missing for custodial topic creation');
+            logger.error(CONTEXT_AGENT, 'Private key missing for custodial topic creation');
             throw new Error("Custodial actions require privateKey!");
         }
 
         try {
-            logger.debug('HederaAgentKit', 'Building create topic transaction');
+            logger.debug(CONTEXT_AGENT, 'Building create topic transaction');
             const txBuilder = HcsTransactionBuilder
                 .createTopic(topicMemo, this.client.operatorPublicKey, isSubmitKey);
             
-            logger.debug('HederaAgentKit', 'Signing and executing create topic transaction');
+            logger.debug(CONTEXT_AGENT, 'Signing and executing create topic transaction');
             const response: CreateTopicResult = await txBuilder.signAndExecute(this.client);
             
-            logger.info('HederaAgentKit', 'Topic created successfully', {
+            logger.info(CONTEXT_AGENT, 'Topic created successfully', {
                 topicId: response.topicId.toString(),
                 txHash: response.txHash,
                 status: response.status
@@ -213,7 +233,7 @@ export class HederaAgentKit {
 
             return new CustodialCreateTopicResult(response.topicId, response.txHash, response.status);
         } catch (error) {
-            logger.error('HederaAgentKit', 'Failed to create topic (custodial mode)', error);
+            logger.error(CONTEXT_AGENT, 'Failed to create topic (custodial mode)', error);
             throw error;
         }
     }
@@ -222,26 +242,26 @@ export class HederaAgentKit {
         topicMemo: string,
         isSubmitKey: boolean,
     ) : Promise<NonCustodialCreateTopicResult> {
-        logger.debug('HederaAgentKit', 'Creating topic (non-custodial mode)', {
+        logger.debug(CONTEXT_AGENT, 'Creating topic (non-custodial mode)', {
             topicMemo,
             isSubmitKey
         });
         
         try {
-            logger.debug('HederaAgentKit', 'Building create topic transaction');
+            logger.debug(CONTEXT_AGENT, 'Building create topic transaction');
             const txBuilder = HcsTransactionBuilder
                 .createTopic(topicMemo, this.client.operatorPublicKey, isSubmitKey);
             
-            logger.debug('HederaAgentKit', 'Generating transaction bytes');
+            logger.debug(CONTEXT_AGENT, 'Generating transaction bytes');
             const txBytes = await txBuilder.getTxBytesString(this.client, this.accountId);
             
-            logger.info('HederaAgentKit', 'Topic transaction bytes generated', {
+            logger.info(CONTEXT_AGENT, 'Topic transaction bytes generated', {
                 bytesLength: txBytes.length
             });
 
             return new NonCustodialCreateTopicResult(txBytes);
         } catch (error) {
-            logger.error('HederaAgentKit', 'Failed to create topic (non-custodial mode)', error);
+            logger.error(CONTEXT_AGENT, 'Failed to create topic (non-custodial mode)', error);
             throw error;
         }
     }
@@ -252,7 +272,7 @@ export class HederaAgentKit {
         message: string,
         custodial?: boolean,
     ): Promise<BaseResult<string> | BaseResult<SubmitMessageResult>> {
-        logger.info('HederaAgentKit', 'Submitting topic message', {
+        logger.info(CONTEXT_AGENT, 'Submitting topic message', {
             topicId: topicId.toString(),
             messageLength: message.length,
             custodialParam: custodial,
@@ -260,11 +280,11 @@ export class HederaAgentKit {
         });
         
         const useCustodial = custodial ?? this.isCustodial;
-        logger.debug('HederaAgentKit', `Using ${useCustodial ? 'custodial' : 'non-custodial'} mode`);
+        logger.debug(CONTEXT_AGENT, `Using ${useCustodial ? 'custodial' : 'non-custodial'} mode`);
 
         if (useCustodial) {
             if (!this.privateKey) {
-                logger.error('HederaAgentKit', 'Private key missing for custodial message submission');
+                logger.error(CONTEXT_AGENT, 'Private key missing for custodial message submission');
                 throw new Error("Private key is missing. To perform custodial action you should pass private key!");
             }
             return this.submitTopicMessageCustodial(topicId, message);
@@ -277,25 +297,25 @@ export class HederaAgentKit {
         topicId: TopicId,
         message: string,
     ): Promise<CustodialSubmitMessageResult> {
-        logger.debug('HederaAgentKit', 'Submitting topic message (custodial mode)', {
+        logger.debug(CONTEXT_AGENT, 'Submitting topic message (custodial mode)', {
             topicId: topicId.toString(),
             messageLength: message.length
         });
         
         if(!this.privateKey) {
-            logger.error('HederaAgentKit', 'Private key missing for custodial message submission');
+            logger.error(CONTEXT_AGENT, 'Private key missing for custodial message submission');
             throw new Error("Custodial actions require privateKey!");
         }
 
         try {
-            logger.debug('HederaAgentKit', 'Building submit message transaction');
+            logger.debug(CONTEXT_AGENT, 'Building submit message transaction');
             const txBuilder = HcsTransactionBuilder
                 .submitTopicMessage(topicId, message);
             
-            logger.debug('HederaAgentKit', 'Signing and executing submit message transaction');
+            logger.debug(CONTEXT_AGENT, 'Signing and executing submit message transaction');
             const response: SubmitMessageResult = await txBuilder.signAndExecute(this.client);
             
-            logger.info('HederaAgentKit', 'Message submitted successfully', {
+            logger.info(CONTEXT_AGENT, 'Message submitted successfully', {
                 topicId: topicId.toString(),
                 txHash: response.txHash,
                 status: response.status
@@ -303,7 +323,7 @@ export class HederaAgentKit {
 
             return new CustodialSubmitMessageResult(response.txHash, response.status, topicId.toString());
         } catch (error) {
-            logger.error('HederaAgentKit', 'Failed to submit topic message (custodial mode)', error);
+            logger.error(CONTEXT_AGENT, 'Failed to submit topic message (custodial mode)', error);
             throw error;
         }
     }
