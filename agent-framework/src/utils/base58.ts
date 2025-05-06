@@ -1,22 +1,22 @@
 // Simple base58 encoding/decoding utility
 const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+const ALPHABET_MAP = ALPHABET.split('').reduce((acc, char, i) => {
+  acc[char] = i;
+  return acc;
+}, {} as { [key: string]: number });
 
 export function encodeBase58(input: string): string {
-  const bytes = Buffer.from(input);
+  const bytes = Buffer.from(input, 'hex');
   let output = '';
   
   // Convert bytes to base58 string
-  for (let i = 0; i < bytes.length; i++) {
-    let carry = bytes[i];
-    for (let j = 0; j < output.length; j++) {
-      const current = ALPHABET.indexOf(output[j]) * 256 + carry;
-      carry = current / 58 | 0;
-      output = output.substring(0, j) + ALPHABET[current % 58] + output.substring(j + 1);
-    }
-    while (carry) {
-      output = ALPHABET[carry % 58] + output;
-      carry = carry / 58 | 0;
-    }
+  let num = BigInt('0x' + bytes.toString('hex'));
+  const base = BigInt(58);
+  
+  while (num > BigInt(0)) {
+    const remainder = Number(num % base);
+    output = ALPHABET[remainder] + output;
+    num = num / base;
   }
   
   // Add leading '1's for each leading zero byte
@@ -28,36 +28,33 @@ export function encodeBase58(input: string): string {
 }
 
 export function decodeBase58(input: string): string {
-  const bytes = [0];
+  if (!input || input.length === 0) return '';
   
-  // Convert base58 string to bytes
+  let num = BigInt(0);
+  const base = BigInt(58);
+  
+  // Convert base58 string to number
   for (let i = 0; i < input.length; i++) {
-    const value = ALPHABET.indexOf(input[i]);
-    if (value === -1) {
-      throw new Error('Invalid base58 character');
+    const char = input[i];
+    const value = ALPHABET_MAP[char];
+    if (value === undefined) {
+      throw new Error('Invalid base58 character: ' + char);
     }
-    
-    for (let j = 0; j < bytes.length; j++) {
-      bytes[j] *= 58;
-    }
-    bytes[0] += value;
-    
-    let carry = 0;
-    for (let j = 0; j < bytes.length; j++) {
-      bytes[j] += carry;
-      carry = bytes[j] >> 8;
-      bytes[j] &= 0xff;
-    }
-    while (carry) {
-      bytes.push(carry & 0xff);
-      carry >>= 8;
-    }
+    num = num * base + BigInt(value);
+  }
+  
+  // Convert to hex string
+  let hex = num.toString(16);
+  
+  // Ensure even length
+  if (hex.length % 2 !== 0) {
+    hex = '0' + hex;
   }
   
   // Add leading zeros
   for (let i = 0; i < input.length && input[i] === '1'; i++) {
-    bytes.unshift(0);
+    hex = '00' + hex;
   }
   
-  return Buffer.from(bytes).toString();
+  return hex;
 } 

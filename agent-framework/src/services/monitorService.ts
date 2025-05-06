@@ -5,10 +5,12 @@ import { FeeConfig } from '../utils/feeUtils';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as storageService from './storageService';
+import { decodeBase58 } from '../utils/base58';
 
 // Import AI service for generating responses
 import { generateCharacterResponse } from './aiService';
 import { getConnectionService } from './connectionService';
+import { PrivateKey } from '@hashgraph/sdk';
 
 // Track fee-gated connections
 const feeGatedConnections = new Map<string, FeeConfig>();
@@ -204,76 +206,144 @@ export class MonitorService {
    * @param message The message to process
    */
   private async processInboundMessage(topicId: string, message: HCSMessage): Promise<void> {
-    // Check if it's a connection request
-    if (message.op === 'connection_request' && message.sequence_number) {
-      logger.info('MONITOR', `Received connection request on inbound topic: ${topicId}`);
-
-      try {
-        // Extract requester account ID from operator_id
-        const requesterAccountId = message.operator_id?.split('@')[1];
-        if (!requesterAccountId) {
-          logger.error('MONITOR', 'Failed to extract requester account ID from operator_id');
-          return;
+    try {
+      // Parse message data if it exists
+      let messageData: any = null;
+      if (message.data && typeof message.data === 'string') {
+        try {
+          messageData = JSON.parse(message.data);
+        } catch (e) {
+          logger.error('MONITOR', `Error parsing message data: ${e}`);
         }
-        
-        // Get character ID for this topic
-        const topicInfo = this.topicConnections.get(topicId);
-        const characterId = topicInfo?.characterId;
-        
-        if (!characterId) {
-          logger.error('MONITOR', `No character ID associated with inbound topic ${topicId}`);
-          return;
-        }
-        
-        // Get the connection service
-        const connectionService = await getConnectionService();
-        
-        // Get the agent credentials from storage
-        const agentInfo = await storageService.getAgentInfoByInboundTopic(topicId);
-        if (!agentInfo) {
-          logger.error('MONITOR', `No agent info found for inbound topic ${topicId}`);
-          return;
-        }
-        
-        const operatorId = agentInfo.accountId;
-        const agentPrivateKey = agentInfo.privateKey;
-        
-        if (!operatorId || !agentPrivateKey) {
-          logger.error('MONITOR', 'Missing agent credentials');
-          return;
-        }
-        
-        logger.info('MONITOR', `Using agent ${operatorId} to handle connection request`);
-        
-        // Handle the connection request (creates a connection topic)
-        const result = await connectionService.handleConnectionRequest(
-          topicId,
-          requesterAccountId,
-          message.sequence_number,
-          operatorId,
-          agentPrivateKey,
-          characterId
-        );
-        
-        logger.info('MONITOR', `Created connection topic: ${result.connectionTopicId}`);
-        
-        // Start monitoring the new connection topic
-        await this.startMonitoringTopic(result.connectionTopicId);
-        
-        // Register as a connection topic
-        this.registerTopicType(result.connectionTopicId, 'connection', {
-          characterId,
-          userId: requesterAccountId
-        });
-        
-        // Set character for this connection topic
-        const characterData = this.activeCharacters.get(topicId);
-        if (characterData) {
-          this.setCharacterForTopic(result.connectionTopicId, characterData);
-        }
-      } catch (err) {
-        logger.error('MONITOR', `Error handling connection request: ${err}`, err);
       }
+
+      // Check for HCS-10 connection request
+      const isConnectionRequest = (
+        message.p === 'hcs-10' && 
+        message.op === 'connection_request' && 
+        message.sequence_number
+      );
+
+      if (isConnectionRequest) {
+        logger.info('MONITOR', `Received connection request on inbound topic: ${topicId}`);
+
+        try {
+          // Extract requester account ID from operator_id
+          const requesterAccountId = message.operator_id ? 
+            this.client.extractAccountFromOperatorId(message.operator_id) :
+            (messageData?.userId || null);
+
+          if (!requesterAccountId) {
+            logger.error('MONITOR', 'Failed to extract requester account ID');
+            return;
+          }
+          
+          // Get character ID for this topic
+          const topicInfo = this.topicConnections.get(topicId);
+          const characterId = topicInfo?.characterId;
+          
+          if (!characterId) {
+            logger.error('MONITOR', `No character ID associated with inbound topic ${topicId}`);
+            return;
+          }
+          
+          // Get the agent credentials from storage
+          const agentInfo = await storageService.getAgentInfoByInboundTopic(topicId);
+          if (!agentInfo) {
+            logger.error('MONITOR', `No agent info found for inbound topic ${topicId}`);
+            return;
+          }
+          
+          const operatorId = agentInfo.accountId;
+          // Use the private key directly - it's already in the correct format
+          const agentPrivateKey = agentInfo.privateKey;
+          
+          if (!operatorId || !agentPrivateKey) {
+            logger.error('MONITOR', 'Missing agent credentials');
+            return;
+          }
+          
+          logger.info('MONITOR', `Using agent ${operatorId} to handle connection request from ${requesterAccountId}`);
+          
+          // Create a new connection topic with the private key
+          const agentClient = new HCS10Client({
+            network: 'testnet',
+            operatorId: operatorId,
+            operatorPrivateKey: PrivateKey.fromStringECDSA(agentPrivateKey).toString(),
+            logLevel: 'debug'
+          });
+
+          // Create connection topic with both user and agent keys
+          const { connectionTopicId } = await agentClient.handleConnectionRequest(
+            topicId,
+            requesterAccountId,
+            message.sequence_number
+          );
+          
+          logger.info('MONITOR', `Created connection topic: ${connectionTopicId}`);
+
+          // Send confirmation message on outbound topic in HCS-10 format
+          const outboundTopicId = agentInfo.outboundTopicId;
+          if (outboundTopicId) {
+            // Send standard HCS-10 connection_created message
+            await agentClient.submitPayload(
+              outboundTopicId,
+              {
+                p: 'hcs-10',
+                op: 'connection_created',
+                connection_topic_id: connectionTopicId,
+                connection_id: message.sequence_number,
+                operator_id: `${topicId}@${operatorId}`,
+                connected_account_id: requesterAccountId,
+                m: 'Connection confirmed',
+                created: new Date().toISOString()
+              },
+              undefined,
+              false
+            );
+            logger.info('MONITOR', `Sent connection confirmation on outbound topic ${outboundTopicId}`);
+          }
+          
+          // Start monitoring the new connection topic
+          await this.startMonitoringTopic(connectionTopicId);
+          
+          // Register as a connection topic
+          this.registerTopicType(connectionTopicId, 'connection', {
+            characterId,
+            userId: requesterAccountId
+          });
+          
+          // Set character for this connection topic
+          const characterData = this.activeCharacters.get(topicId);
+          if (characterData) {
+            this.setCharacterForTopic(connectionTopicId, characterData);
+          }
+
+          // Send welcome message on the new connection topic
+          await agentClient.submitPayload(
+            connectionTopicId,
+            {
+              p: 'hcs-10',
+              op: 'message',
+              data: JSON.stringify({
+                type: 'GREETING',
+                content: `Hello! I'm ${characterData?.name || 'your AI assistant'}. How can I help you today?`,
+                timestamp: Date.now()
+              }),
+              operator_id: `${connectionTopicId}@${operatorId}`,
+              m: 'Welcome message'
+            },
+            undefined,
+            false
+          );
+          
+          logger.info('MONITOR', `Sent welcome message on connection topic ${connectionTopicId}`);
+        } catch (err) {
+          logger.error('MONITOR', `Error handling connection request: ${err}`, err);
+        }
+      }
+    } catch (error) {
+      logger.error('MONITOR', `Error processing inbound message: ${error}`, error);
     }
   }
   

@@ -2,6 +2,7 @@
 import { HCS10Client, HCS11Client } from '@hashgraphonline/standards-sdk';
 import { Logger } from '@hashgraphonline/standards-sdk';
 import { logger } from '../utils/logger';
+import { PrivateKey } from '@hashgraph/sdk';
 
 // Singleton instance of HCS10Client
 let hederaClient: HCS10Client | null = null;
@@ -80,7 +81,7 @@ export const createCustomClient = async (
     const client = new HCS10Client({
       network: (process.env.HEDERA_NETWORK || 'testnet') as any,
       operatorId: accountId,
-      operatorPrivateKey: privateKey,
+      operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
       logLevel: (process.env.LOG_LEVEL as any) || 'info',
       prettyPrint: true,
       guardedRegistryBaseUrl: process.env.REGISTRY_URL,

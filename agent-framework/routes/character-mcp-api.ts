@@ -1064,10 +1064,11 @@ async function startServer() {
               }
 
               // Create agent HCS10Client using the decrypted private key - this will be used for agent monitoring
+              const decodedPrivateKey = decodeBase58(agent.encryptedPrivateKey || '');
               const agentClient = new HCS10Client({
                 network: "testnet",
                 operatorId: agent.account_id || '',
-                operatorPrivateKey: decodeBase58(agent.encryptedPrivateKey || ''),
+                operatorPrivateKey: PrivateKey.fromStringECDSA(decodedPrivateKey).toString(),
                 logLevel: "debug" // Set to debug for more detailed logs
               });
               
@@ -1107,7 +1108,7 @@ async function startServer() {
               await storageService.saveAgentInfo({
                 characterId: agentCharacter?.id || agentCharacter?.characterId || '',
                 accountId: agent.account_id || '',
-                privateKey,
+                privateKey: decodedPrivateKey,
                 inboundTopicId: agent.inboundTopicId,
                 outboundTopicId: agent.outboundTopicId
               });
@@ -1118,23 +1119,22 @@ async function startServer() {
               const userClient = new HCS10Client({
                 network: "testnet",
                 operatorId: hederaAccountId,
-                operatorPrivateKey: privateKey,
+                operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
                 logLevel: "debug" // Set to debug for more detailed logs
               });
 
-              // Send connection request to agent's inbound topic
-              logger.info(
-                "API",
-                `Sending connection request to agent's inbound topic: ${agent.inboundTopicId}`
-              );
-
-              // Submit the connection request directly to avoid profile checks
+              // Send connection request in HCS-10 format
               const result = await userClient.submitPayload(
                 agent.inboundTopicId,
                 {
-                  type: "CONNECTION_REQUEST",
-                  timestamp: Date.now(),
-                  userId: hederaAccountId
+                  p: 'hcs-10',
+                  op: 'connection_request',
+                  operator_id: `${agent.outboundTopicId}@${hederaAccountId}`,
+                  m: 'Connection request',
+                  data: JSON.stringify({
+                    timestamp: Date.now(),
+                    userId: hederaAccountId
+                  })
                 },
                 undefined, // No submit key needed
                 false // No fee required for connection request
@@ -1162,28 +1162,20 @@ async function startServer() {
                 
                 try {
                   logger.debug("API", `Polling attempt ${attempts}/${maxAttempts} for connection confirmation`);
-                  const messages = await userClient.getMessages(agent.outboundTopicId);
+                  const { messages } = await userClient.getMessages(agent.outboundTopicId);
                   
-                  if (messages && messages.messages) {
-                    for (const message of messages.messages) {
-                      if (message.data) {
-                        try {
-                          const parsedMessage = JSON.parse(message.data);
-                          logger.debug("API", `Found message on outbound topic: ${JSON.stringify(parsedMessage)}`);
-                          if (
-                            parsedMessage.type === "CONNECTION_CONFIRMATION" && 
-                            parsedMessage.requestId === requestId &&
-                            parsedMessage.connectionTopicId
-                          ) {
-                            connectionTopicId = parsedMessage.connectionTopicId;
-                            logger.info("API", `Found connection confirmation with topic ID: ${connectionTopicId}`);
-                            break;
-                          }
-                        } catch (parseError) {
-                          // Skip invalid JSON messages
-                          logger.debug("API", `Error parsing message: ${parseError}`);
-                          continue;
-                        }
+                  if (messages && messages.length > 0) {
+                    for (const message of messages) {
+                      // Check for standard HCS-10 connection_created message
+                      if (
+                        message.p === 'hcs-10' && 
+                        message.op === 'connection_created' && 
+                        message.connection_id === requestId &&
+                        message.connection_topic_id
+                      ) {
+                        connectionTopicId = message.connection_topic_id;
+                        logger.info("API", `Found connection confirmation with topic ID: ${connectionTopicId}`);
+                        break;
                       }
                     }
                   }
