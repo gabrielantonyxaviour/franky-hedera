@@ -1,51 +1,37 @@
-// Polyfill for Protobuf Long.js
-if (typeof window === 'undefined') {
-  // @ts-ignore
-  global.window = {
-    crypto: require('crypto').webcrypto
-  };
-  // @ts-ignore
-  global.self = global.window;
-}
-
-// Ensure Long.js is available
-const Long = require('long');
-if (typeof global !== 'undefined' && !global.Long) {
-  global.Long = Long;
-}
-
-import * as dotenv from "dotenv";
+import { webcrypto } from 'node:crypto';
+import Long from 'long';
+import dotenv from "dotenv";
 import express, { Request, Response } from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
-import { logger, LogLevel } from "../src/utils/logger";
+import { logger, LogLevel } from "../src/utils/logger.js";
 import {
   mightRequireTools,
   queryOllama,
   isOllamaAvailable,
-} from "../src/utils/ollama-client";
+} from "../src/utils/ollama-client.js";
 import {
   loadCharacter,
   listCharacters,
   createCharacterPrompt,
   findCharacterById,
   listCharactersWithInfo,
-} from "../src/characters";
-import { Character } from "../src/types";
-import { MCPServer } from "../src/utils/mcp-server";
-import { MCPOpenAIClient } from "../src/utils/mcp-openai";
-import HederaAgentKit from "../src/agent";
-import { createHederaTools } from "../src";
+} from "../src/characters/index.js";
+import { Character } from "../src/types/index.js";
+import { MCPServer } from "../src/utils/mcp-server.js";
+import { MCPOpenAIClient } from "../src/utils/mcp-openai.js";
+import HederaAgentKit from "../src/agent/index.js";
+import { createHederaTools } from "../src/index.js";
 import { PrivateKey, Client, AccountId, TransactionReceipt } from "@hashgraph/sdk";
 // Import Lit Protocol and ethers for wallet decryption
 import { ethers } from "ethers";
 // Import local implementations
-import { decryptServerWallet } from "./lit-helpers";
+import { decryptServerWallet } from "./lit-helpers.js";
 // Import contract constants
-import { FRANKY_ADDRESS, FRANKY_ABI } from "./constants";
+import { FRANKY_ADDRESS, FRANKY_ABI } from "./constants.js";
 // Import utilities
 import { createPublicClient, formatEther, http } from "viem";
-import { hederaTestnet } from "./hedera-chain";
+import { hederaTestnet } from "./hedera-chain.js";
 // Import HIP-991 agent functionality
 import {
   initializeAgent,
@@ -56,7 +42,7 @@ import {
   hasActiveAgent,
   HIP991Agent,
   TopicMessage,
-} from "../src/utils/hip991-agent";
+} from "../src/utils/hip991-agent.js";
 import { v4 as uuidv4 } from "uuid";
 // Import node-fetch for making HTTP requests
 import fetch from "node-fetch";
@@ -66,24 +52,177 @@ import {
   checkOllamaModel,
   enhancedToolDetection,
   queryOllamaWithFallback,
-} from "../src/utils/response-generator";
+} from "../src/utils/response-generator.js";
 import { HCS10Client, NetworkType } from "@hashgraphonline/standards-sdk";
-import * as fs from 'fs';
-import * as path from 'path';
-import { MonitorService, registerFeeGatedConnection } from "../src/services/monitorService";
-import { generateCharacterResponse } from "../src/services/aiService";
+import fs from 'fs';
+import { promises as fsPromises } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import { MonitorService, registerFeeGatedConnection } from "../src/services/monitorService.js";
+import { generateCharacterResponse } from "../src/services/aiService.js";
+import { FeeConfig } from "../src/utils/feeUtils.js";
+
+// Get __dirname equivalent in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Add declaration for cors module to fix linter error
 
 // Define CONNECTION_DIR locally since it's not exported from storageService
 const CONNECTION_DIR = process.env.STATE_DIR ? path.join(process.env.STATE_DIR, 'connections') : './data/connections';
+const USER_MAPPINGS_DIR = process.env.STATE_DIR ? path.join(process.env.STATE_DIR, 'user_mappings') : './data/user_mappings';
+const CHARACTER_DATA_DIR = process.env.STATE_DIR ? path.join(process.env.STATE_DIR, 'characters') : './data/characters';
 
-// Create a simplified ConnectionInfo interface
-interface ConnectionInfo {
+// Ensure directories exist
+if (!fs.existsSync(CONNECTION_DIR)) {
+  fs.mkdirSync(CONNECTION_DIR, { recursive: true });
+}
+if (!fs.existsSync(USER_MAPPINGS_DIR)) {
+  fs.mkdirSync(USER_MAPPINGS_DIR, { recursive: true });
+}
+if (!fs.existsSync(CHARACTER_DATA_DIR)) {
+  fs.mkdirSync(CHARACTER_DATA_DIR, { recursive: true });
+}
+
+// Define the user-agent mapping interface
+interface UserAgentMapping {
+  agentAddress: string;
   connectionTopicId: string;
-  userAccountId: string;
-  agentAccountId: string;
   characterId: string;
-  createdAt: string;
-  lastMessageAt?: string;
+  inboundTopicId: string;
+  outboundTopicId: string;
+  lastActive: string;
+}
+
+// In-memory cache of user-agent mappings
+const userAgentMappings = new Map<string, UserAgentMapping>();
+
+/**
+ * Save a user-agent mapping to both memory and persistent storage
+ */
+function saveUserAgentMapping(userId: string, agentData: UserAgentMapping): void {
+  // Save in memory cache
+  userAgentMappings.set(userId, agentData);
+  
+  try {
+    // Save to persistent storage
+    if (!fs.existsSync(USER_MAPPINGS_DIR)) {
+      fs.mkdirSync(USER_MAPPINGS_DIR, { recursive: true });
+    }
+    
+    fs.writeFileSync(
+      path.join(USER_MAPPINGS_DIR, `${userId.replace(/\./g, '_')}.json`),
+      JSON.stringify(agentData, null, 2)
+    );
+    
+    logger.info("MAPPING", `Saved agent mapping for user ${userId}`);
+  } catch (error) {
+    logger.error("MAPPING", `Error saving agent mapping for user ${userId}`, error);
+  }
+}
+
+/**
+ * Get a user's agent mapping from memory cache or persistent storage
+ */
+async function getUserAgentMapping(userId: string): Promise<UserAgentMapping | null> {
+  try {
+    // Check memory cache first
+    if (userAgentMappings.has(userId)) {
+      const mapping = userAgentMappings.get(userId);
+      // Update the last active timestamp
+      mapping!.lastActive = new Date().toISOString();
+      // Save the updated mapping
+      saveUserAgentMapping(userId, mapping!);
+      return mapping!;
+    }
+    
+    // Try to load from persistent storage
+    const mappingFile = path.join(USER_MAPPINGS_DIR, `${userId.replace(/\./g, '_')}.json`);
+    
+    if (fs.existsSync(mappingFile)) {
+      const mappingData = JSON.parse(fs.readFileSync(mappingFile, 'utf8'));
+      
+      // Update the last active timestamp
+      mappingData.lastActive = new Date().toISOString();
+      
+      // Cache in memory and save updated timestamp
+      userAgentMappings.set(userId, mappingData);
+      fs.writeFileSync(mappingFile, JSON.stringify(mappingData, null, 2));
+      
+      logger.info("MAPPING", `Loaded agent mapping for user ${userId}`);
+      return mappingData;
+    }
+    
+    return null;
+  } catch (error) {
+    logger.error("MAPPING", `Error getting agent mapping for user ${userId}`, error);
+    return null;
+  }
+}
+
+/**
+ * Save character data for future use
+ */
+function saveCharacterData(characterId: string, characterData: any): void {
+  try {
+    if (!fs.existsSync(CHARACTER_DATA_DIR)) {
+      fs.mkdirSync(CHARACTER_DATA_DIR, { recursive: true });
+    }
+    
+    fs.writeFileSync(
+      path.join(CHARACTER_DATA_DIR, `${characterId.replace(/\./g, '_')}.json`),
+      JSON.stringify(characterData, null, 2)
+    );
+    
+    logger.info("CHARACTER", `Saved character data for ${characterId}`);
+  } catch (error) {
+    logger.error("CHARACTER", `Error saving character data for ${characterId}`, error);
+  }
+}
+
+/**
+ * Get character data from storage
+ */
+function getCharacterData(characterId: string): any | null {
+  try {
+    const characterFile = path.join(CHARACTER_DATA_DIR, `${characterId.replace(/\./g, '_')}.json`);
+    
+    if (fs.existsSync(characterFile)) {
+      const characterData = JSON.parse(fs.readFileSync(characterFile, 'utf8'));
+      logger.info("CHARACTER", `Loaded character data for ${characterId}`);
+      return characterData;
+    }
+    
+    return null;
+  } catch (error) {
+    logger.error("CHARACTER", `Error loading character data for ${characterId}`, error);
+    return null;
+  }
+}
+
+/**
+ * Save connection information
+ */
+function saveConnection(connectionInfo: any): void {
+  try {
+    const characterId = connectionInfo.characterId || 'default';
+    const characterConnectionDir = path.join(CONNECTION_DIR, characterId);
+    
+    // Ensure character connection directory exists
+    if (!fs.existsSync(characterConnectionDir)) {
+      fs.mkdirSync(characterConnectionDir, { recursive: true });
+    }
+    
+    fs.writeFileSync(
+      path.join(characterConnectionDir, `${connectionInfo.connectionTopicId}.json`),
+      JSON.stringify(connectionInfo, null, 2)
+    );
+    
+    logger.info("CONNECTION", `Saved connection information for ${connectionInfo.connectionTopicId}`);
+  } catch (error) {
+    logger.error("CONNECTION", `Error saving connection information`, error);
+  }
 }
 
 dotenv.config();
@@ -582,7 +721,7 @@ async function fetchAgentAndCharacterData(agentAddress: string): Promise<{
     logger.info("Agent Init", "Agent details fetched successfully");
 
     // Extract the character config URL from the agent data
-    const metadataUrl = agentData.metadata_url;
+    const metadataUrl = agentData.metadataUrl;
 
     if (!metadataUrl) {
       logger.error("Agent Init", "No character config found in agent data");
@@ -743,7 +882,17 @@ async function startServer() {
     app.get("/status", statusHandler);
     app.post("/status", statusHandler);
 
-    // Initialize agent with character endpoint
+    // Create a simplified ConnectionInfo interface
+    interface ConnectionInfo {
+      connectionTopicId: string;
+      userAccountId: string;
+      agentAccountId: string;
+      characterId: string;
+      createdAt: string;
+      lastMessageAt?: string;
+    }
+
+    // Define the initialize endpoint
     app.post("/initialize", (req: Request, res: Response) => {
       // Get the account ID and agent address from headers
       const accountIdHeader = req.headers["x-account-id"];
@@ -765,29 +914,67 @@ async function startServer() {
         });
       }
 
-      // First get the server wallet private key
+      // Check if user already has a mapping for this agent
+      getUserAgentMapping(accountId).then(existingMapping => {
+        if (existingMapping && existingMapping.agentAddress === agentAddress) {
+          // User already has a connection to this agent
+          logger.info("API", `User ${accountId} already has connection to agent ${agentAddress}`);
+          
+          // Return the existing connection details
+          return res.status(200).json({
+            success: true,
+            agent: {
+              address: agentAddress,
+              inboundTopicId: existingMapping.inboundTopicId,
+              outboundTopicId: existingMapping.outboundTopicId,
+              connectionTopicId: existingMapping.connectionTopicId,
+              // Note: We don't have fee info here, but it's already set up
+            },
+            character: getCharacterData(existingMapping.characterId) || {
+              id: existingMapping.characterId,
+              name: "Agent",
+              description: "An AI assistant",
+              inboundTopicId: existingMapping.inboundTopicId,
+              outboundTopicId: existingMapping.outboundTopicId,
+              connectionTopicId: existingMapping.connectionTopicId,
+            },
+            message: "Using existing connection"
+          });
+        } else {
+          // No existing connection or different agent, proceed with initialization
+          initializeNewConnection();
+        }
+      }).catch(err => {
+        // Error checking mapping, proceed with initialization
+        logger.error("API", `Error checking user mapping: ${err}`);
+        initializeNewConnection();
+      });
+
+      // Function to initialize a new connection
+      function initializeNewConnection() {
+        // First get the server wallet private key
       getServerWalletPrivateKey(accountId)
         .then(async ({ privateKey, error: walletError }) => {
           if (walletError) {
-            return res.status(500).json({
-              error: `Error retrieving server wallet: ${walletError}`,
+              return res.status(500).json({
+                error: `Error retrieving server wallet: ${walletError}`,
             });
           }
 
           if (!privateKey) {
-            return res.status(500).json({
-              error: "Failed to retrieve private key for server wallet",
-            });
-          }
+              return res.status(500).json({
+                error: "Failed to retrieve private key for server wallet",
+              });
+            }
 
           try {
             // Create user client using the decrypted private key
-            const userClient = new HCS10Client({
-              network: "testnet",
-              operatorId: accountId,
-              operatorPrivateKey: privateKey,
-              logLevel: "info",
-            });
+              const userClient = new HCS10Client({
+                network: "testnet",
+                operatorId: accountId,
+                operatorPrivateKey: privateKey,
+                logLevel: "info",
+              });
 
               // Fetch agent details and character data
               const {
@@ -797,196 +984,220 @@ async function startServer() {
                 error: fetchError,
               } = await fetchAgentAndCharacterData(agentAddress);
 
-            if (fetchError || !agent || !agent.inbound_topic_id || !agent.outbound_topic_id) {
+              if (fetchError || !agent || !agent.inbound_topic_id || !agent.outbound_topic_id) {
                 return res.status(404).json({
-                error: fetchError || "Failed to retrieve agent data or topic IDs",
+                  error: fetchError || "Failed to retrieve agent data or topic IDs",
                 });
               }
 
-            // Send connection request to agent's inbound topic
+              // Send connection request to agent's inbound topic
               logger.info(
                 "API",
-              `Sending connection request to agent's inbound topic: ${agent.inbound_topic_id}`
-            );
+                `Sending connection request to agent's inbound topic: ${agent.inbound_topic_id}`
+              );
 
-            // Wait for connection topic to be created
-            logger.info("API", "Waiting for connection topic creation...");
-            const connectionTopic = new Promise<string | null>((resolve, reject) => {
-              // Set up timeout
-              const timeout = setTimeout(() => {
-                logger.error("API", "Connection request timed out");
-                reject(new Error("Connection request timed out"));
-              }, 30000); // 30-second timeout
-    
-              // Wait for connection request to be confirmed
-              let messageHandler: any;
-              
-              // Check for new messages every few seconds
-              const pollInterval = setInterval(async () => {
-                try {
-                  // Get messages from the outbound topic
-                  const result = await userClient.getMessages(agent.outbound_topic_id);
-                  
-                  if (result && result.messages) {
-                    // Look for connection confirmation message
-                    for (const message of result.messages) {
-                      if (message.data) {
-                        try {
-                          const parsedMessage = JSON.parse(message.data);
-                          logger.debug("API", "Received message on outbound topic", parsedMessage);
-                          
-                          // Check if it's a connection confirmation
-                          if (parsedMessage.type === "CONNECTION_CREATED" && parsedMessage.topic_id) {
-                            clearTimeout(timeout);
-                            clearInterval(pollInterval);
-                            logger.info("API", `Connection topic created: ${parsedMessage.topic_id}`);
-                            resolve(parsedMessage.topic_id);
-                            return;
+              // Wait for connection topic to be created
+              logger.info("API", "Waiting for connection topic creation...");
+              const connectionTopic = new Promise<string | null>((resolve, reject) => {
+                // Set up timeout
+                const timeout = setTimeout(() => {
+                  logger.error("API", "Connection request timed out");
+                  reject(new Error("Connection request timed out"));
+                }, 30000); // 30-second timeout
+        
+                // Check for new messages every few seconds
+                const pollInterval = setInterval(async () => {
+                  try {
+                    // Get messages from the outbound topic
+                    const result = await userClient.getMessages(agent.outbound_topic_id);
+                    
+                    if (result && result.messages) {
+                      // Look for connection confirmation message
+                      for (const message of result.messages) {
+                        if (message.data) {
+                          try {
+                            const parsedMessage = JSON.parse(message.data);
+                            logger.debug("API", "Received message on outbound topic", parsedMessage);
+                            
+                            // Check if it's a connection confirmation
+                            if (parsedMessage.type === "CONNECTION_CREATED" && parsedMessage.topic_id) {
+                              clearTimeout(timeout);
+                              clearInterval(pollInterval);
+                              logger.info("API", `Connection topic created: ${parsedMessage.topic_id}`);
+                              resolve(parsedMessage.topic_id);
+                              return;
+                            }
+                          } catch (parseError) {
+                            // Skip invalid JSON messages
                           }
-                        } catch (parseError) {
-                          // Skip invalid JSON messages
                         }
                       }
                     }
+                  } catch (error) {
+                    logger.error("API", "Error polling for messages", error);
                   }
-                } catch (error) {
-                  logger.error("API", "Error polling for messages", error);
-                }
-              }, 2000);
-    
-              // Clean up on timeout
-              timeout.unref();
-    
-              // Send the connection request
-              userClient.sendMessage(
-                agent.inbound_topic_id,
-                JSON.stringify({
-                  type: "CONNECTION_REQUEST",
-                  id: Date.now().toString(),
-                  user_id: accountId
-                }),
-                "Connection request"
-              ).then(() => {
-                logger.info("API", `Connection request sent to inbound topic ${agent.inbound_topic_id}`);
-              }).catch((error) => {
-                clearTimeout(timeout);
-                clearInterval(pollInterval);
-                logger.error("API", "Error sending connection request", error);
-                reject(error);
+                }, 2000);
+        
+                // Clean up on timeout
+                timeout.unref();
+        
+                // Send the connection request
+                userClient.sendMessage(
+                  agent.inbound_topic_id,
+                  JSON.stringify({
+                    type: "CONNECTION_REQUEST",
+                    id: Date.now().toString(),
+                    user_id: accountId
+                  }),
+                  "Connection request"
+                ).then(() => {
+                  logger.info("API", `Connection request sent to inbound topic ${agent.inbound_topic_id}`);
+                }).catch((error) => {
+                  clearTimeout(timeout);
+                  clearInterval(pollInterval);
+                  logger.error("API", "Error sending connection request", error);
+                  reject(error);
+                });
               });
-            });
-    
-            try {
-              // Get the connection topic ID
-              const connectionTopicId = await connectionTopic;
-              
-              if (!connectionTopicId) {
-                return res.status(500).json({
-                  error: "Failed to get connection topic ID"
-                });
-              }
-
-              // Make sure we have agent character data
-              if (!agentCharacter) {
-                return res.status(500).json({
-                  error: "Agent character data not available"
-                });
-              }
-
-              // Store connection information
+        
               try {
-                // Define directories
-                const characterId = agentCharacter.id || "default";
-                const characterConnectionDir = path.join(CONNECTION_DIR, characterId);
+                // Get the connection topic ID
+                const connectionTopicId = await connectionTopic;
                 
-                // Ensure character connection directory exists
-                if (!fs.existsSync(CONNECTION_DIR)) {
-                  fs.mkdirSync(CONNECTION_DIR, { recursive: true });
+                if (!connectionTopicId) {
+                  return res.status(500).json({
+                    error: "Failed to get connection topic ID"
+                  });
                 }
-                
-                if (!fs.existsSync(characterConnectionDir)) {
-                  fs.mkdirSync(characterConnectionDir, { recursive: true });
-                }
-                
-                // Save connection information
-                const connectionInfo: ConnectionInfo = {
-                  connectionTopicId,
-                  userAccountId: accountId,
-                  agentAccountId: agent.owner_address,
-                  characterId: characterId,
-                  createdAt: new Date().toISOString()
-                };
-                
-                fs.writeFileSync(
-                  path.join(characterConnectionDir, `${connectionTopicId}.json`),
-                  JSON.stringify(connectionInfo, null, 2)
-                );
-                
-                logger.info("API", `Saved connection information for ${connectionTopicId}`);
-              } catch (storageError) {
-                logger.error("API", "Error saving connection information", storageError);
-                // Continue even if storage fails
-              }
 
-              // Set up monitoring for messages on the connection topic
-              try {
-                // Create a new monitor service if not already created
-                if (!monitorServices.has(connectionTopicId)) {
-                  logger.info("API", `Setting up message monitoring for topic ${connectionTopicId}`);
-                  
-                  const monitorService = new MonitorService(userClient);
-                  
-                  // Set the character for this topic
-                  monitorService.setCharacterForTopic(connectionTopicId, agentCharacter);
-                  
-                  // Start monitoring for messages
-                  await monitorService.startMonitoringTopic(connectionTopicId);
-                  
-                  // Store the monitor service instance for future use
-                  monitorServices.set(connectionTopicId, monitorService);
-                  
-                  logger.info("API", `Started monitoring topic ${connectionTopicId} for responses`);
+                // Make sure we have agent character data
+                if (!agentCharacter) {
+                  return res.status(500).json({
+                    error: "Agent character data not available"
+                  });
                 }
-              } catch (monitorError) {
-                logger.error("API", `Error setting up monitoring for topic: ${monitorError}`);
-                // Continue even if monitoring setup fails
-              }
 
-              // Return success with connection details
-              return res.status(200).json({
-                success: true,
+                // Set up fee gating for the connection topic if needed
+                if (agentFee > 0) {
+                  logger.info("API", `Setting up fee gating for connection topic ${connectionTopicId} with fee ${agentFee} HBAR`);
+                  
+                  const feeConfig: FeeConfig = {
+                    feeAmount: agentFee,
+                    feeCollector: agent.owner_address,
+                    useHip991: true,
+                    exemptAccounts: [agent.owner_address, accountId] // Exempt the agent owner and user for initial setup
+                  };
+                  
+                  // Register the fee configuration
+                  registerFeeGatedConnection(connectionTopicId, feeConfig);
+                  
+                  logger.info("API", `Fee gating configured for connection topic ${connectionTopicId}`);
+                }
+
+                // Store connection information
+                try {
+                  // Define directories
+                  const characterId = agentCharacter.id || agentCharacter.characterId || "default";
+                  
+                  // Save connection information
+                  const connectionInfo: ConnectionInfo = {
+                    connectionTopicId,
+                    userAccountId: accountId,
+                    agentAccountId: agent.owner_address,
+                    characterId: characterId,
+                    createdAt: new Date().toISOString()
+                  };
+                  
+                  // Save the connection details
+                  saveConnection(connectionInfo);
+                  
+                  // Save the character data for future use
+                  saveCharacterData(characterId, agentCharacter);
+                  
+                  // Save user-agent mapping
+                  const mappingData: UserAgentMapping = {
+                    agentAddress,
+                    connectionTopicId,
+                    characterId,
+                    inboundTopicId: agent.inbound_topic_id,
+                    outboundTopicId: agent.outbound_topic_id,
+                    lastActive: new Date().toISOString()
+                  };
+                  
+                  saveUserAgentMapping(accountId, mappingData);
+                  
+                  logger.info("API", `Saved all connection and mapping information for ${connectionTopicId}`);
+                } catch (storageError) {
+                  logger.error("API", "Error saving connection information", storageError);
+                  // Continue even if storage fails
+                }
+
+                // Set up monitoring for messages on the connection topic
+                try {
+                  // Create a new monitor service if not already created
+                  if (!monitorServices.has(connectionTopicId)) {
+                    logger.info("API", `Setting up message monitoring for topic ${connectionTopicId}`);
+                    
+                    const monitorService = new MonitorService(userClient);
+                    
+                    // Set the character for this topic
+                    monitorService.setCharacterForTopic(connectionTopicId, agentCharacter);
+                    
+                    // Start monitoring for messages
+                    await monitorService.startMonitoringTopic(connectionTopicId);
+                    
+                    // Register the topic type
+                    monitorService.registerTopicType(connectionTopicId, 'connection', {
+                      characterId: agentCharacter.id || agentCharacter.characterId,
+                      userId: accountId
+                    });
+                    
+                    // Store the monitor service instance for future use
+                    monitorServices.set(connectionTopicId, monitorService);
+                    
+                    logger.info("API", `Started monitoring topic ${connectionTopicId} for responses`);
+                  }
+                } catch (monitorError) {
+                  logger.error("API", `Error setting up monitoring for topic: ${monitorError}`);
+                  // Continue even if monitoring setup fails
+                }
+
+                // Return success with connection details
+                return res.status(200).json({
+                  success: true,
               agent: {
-                  address: agentAddress,
-                  inboundTopicId: agent.inbound_topic_id,
-                  outboundTopicId: agent.outbound_topic_id,
-                  connectionTopicId: connectionTopicId,
-                  feePerMessage: agentFee,
-                },
-                character: {
-                  ...agentCharacter,
-                  // Make sure topic IDs are also available in the character object
-                  inboundTopicId: agent.inbound_topic_id,
-                  outboundTopicId: agent.outbound_topic_id,
-                  connectionTopicId: connectionTopicId,
-                } as ExtendedCharacter,
+                    address: agentAddress,
+                    inboundTopicId: agent.inbound_topic_id,
+                    outboundTopicId: agent.outbound_topic_id,
+                    connectionTopicId: connectionTopicId,
+                    feePerMessage: agentFee,
+                  },
+                  character: {
+                    ...agentCharacter,
+                    // Make sure topic IDs are also available in the character object
+                    inboundTopicId: agent.inbound_topic_id,
+                    outboundTopicId: agent.outbound_topic_id,
+                    connectionTopicId: connectionTopicId,
+                  } as ExtendedCharacter,
             });
           } catch (error) {
-              logger.error("API", "Error initializing connection", error);
-              return res.status(500).json({
-                error: `Error initializing connection: ${
+                logger.error("API", "Error initializing connection", error);
+                return res.status(500).json({
+                  error: `Error initializing connection: ${
                 error instanceof Error ? error.message : String(error)
               }`,
             });
           }
-          } catch (error) {
-            logger.error("API", "Error initializing connection", error);
-            return res.status(500).json({
-              error: `Error initializing connection: ${
+            } catch (error) {
+              logger.error("API", "Error initializing connection", error);
+              return res.status(500).json({
+                error: `Error initializing connection: ${
               error instanceof Error ? error.message : String(error)
             }`,
           });
-          }
+            }
         });
+      }
     });
 
     // Chat endpoint using HCS-10
@@ -998,55 +1209,48 @@ async function startServer() {
 
       // Get the account ID from headers
       const accountId = req.headers["x-account-id"] as string;
+      // Topic ID is now optional - we'll automatically use the user's mapped agent
       let topicId = req.headers["topic-id"] as string;
 
       if (!accountId) {
         return res.status(400).json({ error: "x-account-id header is required" });
       }
 
-      // Define connection directory path
-      const CONNECTION_DIR = process.env.STATE_DIR ? path.join(process.env.STATE_DIR, 'connections') : './data/connections';
-
-      // If topic ID is not provided, try to find existing connection for this user
-      const findConnectionForUser = async (userAccountId: string) => {
-        try {
-          // Check if connections directory exists
-          if (!fs.existsSync(CONNECTION_DIR)) {
-            logger.info("API", "Connections directory doesn't exist yet");
-            return null;
-          }
-          
-          // Search all character directories for connections
-          const characterDirs = fs.readdirSync(CONNECTION_DIR);
-          
-          for (const characterId of characterDirs) {
-            const characterDir = path.join(CONNECTION_DIR, characterId);
-            
-            if (fs.statSync(characterDir).isDirectory()) {
-              const files = fs.readdirSync(characterDir);
-              
-              for (const file of files) {
-                if (file.endsWith('.json')) {
-                  const filePath = path.join(characterDir, file);
-                  const data = fs.readFileSync(filePath, 'utf8');
-                  const connection = JSON.parse(data);
-                  
-                  if (connection.userAccountId === userAccountId) {
-                    return connection;
-                  }
-                }
-              }
-            }
-          }
-          
-          return null;
-        } catch (error) {
-          logger.error("API", "Error finding connection for user", error);
-          return null;
+      // Always check for a user agent mapping first, regardless of whether a topic ID was provided
+      getUserAgentMapping(accountId).then(mapping => {
+        if (!mapping) {
+          // No mapping found, return error
+          logger.warn("API", `No agent mapping found for user ${accountId}`);
+                return res.status(400).json({
+            error: "No existing agent connection found. Please initialize first." 
+          });
         }
-      };
+        
+        // If topic ID is not provided, use the one from the mapping
+        if (!topicId) {
+          topicId = mapping.connectionTopicId;
+          logger.info("API", `Using mapped agent connection for user ${accountId}: ${topicId}`);
+        } else {
+          // Verify the provided topic ID matches the mapping
+          if (topicId !== mapping.connectionTopicId) {
+            logger.warn("API", `Provided topic ID ${topicId} does not match mapped connection ${mapping.connectionTopicId} for user ${accountId}`);
+            return res.status(400).json({
+              error: "The provided topic ID does not match your active agent connection."
+            });
+          }
+          logger.info("API", `Using provided topic ID ${topicId} which matches mapped connection`);
+        }
+        
+        // Continue processing with the topic ID
+        processChatRequest();
+      }).catch(err => {
+        logger.error("API", `Error getting user agent mapping: ${err}`);
+        return res.status(500).json({ error: "Error retrieving user agent mapping" });
+      });
 
-        // First get the server wallet private key
+      // Process the chat request with the topic ID
+      function processChatRequest() {
+        // Get the server wallet private key
         getServerWalletPrivateKey(accountId)
           .then(async ({ privateKey, error }) => {
             if (error) {
@@ -1066,135 +1270,139 @@ async function startServer() {
                 .json({ error: "Server wallet not found or not accessible" });
             }
 
-          try {
-            // If topic ID is not provided, try to find existing connection
-            if (!topicId) {
-              const connection = await findConnectionForUser(accountId);
-              if (connection) {
-                topicId = connection.connectionTopicId;
-                logger.info("API", `Found existing connection topic ${topicId} for user ${accountId}`);
-              } else {
-                return res.status(400).json({ 
-                  error: "No existing connection found. Please initialize first." 
-                });
+            try {
+              // Create HCS-10 client with user credentials
+              const userClient = new HCS10Client({
+                network: 'testnet' as NetworkType,
+                operatorId: accountId,
+                operatorPrivateKey: privateKey,
+                logLevel: 'info',
+                prettyPrint: true
+              });
+
+              // Format message as expected by the agent
+              const messageId = `msg-${Date.now()}`;
+              const responseId = `resp-${Date.now()}`;
+              const messagePayload = JSON.stringify({
+                id: messageId,
+                prompt: message,
+                timestamp: Date.now(),
+                response_id: responseId,
+              });
+
+              // Send message with fee handling
+              const receipt = await userClient.sendMessage(
+                topicId,
+                messagePayload,
+                'User message'
+              );
+
+              // Check receipt for success
+              if (!receipt) {
+                throw new Error('Failed to send message');
               }
-            }
 
-            // Create HCS-10 client with user credentials
-            const userClient = new HCS10Client({
-              network: 'testnet' as NetworkType,
-              operatorId: accountId,
-              operatorPrivateKey: privateKey,
-              logLevel: 'info',
-              prettyPrint: true
-            });
-
-            // Format message as expected by the agent
-            const messageId = `msg-${Date.now()}`;
-            const responseId = `resp-${Date.now()}`;
-            const messagePayload = JSON.stringify({
-              id: messageId,
-              prompt: message,
-              timestamp: Date.now(),
-              response_id: responseId,
-            });
-
-            // Send message with fee handling
-            const receipt = await userClient.sendMessage(
-              topicId,
-              messagePayload,
-              'User message'
-            );
-
-            // Check receipt for success
-            if (!receipt) {
-              throw new Error('Failed to send message');
-            }
-
-            // Make sure we're monitoring this topic for responses
-            if (!monitorServices.has(topicId)) {
-              logger.info("API", `Setting up message monitoring for topic ${topicId}`);
-              
-              // Create a new monitor service for the user
-              const monitorService = new MonitorService(userClient);
-              
-              try {
-                // Try to find character data for this connection
-                let characterData = null;
+              // Make sure we're monitoring this topic for responses
+              if (!monitorServices.has(topicId)) {
+                logger.info("API", `Setting up message monitoring for topic ${topicId}`);
                 
-                // Search all character directories for character data matching this connection
-                if (fs.existsSync(CONNECTION_DIR)) {
-                  const characterDirs = fs.readdirSync(CONNECTION_DIR);
+                // Create a new monitor service for the user
+                const monitorService = new MonitorService(userClient);
+                
+                try {
+                  // Try to find character data for this connection
+                  let characterData = null;
                   
-                  outer: for (const characterId of characterDirs) {
-                    const characterDir = path.join(CONNECTION_DIR, characterId);
-                    
-                    if (fs.statSync(characterDir).isDirectory()) {
-                      const connectionFiles = fs.readdirSync(characterDir);
+                  // Try to get character data from user-agent mapping
+                  const mapping = await getUserAgentMapping(accountId);
+                  if (mapping) {
+                    characterData = getCharacterData(mapping.characterId);
+                    if (characterData) {
+                      logger.info("API", `Using character data for ${mapping.characterId} from mapping`);
+                    }
+                  }
+                  
+                  // If no character data found, try searching connection files
+                  if (!characterData) {
+                    logger.info("API", `No character data from mapping, checking connection directories`);
+                    // Search all character directories for character data matching this connection
+                    if (fs.existsSync(CONNECTION_DIR)) {
+                      const characterDirs = fs.readdirSync(CONNECTION_DIR);
                       
-                      for (const file of connectionFiles) {
-                        if (file.endsWith('.json')) {
-                          try {
-                            const connectionData = JSON.parse(fs.readFileSync(path.join(characterDir, file), 'utf8'));
-                            if (connectionData.connectionTopicId === topicId) {
-                              // Found the connection, now try to get character data
+                      outer: for (const characterId of characterDirs) {
+                        const characterDir = path.join(CONNECTION_DIR, characterId);
+                        
+                        if (fs.statSync(characterDir).isDirectory()) {
+                          const connectionFiles = fs.readdirSync(characterDir);
+                          
+                          for (const file of connectionFiles) {
+                            if (file.endsWith('.json')) {
                               try {
-                                const characterDataPath = process.env.STATE_DIR 
-                                  ? path.join(process.env.STATE_DIR, 'characters', `${characterId}.json`)
-                                  : path.join('./data/characters', `${characterId}.json`);
-                                
-                                if (fs.existsSync(characterDataPath)) {
-                                  characterData = JSON.parse(fs.readFileSync(characterDataPath, 'utf8'));
-                                  logger.info("API", `Found character data for ${characterId} for topic ${topicId}`);
-                                  break outer; // Exit both loops
+                                const connectionData = JSON.parse(fs.readFileSync(path.join(characterDir, file), 'utf8'));
+                                if (connectionData.connectionTopicId === topicId) {
+                                  // Found the connection, now try to get character data
+                                  try {
+                                    characterData = getCharacterData(characterId);
+                                    if (characterData) {
+                                      logger.info("API", `Found character data for ${characterId} for topic ${topicId}`);
+                                      break outer; // Exit both loops
+                                    }
+                                  } catch (err) {
+                                    logger.error("API", `Error reading character data: ${err}`);
+                                  }
                                 }
                               } catch (err) {
-                                logger.error("API", `Error reading character data: ${err}`);
+                                // Skip malformed JSON files
+                                logger.error("API", `Error parsing connection file: ${err}`);
                               }
                             }
-                          } catch (err) {
-                            // Skip malformed JSON files
-                            logger.error("API", `Error parsing connection file: ${err}`);
                           }
                         }
                       }
                     }
                   }
+                  
+                  // Use default character if no specific one found
+                  if (!characterData) {
+                    characterData = state.activeCharacter || {
+                      name: "Assistant",
+                      description: "A helpful AI assistant."
+                    };
+                    logger.info("API", `Using default character for topic ${topicId}`);
+                  }
+                  
+                  // Set the character for this topic
+                  monitorService.setCharacterForTopic(topicId, characterData);
+                  
+                  // Start monitoring for messages
+                  await monitorService.startMonitoringTopic(topicId);
+                  
+                  // Register the topic type based on mapping if available
+                  const topicType = mapping ? 'connection' : 'unknown';
+                  const metadata = mapping ? 
+                    { characterId: mapping.characterId, userId: accountId } : 
+                    { userId: accountId };
+                    
+                  monitorService.registerTopicType(topicId, topicType as any, metadata);
+                  
+                  // Store the monitor service instance for future use
+                  monitorServices.set(topicId, monitorService);
+                  
+                  logger.info("API", `Started monitoring topic ${topicId} for responses`);
+                } catch (monitorError) {
+                  logger.error("API", `Error setting up monitoring for topic: ${monitorError}`);
+                  // Continue even if monitoring setup fails
                 }
-                
-                // Use default character if no specific one found
-                if (!characterData) {
-                  characterData = state.activeCharacter || {
-                    name: "Assistant",
-                    description: "A helpful AI assistant."
-                  };
-                  logger.info("API", `Using default character for topic ${topicId}`);
-                }
-                
-                // Set the character for this topic
-                monitorService.setCharacterForTopic(topicId, characterData);
-                
-                // Start monitoring for messages
-                await monitorService.startMonitoringTopic(topicId);
-                
-                // Store the monitor service instance for future use
-                monitorServices.set(topicId, monitorService);
-                
-                logger.info("API", `Started monitoring topic ${topicId} for responses`);
-              } catch (monitorError) {
-                logger.error("API", `Error setting up monitoring for topic: ${monitorError}`);
-                // Continue even if monitoring setup fails
               }
-            }
 
-            // Return success with the sequence number for tracking
+              // Return success with the sequence number for tracking
               res.json({
                 status: "success",
                 message: "Message sent successfully",
-              messageId: messageId,
-              responseId: responseId,
-              sequenceNumber: receipt.toString()
-            });
+                messageId: messageId,
+                responseId: responseId,
+                sequenceNumber: receipt.toString()
+              });
             } catch (error) {
               logger.error("API", "Error sending message", error);
               res.status(500).json({
@@ -1216,6 +1424,7 @@ async function startServer() {
               }`,
             });
           });
+      }
     });
 
     // Get response endpoint
@@ -1227,180 +1436,233 @@ async function startServer() {
       }
 
       // Get the account ID from headers
-      const accountId = req.headers["account-id"] as string;
-      const topicId = req.headers["topic-id"] as string;
+      const accountId = req.headers["x-account-id"] as string;
+      // Topic ID is now optional - we'll automatically use the user's mapped agent
+      let topicId = req.headers["topic-id"] as string;
 
-      if (!accountId || !topicId) {
-        return res.status(400).json({ error: "account-id and topic-id headers are required" });
+      if (!accountId) {
+        return res.status(400).json({ error: "x-account-id header is required" });
       }
 
-      // First get the server wallet private key
-      getServerWalletPrivateKey(accountId)
-        .then(async ({ privateKey, error }) => {
-          if (error) {
-            logger.error("API", "Error getting server wallet", {
-              accountId,
-              error,
+      // Always check for a user agent mapping first, regardless of whether a topic ID was provided
+      getUserAgentMapping(accountId).then(mapping => {
+        if (!mapping) {
+          // No mapping found, return error
+          logger.warn("API", `No agent mapping found for user ${accountId}`);
+          return res.status(400).json({ 
+            error: "No existing agent connection found. Please initialize first." 
+          });
+        }
+        
+        // If topic ID is not provided, use the one from the mapping
+        if (!topicId) {
+          topicId = mapping.connectionTopicId;
+          logger.info("API", `Using mapped agent connection for user ${accountId}: ${topicId}`);
+        } else {
+          // Verify the provided topic ID matches the mapping
+          if (topicId !== mapping.connectionTopicId) {
+            logger.warn("API", `Provided topic ID ${topicId} does not match mapped connection ${mapping.connectionTopicId} for user ${accountId}`);
+                return res.status(400).json({
+              error: "The provided topic ID does not match your active agent connection."
             });
-            return res
-              .status(401)
-              .json({ error: `Server wallet access error: ${error}` });
           }
+          logger.info("API", `Using provided topic ID ${topicId} which matches mapped connection`);
+        }
+        
+        // Continue processing with the topic ID
+        processResponseRequest();
+      }).catch(err => {
+        logger.error("API", `Error getting user agent mapping: ${err}`);
+        return res.status(500).json({ error: "Error retrieving user agent mapping" });
+      });
 
-          if (!privateKey) {
-            logger.error("API", "No private key returned", { accountId });
-            return res
-              .status(404)
-              .json({ error: "Server wallet not found or not accessible" });
-          }
-
-          try {
-            // Create HCS-10 client with user credentials
-            const hcs10Client = new HCS10Client({
-              network: 'testnet' as NetworkType,
-              operatorId: accountId,
-              operatorPrivateKey: privateKey,
-              logLevel: 'info',
-              prettyPrint: true
-            });
-
-            // Get messages from topic
-            const { messages } = await hcs10Client.getMessages(topicId);
-            const targetMessage = messages.find((msg: { sequence_number: number }) => 
-              msg.sequence_number.toString() === messageId
-            );
-
-            if (!targetMessage) {
-              return res.status(404).json({ error: "Message not found" });
+      // Process the response request with the topic ID
+      function processResponseRequest() {
+        // First get the server wallet private key
+        getServerWalletPrivateKey(accountId)
+          .then(async ({ privateKey, error }) => {
+            if (error) {
+              logger.error("API", "Error getting server wallet", {
+                accountId,
+                error,
+              });
+              return res
+                .status(401)
+                .json({ error: `Server wallet access error: ${error}` });
             }
 
-            res.json({
-              status: "success",
-              messageData: targetMessage
-            });
-          } catch (error) {
-            logger.error("API", "Error getting message", error);
-            res.status(500).json({
-              error: `Error getting message: ${
+            if (!privateKey) {
+              logger.error("API", "No private key returned", { accountId });
+              return res
+                .status(404)
+                .json({ error: "Server wallet not found or not accessible" });
+            }
+
+            try {
+              // Create HCS-10 client with user credentials
+              const hcs10Client = new HCS10Client({
+                network: 'testnet' as NetworkType,
+                operatorId: accountId,
+                operatorPrivateKey: privateKey,
+                logLevel: 'info',
+                prettyPrint: true
+              });
+
+              // Get messages from topic
+              const { messages } = await hcs10Client.getMessages(topicId);
+              
+              // Search for messages that match either the sequence number or the response ID
+              let foundMessage = null;
+              
+              // First try to find by sequence number
+              foundMessage = messages.find((msg: { sequence_number: number }) => 
+                msg.sequence_number.toString() === messageId
+              );
+              
+              // If not found, try to find by response ID in the message data
+              if (!foundMessage) {
+                for (const msg of messages) {
+                  if (msg.data && typeof msg.data === 'string') {
+                    try {
+                      const parsedData = JSON.parse(msg.data);
+                      // Check if this message has the target response ID
+                      if (parsedData.id === messageId || parsedData.response_id === messageId) {
+                        foundMessage = {
+                          ...msg,
+                          parsedData
+                        };
+                        break;
+                      }
+                    } catch (e) {
+                      // Skip messages that aren't valid JSON
+                      continue;
+                    }
+                  }
+                }
+              }
+
+              if (!foundMessage) {
+                return res.status(404).json({ error: "Message not found" });
+              }
+
+              res.json({
+                status: "success",
+                messageData: foundMessage
+              });
+            } catch (error) {
+              logger.error("API", "Error getting message", error);
+              res.status(500).json({
+                error: `Error getting message: ${
                   error instanceof Error ? error.message : String(error)
                 }`,
               });
-          }
-        })
-        .catch((error) => {
+            }
+          })
+          .catch((error) => {
           logger.error(
             "API",
-            "Unexpected error in server wallet retrieval",
+              "Unexpected error in server wallet retrieval",
             error
           );
-          res.status(500).json({
-            error: `Unexpected error retrieving server wallet: ${
+            res.status(500).json({
+              error: `Unexpected error retrieving server wallet: ${
               error instanceof Error ? error.message : String(error)
             }`,
           });
-        });
+          });
+      }
     });
 
     // Destruct/cleanup agent endpoint
     app.post("/destruct", (req: Request, res: Response) => {
       // Get the account ID from headers
-      const accountId = req.headers["account-id"] as string;
+      const accountId = req.headers["x-account-id"] as string;
 
       if (!accountId) {
-        return res.status(400).json({ error: "account-id header is required" });
+        return res.status(400).json({ error: "x-account-id header is required" });
       }
 
-      // Resolve EVM address to Hedera account ID if needed
-      let resolvedAccountId = accountId;
-
-      // Convert EVM address to Hedera account ID before checking agent existence
-      if (accountId.startsWith("0x")) {
-        try {
-          // Use the mirror node API to get the account ID
-          fetch(
-            `https://testnet.mirrornode.hedera.com/api/v1/accounts/${accountId}`
-          )
-            .then(async (response) => {
-              if (!response.ok) {
-                logger.error(
-                  "API",
-                  `Failed to get account ID for EVM address: ${response.statusText}`
-                );
+      // First check if user has an agent mapping
+      getUserAgentMapping(accountId).then(async mapping => {
+        if (!mapping) {
+          logger.warn("API", `No agent mapping found for user ${accountId}`);
                 return res.status(400).json({
-                  error: `Failed to get account ID for EVM address: ${response.statusText}`,
-                });
-              }
-
-              const data = await response.json();
-              resolvedAccountId = data.account;
-
-              logger.debug(
-                "API",
-                `Resolved EVM address ${accountId} to Hedera account ID ${resolvedAccountId}`
-              );
-
-              // Continue with the resolved account ID
-              continueWithResolvedAccountId(resolvedAccountId);
-            })
-            .catch((error) => {
-              logger.error(
-                "API",
-                `Error resolving EVM address ${accountId}`,
-                error
-              );
+            error: "No active agent to destruct."
+          });
+        }
+        
+        // Get the server wallet private key
+        const { privateKey, error: walletError } = await getServerWalletPrivateKey(accountId);
+        
+        if (walletError || !privateKey) {
+          logger.error("API", `Error getting server wallet for cleanup: ${walletError}`);
               return res.status(500).json({
-                error: `Error resolving EVM address: ${
-                  error instanceof Error ? error.message : String(error)
-                }`,
-              });
-            });
-        } catch (error) {
-          logger.error(
-            "API",
-            `Error processing EVM address ${accountId}`,
-            error
+            error: `Error retrieving server wallet: ${walletError || "No private key returned"}`
+          });
+        }
+        
+        try {
+          logger.info("API", `Cleaning up connection ${mapping.connectionTopicId} for user ${accountId}`);
+          
+          // Create client with user credentials
+          const userClient = new HCS10Client({
+            network: 'testnet' as NetworkType,
+            operatorId: accountId,
+            operatorPrivateKey: privateKey,
+            logLevel: 'info',
+            prettyPrint: true
+          });
+          
+          // Send close message to the connection topic
+          await userClient.sendMessage(
+            mapping.connectionTopicId,
+            JSON.stringify({
+              type: "CONNECTION_CLOSED",
+              timestamp: Date.now(),
+              reason: "User requested cleanup"
+            }),
+            "Connection closed"
           );
-          return res.status(500).json({
-            error: `Error processing EVM address: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          });
-        }
-      } else {
-        // Regular account ID, continue immediately
-        continueWithResolvedAccountId(resolvedAccountId);
-      }
-
-      // Function to continue processing with the resolved account ID
-      function continueWithResolvedAccountId(resolvedAccountId: string) {
-        // Check if this user has an active agent with the resolved account ID
-        if (!hasActiveAgent(resolvedAccountId)) {
-          return res.status(400).json({
-            error: "No active agent to destruct.",
-          });
-        }
-
-        // Destroy the agent using the resolved account ID
-        destroyAgent(state.serverClient!, resolvedAccountId)
-          .then((success) => {
-            if (success) {
+          
+          // Stop monitoring the connection topic
+          const monitorService = monitorServices.get(mapping.connectionTopicId);
+          if (monitorService) {
+            await monitorService.stopMonitoringTopic(mapping.connectionTopicId);
+            monitorServices.delete(mapping.connectionTopicId);
+            logger.info("API", `Stopped monitoring for topic ${mapping.connectionTopicId}`);
+          }
+          
+          // Remove the user-agent mapping
+          const mappingFile = path.join(USER_MAPPINGS_DIR, `${accountId.replace(/\./g, '_')}.json`);
+          if (fs.existsSync(mappingFile)) {
+            fs.unlinkSync(mappingFile);
+            logger.info("API", `Removed mapping file for user ${accountId}`);
+          }
+          
+          // Remove from memory cache
+          userAgentMappings.delete(accountId);
+          
+          // Return success
               res.json({
                 status: "success",
-                info: "Agent destroyed successfully",
-              });
-            } else {
-              res.status(500).json({ error: "Failed to destroy agent" });
-            }
-          })
-          .catch((error) => {
-            logger.error("API", "Error destroying agent", error);
+            message: "Agent connection cleaned up successfully",
+            connectionTopicId: mapping.connectionTopicId,
+            agentAddress: mapping.agentAddress,
+            characterId: mapping.characterId,
+            timestamp: new Date().toISOString()
+          });
+        } catch (error) {
+          logger.error("API", `Error during agent cleanup: ${error}`);
+          res.status(500).json({
+            error: `Error cleaning up agent: ${error instanceof Error ? error.message : String(error)}`
+          });
+        }
+      }).catch(err => {
+        logger.error("API", `Error checking user agent mapping: ${err}`);
             res.status(500).json({
-              error: `Error destroying agent: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
+          error: `Error retrieving user agent mapping: ${err instanceof Error ? err.message : String(err)}` 
             });
           });
-      }
     });
 
     // List available characters
@@ -1486,59 +1748,29 @@ async function startServer() {
 
       // Function to continue processing with the resolved account ID
       function continueWithResolvedAccountId(resolvedAccountId: string) {
-        // Check the server wallet status using original accountId (for blockchain query)
-        interface ServerWalletResponse {
-          walletAddress: string;
-          serverWalletAddress: string;
-          encryptedPrivateKey: string;
-          privateKeyHash: string;
+        // Check if this user has an active agent with the resolved account ID
+        if (!hasActiveAgent(resolvedAccountId)) {
+          return res.status(400).json({
+            error: "No active agent to destruct.",
+          });
         }
 
-        publicClient
-          .readContract({
-            address: FRANKY_ADDRESS as `0x${string}`,
-            abi: FRANKY_ABI,
-            functionName: "serverWalletsMapping",
-            args: [accountId.toLowerCase()],
-          })
-          .then((serverWallet: any) => {
-            const walletData: ServerWalletResponse = {
-              walletAddress: serverWallet[0],
-              serverWalletAddress: serverWallet[1],
-              encryptedPrivateKey: serverWallet[2],
-              privateKeyHash: serverWallet[3]
-            };
-
-            const isConfigured =
-              walletData.walletAddress !== "0x0000000000000000000000000000000000000000";
-
-            // Check if user has an active agent using the resolved account ID
-            const hasAgent = hasActiveAgent(resolvedAccountId);
-            const agent = getAgentByUserId(resolvedAccountId);
-
+        // Destroy the agent using the resolved account ID
+        destroyAgent(state.serverClient!, resolvedAccountId)
+          .then((success) => {
+            if (success) {
             res.json({
-              accountId,
-              resolvedAccountId,
-              serverWalletConfigured: isConfigured,
-              serverWalletAddress: isConfigured ? walletData.serverWalletAddress : null,
-              hasEncryptedKey:
-                isConfigured && walletData.encryptedPrivateKey ? true : false,
-              hasActiveAgent: hasAgent,
-              agentInfo:
-                hasAgent && agent
-                  ? {
-                      characterName: agent.character.name,
-                      characterId: agent.character.id,
-                      inboundTopicId: agent.inboundTopicId,
-                      outboundTopicId: agent.outboundTopicId,
-                    }
-                  : null,
-            });
+                status: "success",
+                info: "Agent destroyed successfully",
+              });
+            } else {
+              res.status(500).json({ error: "Failed to destroy agent" });
+            }
           })
           .catch((error) => {
-            logger.error("API", "Error checking server wallet status", error);
+            logger.error("API", "Error destroying agent", error);
             res.status(500).json({
-              error: `Error checking server wallet status: ${
+              error: `Error destroying agent: ${
                 error instanceof Error ? error.message : String(error)
               }`,
             });
@@ -1561,7 +1793,7 @@ async function startServer() {
 }
 
 // Run the main function
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   startServer().catch((error) => {
     logger.error("API", "Fatal error", error);
     console.error("Fatal error:", error);

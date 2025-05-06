@@ -5,15 +5,17 @@ import { HCS10Client, InboundTopicType, FeeConfigBuilder } from '@hashgraphonlin
 import { getHederaClient, createCustomClient } from '../services/hederaService';
 import * as storageService from '../services/storageService';
 import { MonitorService, registerFeeGatedConnection } from '../services/monitorService';
+import { getConnectionService } from '../services/connectionService';
 import { getCharacterFromRegistry } from '../services/registryService';
 import { FeeConfig } from '../utils/feeUtils';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Initialize a new agent with a character profile
  */
 export const initializeAgent = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { characterId, accountId, privateKey } = req.body;
+    const { characterId, accountId, privateKey, targetAgentAddress } = req.body;
 
     if (!characterId || !accountId || !privateKey) {
       res.status(400).json({ 
@@ -23,7 +25,7 @@ export const initializeAgent = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    // Create custom client with agent credentials
+    // Create custom client with user credentials
     const client = await createCustomClient(accountId, privateKey);
 
     // Get character data to verify it exists
@@ -38,74 +40,115 @@ export const initializeAgent = async (req: Request, res: Response): Promise<void
 
     logger.info('AGENT', `Initializing agent for character ${characterId}`);
 
-    // Create inbound topic for the agent
-    const inboundTopicId = await client.createInboundTopic(
-      accountId,
-      InboundTopicType.PUBLIC
-    );
+    if (targetAgentAddress) {
+      // Connecting to an existing agent
+      logger.info('AGENT', `Connecting to agent with address ${targetAgentAddress}`);
+      
+      // Get the target agent's inbound topic
+      // In a real implementation, this would come from your database or registry
+      const targetAgent = await storageService.getAgentInfoByInboundTopic(targetAgentAddress);
+      
+      if (!targetAgent || !targetAgent.inboundTopicId) {
+        res.status(404).json({ 
+          success: false, 
+          error: `Agent with address ${targetAgentAddress} not found or has no inbound topic` 
+        });
+        return;
+      }
+      
+      // Get the connection service
+      const connectionService = await getConnectionService();
+      
+      // Initiate a connection by sending a request to the agent's inbound topic
+      const connectionRequest = await connectionService.initiateConnection(
+        targetAgent.inboundTopicId,
+        accountId,
+        privateKey,
+        `Connection request from ${characterId}`
+      );
+      
+      // Wait for the connection to be confirmed
+      const confirmation = await connectionService.waitForConnectionConfirmation(
+        targetAgent.inboundTopicId,
+        connectionRequest.requestId,
+        accountId,
+        privateKey,
+        characterId
+      );
+      
+      logger.info('AGENT', `Connection established with topic ${confirmation.connectionTopicId}`);
+      
+      // Set up connection monitoring
+      const monitorService = new MonitorService(client);
+      await monitorService.startMonitoringTopic(confirmation.connectionTopicId);
+      monitorService.registerTopicType(confirmation.connectionTopicId, 'connection', {
+        characterId,
+        userId: confirmation.targetAccountId
+      });
+      
+      if (characterData) {
+        monitorService.setCharacterForTopic(confirmation.connectionTopicId, characterData);
+      }
+      
+      res.status(200).json({ 
+        success: true, 
+        characterId,
+        agentAccountId: confirmation.targetAccountId,
+        connectionTopicId: confirmation.connectionTopicId,
+        message: 'Connection established with agent'
+      });
+      
+    } else {
+      // Creating a new agent
+      
+      // Create inbound topic for the agent
+      const inboundTopicId = await client.createInboundTopic(
+        accountId,
+        InboundTopicType.PUBLIC
+      );
+      
+      // Create outbound topic for the agent
+      const outboundTopicId = await client.createTopic(
+        `Outbound topic for ${characterId}`,
+        true, // Use admin key
+        true  // Use submit key
+      );
 
-    // Store agent info
-    await storageService.saveAgentInfo({
-      characterId,
-      accountId,
-      privateKey,
-      inboundTopicId
-    });
+      // Store agent info
+      await storageService.saveAgentInfo({
+        characterId,
+        accountId,
+        privateKey,
+        inboundTopicId,
+        outboundTopicId
+      });
 
-    logger.info('AGENT', `Successfully initialized agent for character ${characterId}`);
-    
-    res.status(201).json({ 
-      success: true, 
-      characterId,
-      inboundTopicId
-    });
+      // Set up monitoring for the inbound topic
+      const monitorService = new MonitorService(client);
+      await monitorService.startMonitoringTopic(inboundTopicId);
+      monitorService.registerTopicType(inboundTopicId, 'inbound', { characterId });
+      
+      if (characterData) {
+        monitorService.setCharacterForTopic(inboundTopicId, characterData);
+      }
+      
+      // Also monitor outbound topic
+      await monitorService.startMonitoringTopic(outboundTopicId);
+      monitorService.registerTopicType(outboundTopicId, 'outbound', { characterId });
+
+      logger.info('AGENT', `Successfully initialized agent for character ${characterId}`);
+      
+      res.status(201).json({ 
+        success: true, 
+        characterId,
+        inboundTopicId,
+        outboundTopicId,
+        message: 'Agent initialized successfully'
+      });
+    }
   } catch (error) {
     logger.error('AGENT', `Error initializing agent: ${error}`);
     res.status(500).json({ success: false, error: `Error initializing agent: ${error}` });
-  }
-};
-
-/**
- * Connect to an agent by sending a connection request to their inbound topic
- */
-export const connectToAgent = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { inboundTopicId, accountId, privateKey, memo } = req.body;
-
-    if (!inboundTopicId || !accountId || !privateKey) {
-      res.status(400).json({ 
-        success: false, 
-        error: 'Missing required parameters: inboundTopicId, accountId, and privateKey are required' 
-      });
-      return;
-    }
-
-    logger.info('AGENT', `Connecting to agent at inbound topic ${inboundTopicId}`);
-
-    // Create custom client with user credentials
-    const client = await createCustomClient(accountId, privateKey);
-
-    // Submit connection request
-    const receipt = await client.submitConnectionRequest(
-      inboundTopicId, 
-      memo || 'Connection request'
-    );
-    
-    const connectionRequestId = receipt.topicSequenceNumber?.toNumber();
-    if (!connectionRequestId) {
-      throw new Error('Failed to get connection request ID');
-    }
-
-    logger.info('AGENT', `Successfully submitted connection request (ID: ${connectionRequestId}) to topic ${inboundTopicId}`);
-    
-    res.status(200).json({ 
-      success: true, 
-      inboundTopicId,
-      connectionRequestId
-    });
-  } catch (error) {
-    logger.error('AGENT', `Error connecting to agent: ${error}`);
-    res.status(500).json({ success: false, error: `Error connecting to agent: ${error}` });
   }
 };
 
@@ -124,13 +167,29 @@ export const sendMessage = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    // Create custom client with user credentials
-    const client = await createCustomClient(accountId, privateKey);
-
+    logger.info('AGENT', `Sending message to connection topic ${connectionTopicId}`);
+    
+    // Get the connection service
+    const connectionService = await getConnectionService();
+    
+    // Generate unique IDs for the message and its response
+    const messageId = `msg-${uuidv4()}`;
+    const responseId = `resp-${uuidv4()}`;
+    
+    // Format the message with appropriate IDs for HCS-10 standard
+    const formattedMessage = {
+      id: messageId,
+      prompt: message,
+      response_id: responseId,
+      timestamp: Date.now()
+    };
+    
     // Send message to connection topic
-    const receipt = await client.sendMessage(
+    const sendResult = await connectionService.sendMessage(
       connectionTopicId,
-      message,
+      formattedMessage,
+      accountId,
+      privateKey,
       memo || 'User message'
     );
 
@@ -139,11 +198,145 @@ export const sendMessage = async (req: Request, res: Response): Promise<void> =>
     res.status(200).json({ 
       success: true, 
       connectionTopicId,
-      sequenceNumber: receipt.topicSequenceNumber?.toNumber()
+      messageId,
+      responseId,
+      sequenceNumber: sendResult.sequenceNumber
     });
   } catch (error) {
     logger.error('AGENT', `Error sending message: ${error}`);
     res.status(500).json({ success: false, error: `Error sending message: ${error}` });
+  }
+};
+
+/**
+ * Get a response from an agent
+ */
+export const getResponse = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { responseId, connectionTopicId, accountId, privateKey } = req.body;
+
+    if (!responseId || !connectionTopicId || !accountId || !privateKey) {
+      res.status(400).json({ 
+        success: false, 
+        error: 'Missing required parameters: responseId, connectionTopicId, accountId, and privateKey are required' 
+      });
+      return;
+    }
+
+    logger.info('AGENT', `Getting response ${responseId} from connection topic ${connectionTopicId}`);
+    
+    // Get the connection service
+    const connectionService = await getConnectionService();
+    
+    // Get messages from connection topic
+    const messages = await connectionService.getMessages(
+      connectionTopicId,
+      accountId,
+      privateKey
+    );
+    
+    // Find the response message with the matching ID
+    let responseMessage = null;
+    for (const message of messages) {
+      if (message.op === 'message' && typeof message.data === 'string') {
+        try {
+          const content = JSON.parse(message.data);
+          if (content.id === responseId) {
+            responseMessage = content;
+            break;
+          }
+        } catch (e) {
+          // Not JSON or invalid format, skip
+          continue;
+        }
+      }
+    }
+    
+    if (!responseMessage) {
+      res.status(404).json({
+        success: false,
+        error: 'Response not found'
+      });
+      return;
+    }
+
+    logger.info('AGENT', `Successfully retrieved response ${responseId}`);
+    
+    res.status(200).json({ 
+      success: true, 
+      response: responseMessage
+    });
+  } catch (error) {
+    logger.error('AGENT', `Error getting response: ${error}`);
+    res.status(500).json({ success: false, error: `Error getting response: ${error}` });
+  }
+};
+
+/**
+ * Connect to an agent by sending a connection request to their inbound topic
+ */
+export const connectToAgent = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { inboundTopicId, accountId, privateKey, characterId, memo } = req.body;
+
+    if (!inboundTopicId || !accountId || !privateKey || !characterId) {
+      res.status(400).json({ 
+        success: false, 
+        error: 'Missing required parameters: inboundTopicId, accountId, privateKey, and characterId are required' 
+      });
+      return;
+    }
+
+    logger.info('AGENT', `Connecting to agent at inbound topic ${inboundTopicId}`);
+
+    // Get the connection service
+    const connectionService = await getConnectionService();
+    
+    // Submit connection request
+    const connectionRequest = await connectionService.initiateConnection(
+      inboundTopicId,
+      accountId,
+      privateKey,
+      memo || 'Connection request'
+    );
+    
+    // Wait for the connection to be confirmed
+    const confirmation = await connectionService.waitForConnectionConfirmation(
+      inboundTopicId,
+      connectionRequest.requestId,
+      accountId,
+      privateKey,
+      characterId
+    );
+    
+    logger.info('AGENT', `Connection established with topic ${confirmation.connectionTopicId}`);
+    
+    // Set up connection monitoring
+    const client = await createCustomClient(accountId, privateKey);
+    const monitorService = new MonitorService(client);
+    await monitorService.startMonitoringTopic(confirmation.connectionTopicId);
+    monitorService.registerTopicType(confirmation.connectionTopicId, 'connection', {
+      characterId,
+      userId: confirmation.targetAccountId
+    });
+    
+    // Get character data if available
+    const characterData = await getCharacterFromRegistry(characterId);
+    if (characterData) {
+      monitorService.setCharacterForTopic(confirmation.connectionTopicId, characterData);
+    }
+    
+    logger.info('AGENT', `Successfully connected to agent via topic ${inboundTopicId}`);
+    
+    res.status(200).json({ 
+      success: true, 
+      inboundTopicId,
+      connectionTopicId: confirmation.connectionTopicId,
+      targetAccountId: confirmation.targetAccountId
+    });
+  } catch (error) {
+    logger.error('AGENT', `Error connecting to agent: ${error}`);
+    res.status(500).json({ success: false, error: `Error connecting to agent: ${error}` });
   }
 };
 
@@ -182,60 +375,31 @@ export const startAgentMonitor = async (req: Request, res: Response): Promise<vo
 
     // Start monitoring inbound topic
     await monitorService.startMonitoringTopic(agentInfo.inboundTopicId);
-
-    // Handle connection requests from inbound topic
-    monitorService.onMessage(agentInfo.inboundTopicId, async (message) => {
-      try {
-        if (message.op === 'connection_request' && message.sequence_number) {
-          logger.info('AGENT', `Received connection request on inbound topic: ${agentInfo.inboundTopicId}`);
-
-          // Extract requester account ID from operator_id
-          const requesterAccountId = message.operator_id?.split('@')[1];
-          if (!requesterAccountId) {
-            logger.error('AGENT', 'Failed to extract requester account ID from operator_id');
-            return;
-          }
-
-          // Create connection topic (fee-gated)
-          const result = await client.handleConnectionRequest(
-            agentInfo.inboundTopicId,
-            requesterAccountId,
-            message.sequence_number
-          );
-
-          logger.info('AGENT', `Created connection topic: ${result.connectionTopicId}`);
-          
-          // Start monitoring the new connection topic
-          await monitorService.startMonitoringTopic(result.connectionTopicId);
-
-          // Handle messages from this connection topic
-          monitorService.onMessage(result.connectionTopicId, async (connectionMessage) => {
-            if (connectionMessage.op === 'message' && connectionMessage.data) {
-              try {
-                logger.info('AGENT', `Received message on connection topic: ${result.connectionTopicId}`);
-                
-                // Get character data
-                const characterData = await getCharacterFromRegistry(characterId);
-                if (!characterData) {
-                  logger.error('AGENT', `Character data not found for ${characterId}`);
-                  return;
-                }
-
-                // Send a simple response
-                await client.sendMessage(
-                  result.connectionTopicId,
-                  `Hello! I'm ${characterData.name}, thank you for your message: "${connectionMessage.data}"`
-                );
-              } catch (err) {
-                logger.error('AGENT', `Error processing message: ${err}`);
-              }
-            }
-          });
+    monitorService.registerTopicType(agentInfo.inboundTopicId, 'inbound', { characterId });
+    
+    // Get character data if available
+    const characterData = await getCharacterFromRegistry(characterId);
+    if (characterData) {
+      monitorService.setCharacterForTopic(agentInfo.inboundTopicId, characterData);
+    }
+    
+    // If there's an outbound topic, monitor that too
+    if (agentInfo.outboundTopicId) {
+      await monitorService.startMonitoringTopic(agentInfo.outboundTopicId);
+      monitorService.registerTopicType(agentInfo.outboundTopicId, 'outbound', { characterId });
+    }
+    
+    // If there are existing connections, monitor those as well
+    if (agentInfo.connections && agentInfo.connections.length > 0) {
+      for (const connectionTopicId of agentInfo.connections) {
+        await monitorService.startMonitoringTopic(connectionTopicId);
+        monitorService.registerTopicType(connectionTopicId, 'connection', { characterId });
+        
+        if (characterData) {
+          monitorService.setCharacterForTopic(connectionTopicId, characterData);
         }
-      } catch (err) {
-        logger.error('AGENT', `Error handling connection request: ${err}`);
       }
-    });
+    }
 
     logger.info('AGENT', `Successfully started monitor for agent ${characterId}`);
     
@@ -243,6 +407,8 @@ export const startAgentMonitor = async (req: Request, res: Response): Promise<vo
       success: true, 
       characterId,
       inboundTopicId: agentInfo.inboundTopicId,
+      outboundTopicId: agentInfo.outboundTopicId,
+      connections: agentInfo.connections || [],
       message: 'Agent monitor started successfully'
     });
   } catch (error) {
@@ -275,20 +441,13 @@ export const createFeeConfig = async (req: Request, res: Response): Promise<void
     // Get the client for the default agent
     const client = await getHederaClient();
 
-    // Create fee config using FeeConfigBuilder from standards-sdk
-    const feeConfigBuilder = new FeeConfigBuilder()
-      .setFeeAmount(Number(feeAmount))
-      .setFeeCollector(feeCollector)
-      .setUseHip991(useHip991 || false);
-
-    // Add exempt accounts if provided
-    if (exemptAccounts && Array.isArray(exemptAccounts)) {
-      exemptAccounts.forEach((accountId: string) => {
-        feeConfigBuilder.addExemptAccount(accountId);
-      });
-    }
-
-    const feeConfig = feeConfigBuilder.build();
+    // Create a basic fee config object
+    const feeConfig: FeeConfig = {
+      feeAmount: Number(feeAmount),
+      feeCollector: feeCollector,
+      useHip991: useHip991 || false,
+      exemptAccounts: exemptAccounts || []
+    };
 
     // Register the fee config with the connection topic
     registerFeeGatedConnection(connectionTopicId, feeConfig);
@@ -303,47 +462,6 @@ export const createFeeConfig = async (req: Request, res: Response): Promise<void
   } catch (error) {
     logger.error('AGENT', `Error creating fee configuration: ${error}`);
     res.status(500).json({ success: false, error: `Error creating fee configuration: ${error}` });
-  }
-};
-
-/**
- * Get a response from an agent
- */
-export const getResponse = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { messageId, accountId, privateKey } = req.body;
-
-    if (!messageId || !accountId || !privateKey) {
-      res.status(400).json({ 
-        success: false, 
-        error: 'Missing required parameters: messageId, accountId, and privateKey are required' 
-      });
-      return;
-    }
-
-    // Create custom client with user credentials
-    const client = await createCustomClient(accountId, privateKey);
-
-    // Get message from connection topic
-    const { messages } = await client.getMessages(messageId);
-    
-    if (!messages || messages.length === 0) {
-      res.status(404).json({
-        success: false,
-        error: 'Message not found'
-      });
-      return;
-    }
-
-    logger.info('AGENT', `Successfully retrieved message ${messageId}`);
-    
-    res.status(200).json({ 
-      success: true, 
-      message: messages[0]
-    });
-  } catch (error) {
-    logger.error('AGENT', `Error getting response: ${error}`);
-    res.status(500).json({ success: false, error: `Error getting response: ${error}` });
   }
 };
 
@@ -374,20 +492,23 @@ export const cleanupAgent = async (req: Request, res: Response): Promise<void> =
 
     // Create custom client with user credentials
     const client = await createCustomClient(accountId, privateKey);
+    const connectionService = await getConnectionService();
 
     // Get all connections for this character
     const connections = await storageService.getConnectionsForCharacter(characterId);
 
-    // Stop monitoring all connection topics
+    // Close all connection topics
     for (const connection of connections) {
       try {
-        await client.sendMessage(
+        // Send closing message and mark connection as inactive
+        await connectionService.closeConnection(
           connection.connectionTopicId,
-          JSON.stringify({ type: 'connection_closed' }),
-          'Connection closed'
+          accountId,
+          privateKey,
+          'Connection closed by agent'
         );
       } catch (err) {
-        logger.error('AGENT', `Error sending close message to topic ${connection.connectionTopicId}: ${err}`);
+        logger.error('AGENT', `Error closing connection ${connection.connectionTopicId}: ${err}`, err);
       }
     }
 

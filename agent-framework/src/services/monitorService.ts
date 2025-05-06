@@ -7,7 +7,8 @@ import * as path from 'path';
 
 // Import AI service for generating responses
 import { generateCharacterResponse } from './aiService';
-import { getConnectionByTopicId } from './storageService';
+import { getConnectionService } from './connectionService';
+import * as storageService from './storageService';
 
 // Track fee-gated connections
 const feeGatedConnections = new Map<string, FeeConfig>();
@@ -32,17 +33,26 @@ export const getFeeConfigForConnection = (connectionTopicId: string): FeeConfig 
 };
 
 /**
- * Service to monitor message topics and verify fee payments
+ * Service to monitor message topics according to HCS-10 standard and verify fee payments
  */
 export class MonitorService {
   private client: HCS10Client;
   private messageEmitter: EventEmitter;
   private monitoredTopics: Set<string> = new Set();
   private pollingIntervals: Map<string, NodeJS.Timeout> = new Map();
+  
   // Track last processed message sequence number for each topic
   private lastProcessedMessage: Map<string, number> = new Map();
+  
   // Track active characters for response generation
   private activeCharacters: Map<string, any> = new Map();
+  
+  // Track connection details
+  private topicConnections: Map<string, {
+    type: 'inbound' | 'outbound' | 'connection',
+    characterId?: string,
+    userId?: string
+  }> = new Map();
 
   constructor(client: HCS10Client) {
     this.client = client;
@@ -61,7 +71,26 @@ export class MonitorService {
   }
 
   /**
-   * Start monitoring a topic for messages
+   * Register a topic as a specific type
+   * @param topicId The topic ID to register
+   * @param type The type of topic ('inbound', 'outbound', or 'connection')
+   * @param metadata Additional metadata like characterId or userId
+   */
+  public registerTopicType(
+    topicId: string, 
+    type: 'inbound' | 'outbound' | 'connection',
+    metadata: { characterId?: string, userId?: string } = {}
+  ): void {
+    this.topicConnections.set(topicId, {
+      type,
+      characterId: metadata.characterId,
+      userId: metadata.userId
+    });
+    logger.info('MONITOR', `Registered topic ${topicId} as ${type} topic`);
+  }
+
+  /**
+   * Start monitoring a topic for messages according to HCS-10 standard
    * @param topicId The topic ID to monitor
    */
   public async startMonitoringTopic(topicId: string): Promise<void> {
@@ -94,7 +123,7 @@ export class MonitorService {
               // Update last processed sequence
               this.lastProcessedMessage.set(topicId, message.sequence_number);
               
-              // Process the message content
+              // Process the message content based on the topic type
               await this.processMessage(topicId, message);
               
               // Emit the message event
@@ -123,62 +152,175 @@ export class MonitorService {
   }
 
   /**
-   * Process a message and generate a response if needed
+   * Process a message according to HCS-10 standard based on topic type
    * @param topicId The topic ID where the message was received
    * @param message The message to process
    */
   private async processMessage(topicId: string, message: HCSMessage): Promise<void> {
     try {
       // Only process if it's a message with data
-      if (!message.data || typeof message.data !== 'string') {
+      if (!message.data) {
         return;
       }
       
-      // Try to parse the message content
-      let content;
-      try {
-        content = JSON.parse(message.data);
-      } catch (e) {
-        // Not a JSON message, skip
-        return;
-      }
+      // Get the topic type
+      const topicInfo = this.topicConnections.get(topicId) || { type: 'unknown' };
       
-      // Only respond to message with prompt, id, and response_id
-      if (content.prompt && content.id && content.response_id) {
-        logger.info('MONITOR', `Processing user message ${content.id} from topic ${topicId}`);
-        
-        // Get character data for this topic
-        let characterData = this.activeCharacters.get(topicId);
-        
-        // If no character data is set for this topic, use a default
-        if (!characterData) {
-          // We don't have direct access to connection info, so we'll use a default
-          logger.warn('MONITOR', `No character data found for topic ${topicId}, using default`);
-          characterData = {
-            name: "Assistant",
-            description: "A helpful AI assistant."
-          };
-        }
-        
-        // Generate response
-        const response = await generateCharacterResponse(content.prompt, characterData);
-        
-        // Send response
-        await this.client.sendMessage(
-          topicId,
-          JSON.stringify({
-            id: content.response_id,
-            response: response,
-            prompt_id: content.id,
-            timestamp: Date.now()
-          }),
-          "Character response"
-        );
-        
-        logger.info('MONITOR', `Sent response for message ${content.id} on topic ${topicId}`);
+      // Process based on topic type
+      switch (topicInfo.type) {
+        case 'inbound':
+          await this.processInboundMessage(topicId, message);
+          break;
+          
+        case 'outbound':
+          await this.processOutboundMessage(topicId, message);
+          break;
+          
+        case 'connection':
+          await this.processConnectionMessage(topicId, message);
+          break;
+          
+        default:
+          // Try to handle as a connection message by default
+          await this.processConnectionMessage(topicId, message);
       }
     } catch (error) {
       logger.error('MONITOR', `Error processing message on topic ${topicId}: ${error}`, error);
+    }
+  }
+  
+  /**
+   * Process a message on an inbound topic (connection requests)
+   * @param topicId The inbound topic ID
+   * @param message The message to process
+   */
+  private async processInboundMessage(topicId: string, message: HCSMessage): Promise<void> {
+    // Check if it's a connection request
+    if (message.op === 'connection_request' && message.sequence_number) {
+      logger.info('MONITOR', `Received connection request on inbound topic: ${topicId}`);
+
+      try {
+        // Extract requester account ID from operator_id
+        const requesterAccountId = message.operator_id?.split('@')[1];
+        if (!requesterAccountId) {
+          logger.error('MONITOR', 'Failed to extract requester account ID from operator_id');
+          return;
+        }
+        
+        // Get character ID for this topic
+        const topicInfo = this.topicConnections.get(topicId);
+        const characterId = topicInfo?.characterId;
+        
+        if (!characterId) {
+          logger.error('MONITOR', `No character ID associated with inbound topic ${topicId}`);
+          return;
+        }
+        
+        // Get the connection service
+        const connectionService = await getConnectionService();
+        
+        // Get the agent credentials (would need to be retrieved from secure storage)
+        // This is a placeholder - in a real implementation, you'd get this from secure storage
+        const operatorId = this.client.getOperatorAccountId?.() || '';
+        if (!operatorId) {
+          logger.error('MONITOR', 'Failed to get operator account ID');
+          return;
+        }
+        
+        const agentPrivateKey = 'AGENT_PRIVATE_KEY'; // This should be securely retrieved
+        
+        // Handle the connection request (creates a connection topic)
+        const result = await connectionService.handleConnectionRequest(
+          topicId,
+          requesterAccountId,
+          message.sequence_number,
+          operatorId,
+          agentPrivateKey,
+          characterId
+        );
+        
+        logger.info('MONITOR', `Created connection topic: ${result.connectionTopicId}`);
+        
+        // Start monitoring the new connection topic
+        await this.startMonitoringTopic(result.connectionTopicId);
+        
+        // Register as a connection topic
+        this.registerTopicType(result.connectionTopicId, 'connection', {
+          characterId,
+          userId: requesterAccountId
+        });
+        
+        // Set character for this connection topic
+        const characterData = this.activeCharacters.get(topicId);
+        if (characterData) {
+          this.setCharacterForTopic(result.connectionTopicId, characterData);
+        }
+      } catch (err) {
+        logger.error('MONITOR', `Error handling connection request: ${err}`, err);
+      }
+    }
+  }
+  
+  /**
+   * Process a message on an outbound topic (connection confirmations)
+   * @param topicId The outbound topic ID
+   * @param message The message to process
+   */
+  private async processOutboundMessage(topicId: string, message: HCSMessage): Promise<void> {
+    // Currently no specific handling needed for outbound messages
+    // This is where you would handle confirmation messages if needed
+  }
+  
+  /**
+   * Process a message on a connection topic (conversation)
+   * @param topicId The connection topic ID
+   * @param message The message to process
+   */
+  private async processConnectionMessage(topicId: string, message: HCSMessage): Promise<void> {
+    // Only process if this is a standard message with string data
+    if (message.op === 'message' && typeof message.data === 'string') {
+      // Try to parse the message data as JSON
+      try {
+        const content = JSON.parse(message.data);
+        
+        // Check if it's a standard HCS-10 message with prompt and response IDs
+        if (content.prompt && content.id && content.response_id) {
+          logger.info('MONITOR', `Processing user message ${content.id} from topic ${topicId}`);
+          
+          // Get character data for this topic
+          let characterData = this.activeCharacters.get(topicId);
+          
+          // If no character data is set for this topic, use a default
+          if (!characterData) {
+            // We don't have direct access to connection info, so we'll use a default
+            logger.warn('MONITOR', `No character data found for topic ${topicId}, using default`);
+            characterData = {
+              name: "Assistant",
+              description: "A helpful AI assistant."
+            };
+          }
+          
+          // Generate response
+          const response = await generateCharacterResponse(content.prompt, characterData);
+          
+          // Send response through the same connection topic
+          await this.client.sendMessage(
+            topicId,
+            JSON.stringify({
+              id: content.response_id,
+              response: response,
+              prompt_id: content.id,
+              timestamp: Date.now()
+            }),
+            "Character response"
+          );
+          
+          logger.info('MONITOR', `Sent response for message ${content.id} on topic ${topicId}`);
+        }
+      } catch (e) {
+        // Not a JSON message or missing required fields, skip
+        logger.debug('MONITOR', `Non-standard message on topic ${topicId}: ${e}`);
+      }
     }
   }
 
@@ -205,6 +347,7 @@ export class MonitorService {
       this.monitoredTopics.delete(topicId);
       this.lastProcessedMessage.delete(topicId);
       this.activeCharacters.delete(topicId);
+      this.topicConnections.delete(topicId);
       
       logger.info('MONITOR', `Successfully stopped monitoring topic ${topicId}`);
     } catch (error) {

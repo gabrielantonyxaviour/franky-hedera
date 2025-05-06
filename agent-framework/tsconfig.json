@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "CommonJS",
+    "target": "ES2022",
+    "module": "ESNext",
     "moduleResolution": "node",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -10,7 +10,9 @@
     "outDir": "dist",
     "rootDir": "./",
     "resolveJsonModule": true,
-    "allowJs": true
+    "allowJs": true,
+    "declaration": true,
+    "sourceMap": true
   },
   "include": [
     "src/**/*",
@@ -19,5 +21,9 @@
   "exclude": [
     "node_modules",
     "dist"
-  ]
+  ],
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifiers": true
+  }
 }

@@ -233,7 +233,10 @@ async function transformAgentData(data: Agent) {
     updatedAt: data.updated_at,
     metadataUrl: data.metadata_url,
     avatar: characterConfigJson.avatarUrl,
-    agentAddress:
-      data.agent_address ?? "0x6a251cd0df26210a5ee4b688d4ddc10046061135",
+    agentAddress: data.agent_address ?? "0x6a251cd0df26210a5ee4b688d4ddc10046061135",
+    accountId: data.account_id,
+    inboundTopicId: data.inbound_topic_id,
+    outboundTopicId: data.outbound_topic_id,
+    profileTopicId: data.profile_topic_id
   };
 }
