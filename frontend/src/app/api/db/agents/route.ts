@@ -28,6 +28,7 @@ export interface Agent {
   inbound_topic_id: string | null;
   outbound_topic_id: string | null;
   profile_topic_id: string | null;
+  encrypted_private_key: string | null;
 }
 
 // GET /api/db/agents - Get all agents
@@ -123,6 +124,7 @@ export async function POST(request: Request) {
       inbound_topic_id,
       outbound_topic_id,
       profile_topic_id,
+      encrypted_private_key,
     } = json;
 
     console.log(`Creating new agent with subname: ${subname}`);
@@ -152,6 +154,7 @@ export async function POST(request: Request) {
           inbound_topic_id,
           outbound_topic_id,
           profile_topic_id,
+          encrypted_private_key,
         },
         null,
         2
@@ -184,6 +187,7 @@ export async function POST(request: Request) {
           inbound_topic_id,
           outbound_topic_id,
           profile_topic_id,
+          encrypted_private_key,
         },
       ])
       .select()
@@ -237,6 +241,7 @@ async function transformAgentData(data: Agent) {
     accountId: data.account_id,
     inboundTopicId: data.inbound_topic_id,
     outboundTopicId: data.outbound_topic_id,
-    profileTopicId: data.profile_topic_id
+    profileTopicId: data.profile_topic_id,
+    encryptedPrivateKey: data.encrypted_private_key,
   };
 }

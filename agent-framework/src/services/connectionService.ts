@@ -412,7 +412,21 @@ export const getConnectionService = async (): Promise<ConnectionService> => {
   }
   
   try {
-    const client = await getHederaClient();
+    // Create a client directly rather than using getHederaClient
+    if (!process.env.HEDERA_ACCOUNT_ID || !process.env.HEDERA_PRIVATE_KEY) {
+      throw new Error('HEDERA_ACCOUNT_ID or HEDERA_PRIVATE_KEY environment variables are not set');
+    }
+    
+    logger.info(CONTEXT_CONNECTION, 'Creating HCS10Client with debug logging for ConnectionService');
+    const client = new HCS10Client({
+      network: (process.env.HEDERA_NETWORK || 'testnet') as any,
+      operatorId: process.env.HEDERA_ACCOUNT_ID,
+      operatorPrivateKey: process.env.HEDERA_PRIVATE_KEY,
+      logLevel: 'debug', // Set to debug for detailed logs
+      prettyPrint: true,
+      guardedRegistryBaseUrl: process.env.REGISTRY_URL,
+    });
+    
     connectionServiceInstance = new ConnectionService(client);
     return connectionServiceInstance;
   } catch (error) {

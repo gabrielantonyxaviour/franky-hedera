@@ -29,6 +29,7 @@ import { ContractId, ContractExecuteTransaction } from "@hashgraph/sdk";
 import { ContractFunctionParameterBuilder } from "@/utils/param-builder";
 import { WalletInterface } from "@/types/wallet-interface";
 import { encryptEnv } from "@/utils/lit";
+import { encodeBase58 } from "@/lib/base58";
 
 interface Device {
   id: string;
@@ -1145,6 +1146,8 @@ function CreateAgentContent({
             }
 
             console.log("Agent created in Hedera with topics:", hederaAgentData.agent);
+
+            const encryptedPrivateKey = encodeBase58(hederaAgentData.agent.privateKey);
             
             // Now we have the metadata, let's store it in Supabase
             const createAgentsRequest = await fetch(`/api/db/agents`, {
@@ -1173,7 +1176,8 @@ function CreateAgentContent({
                 account_id: hederaAgentData.agent.accountId,
                 inbound_topic_id: hederaAgentData.agent.inboundTopicId,
                 outbound_topic_id: hederaAgentData.agent.outboundTopicId,
-                profile_topic_id: hederaAgentData.agent.profileTopicId
+                profile_topic_id: hederaAgentData.agent.profileTopicId,
+                encrypted_private_key: encryptedPrivateKey
               }),
             });
             

@@ -4,11 +4,11 @@ import { EventEmitter } from 'events';
 import { FeeConfig } from '../utils/feeUtils';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as storageService from './storageService';
 
 // Import AI service for generating responses
 import { generateCharacterResponse } from './aiService';
 import { getConnectionService } from './connectionService';
-import * as storageService from './storageService';
 
 // Track fee-gated connections
 const feeGatedConnections = new Map<string, FeeConfig>();
@@ -108,8 +108,11 @@ export class MonitorService {
       // Setup polling for messages
       const pollInterval = setInterval(async () => {
         try {
+          logger.debug('MONITOR', `Polling for messages on topic ${topicId}`);
           const result = await this.client.getMessages(topicId);
           if (result && result.messages && result.messages.length > 0) {
+            logger.debug('MONITOR', `Found ${result.messages.length} total messages on topic ${topicId}`);
+            
             // Get the last processed sequence number for this topic
             const lastProcessed = this.lastProcessedMessage.get(topicId) || 0;
             
@@ -117,11 +120,17 @@ export class MonitorService {
             const newMessages = result.messages
               .filter(msg => msg.sequence_number > lastProcessed)
               .sort((a, b) => a.sequence_number - b.sequence_number);
+            
+            if (newMessages.length > 0) {
+              logger.debug('MONITOR', `Found ${newMessages.length} new messages on topic ${topicId}`);
+            }
               
             // Process each new message
             for (const message of newMessages) {
               // Update last processed sequence
               this.lastProcessedMessage.set(topicId, message.sequence_number);
+              
+              logger.debug('MONITOR', `Processing message ${message.sequence_number} on topic ${topicId}, operation: ${message.op}`);
               
               // Process the message content based on the topic type
               await this.processMessage(topicId, message);
@@ -219,15 +228,22 @@ export class MonitorService {
         // Get the connection service
         const connectionService = await getConnectionService();
         
-        // Get the agent credentials (would need to be retrieved from secure storage)
-        // This is a placeholder - in a real implementation, you'd get this from secure storage
-        const operatorId = this.client.getOperatorAccountId?.() || '';
-        if (!operatorId) {
-          logger.error('MONITOR', 'Failed to get operator account ID');
+        // Get the agent credentials from storage
+        const agentInfo = await storageService.getAgentInfoByInboundTopic(topicId);
+        if (!agentInfo) {
+          logger.error('MONITOR', `No agent info found for inbound topic ${topicId}`);
           return;
         }
         
-        const agentPrivateKey = 'AGENT_PRIVATE_KEY'; // This should be securely retrieved
+        const operatorId = agentInfo.accountId;
+        const agentPrivateKey = agentInfo.privateKey;
+        
+        if (!operatorId || !agentPrivateKey) {
+          logger.error('MONITOR', 'Missing agent credentials');
+          return;
+        }
+        
+        logger.info('MONITOR', `Using agent ${operatorId} to handle connection request`);
         
         // Handle the connection request (creates a connection topic)
         const result = await connectionService.handleConnectionRequest(
