@@ -33,26 +33,22 @@ export async function POST(request: Request) {
   try {
     // Parse the request body
     const body = await request.json();
-    
-    // Extract required fields directly to avoid undefined errors
-    const characterId = body.characterId;
-    const name = body.name;
-    
-    // Extract agent address and fee from both formats
-    const agentAddress = body.agentAddress || body.agent_address;
-    const perApiCallFee = body.perApiCallFee || body.per_api_call_fee;
-    
-    // Extract other optional fields
-    const description = body.description;
-    const personality = body.personality;
-    const scenario = body.scenario;
-    const first_mes = body.first_mes;
-    const mes_example = body.mes_example;
-    const creatorcomment = body.creatorcomment;
-    const tags = body.tags;
-    const talkativeness = body.talkativeness;
-    const traits = body.traits;
-    const imageUrl = body.imageUrl;
+    const { 
+      characterId, 
+      name, 
+      description, 
+      personality,
+      scenario,
+      first_mes,
+      mes_example,
+      creatorcomment,
+      tags,
+      talkativeness,
+      traits,
+      imageUrl,
+      agentAddress,
+      perApiCallFee
+    } = body;
     
     // Add debug logging
     console.log('Received request body:', {
@@ -60,8 +56,6 @@ export async function POST(request: Request) {
       name,
       agentAddress,
       perApiCallFee,
-      agent_address: body.agent_address,
-      per_api_call_fee: body.per_api_call_fee,
       fullBody: body
     });
     

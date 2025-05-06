@@ -1103,19 +1103,9 @@ function CreateAgentContent({
           setIsPending(false);
           return;
         } else {
-          // Store these values once and reuse them
-          const agentAddress = `0x${(receipt.logs[0].topics[2] as string).slice(-40)}`;
-          const formattedFee = parseEther(perApiCallFee).toString();
-          
-          // Debug - Log values and their types
-          console.log("DEBUG - Initial values:", {
-            agentAddress,
-            formattedFee,
-            typeofAgentAddress: typeof agentAddress,
-            typeofFormattedFee: typeof formattedFee,
-            receipt_topic: receipt.logs[0].topics[2],
-            perApiCallFee_raw: perApiCallFee
-          });
+          const agentAddress = `0x${(receipt.logs[0].topics[2] as string).slice(
+            -40
+          )}`;
           
           const createAgentsRequest = await fetch(`/api/db/agents`, {
             method: "POST",
@@ -1133,12 +1123,14 @@ function CreateAgentContent({
               is_favorite: constructedCharacter.fav,
               device_address: deviceInfo.id.toLowerCase(),
               owner_address: accountId?.toLowerCase(),
-              per_api_call_fee: formattedFee,
+              per_api_call_fee: parseEther(perApiCallFee).toString(),
               is_public: isPublic,
               metadata_url: characterConfigUrl,
               tools: selectedTools.map((tool) => tool.id),
               tx_hash: hash,
-              agent_address: agentAddress,
+              agent_address: `0x${(receipt.logs[0].topics[2] as string).slice(
+                -40
+              )}`,
             }),
           });
           const createAgentResponse = await createAgentsRequest.json();
@@ -1150,7 +1142,7 @@ function CreateAgentContent({
           });
           
           try {
-            // Use the exact same structure that works for Supabase
+            // Call the combined create-agent API
             const createHederaAgentResponse = await fetch("/api/hedera/create-agent", {
               method: "POST",
               headers: {
@@ -1169,10 +1161,10 @@ function CreateAgentContent({
                 talkativeness: constructedCharacter.talkativeness,
                 traits: {},
                 imageUrl: avatarUrl,
-                agentAddress,
-                perApiCallFee: formattedFee,
-                agent_address: agentAddress,
-                per_api_call_fee: formattedFee
+                agentAddress: `0x${(receipt.logs[0].topics[2] as string).slice(
+                  -40
+                )}`,
+                perApiCallFee: parseEther(perApiCallFee).toString()
               })
             });
 
