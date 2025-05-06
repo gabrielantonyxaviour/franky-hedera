@@ -60,7 +60,7 @@ import { promises as fsPromises } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { MonitorService, registerFeeGatedConnection } from "../src/services/monitorService.js";
+import { MonitorService, isFeeGatedConnection, getFeeConfigForConnection, registerFeeGatedConnection } from "../src/services/monitorService.js";
 import { generateCharacterResponse } from "../src/services/aiService.js";
 import { FeeConfig } from "../src/utils/feeUtils.js";
 import { HCS11Client } from "@hashgraphonline/standards-sdk";
@@ -1402,14 +1402,25 @@ async function startServer() {
               .json({ error: "Server wallet not found or not accessible" });
           }
 
-          // Create HCS-10 client with user credentials
+          // IMPORTANT: Create HCS-10 client with the ORIGINAL private key, NOT converted
+          // This matches how it's done in the initialization endpoint
+          logger.debug("API", `Creating HCS10Client for chat with operatorId: ${hederaAccountId}`);
+          
           const userClient = new HCS10Client({
             network: 'testnet' as NetworkType,
             operatorId: hederaAccountId,
-            operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
+            operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(), // Use the raw private key without conversion
             logLevel: 'info',
-            prettyPrint: true
           });
+
+          // Check if this topic is fee-gated
+          const monitorService = monitorServices.get(topicId);
+          const isFeeGated = isFeeGatedConnection(topicId);
+          const feeConfig = getFeeConfigForConnection(topicId);
+          
+          if (isFeeGated) {
+            logger.info("API", `Topic ${topicId} is fee-gated with fee amount ${feeConfig?.feeAmount}`);
+          }
 
           // Format message as expected by the agent
           const messageId = `msg-${Date.now()}`;
@@ -1421,25 +1432,28 @@ async function startServer() {
             response_id: responseId,
           });
 
-          // Send message with fee handling
+          logger.debug("API", `Sending message to topic ${topicId} from account ${hederaAccountId}`);
+          
+          // This part is critical - use the HCS-10 payload structure exactly as expected
           const receipt = await userClient.submitPayload(
             topicId,
             {
               p: 'hcs-10',
               op: 'message',
               data: messagePayload,
-              operator_id: `${topicId}@${hederaAccountId}`,
+              // Use a simple operator ID format - don't include the topic ID
+              operator_id: hederaAccountId,
               m: 'User message'
             },
             undefined, // No submit key needed
-            false // No fee required for messages
+            isFeeGated // Set requiresFee based on whether the topic is fee-gated
           );
 
           // Check receipt for success
           if (!receipt) {
             throw new Error('Failed to send message');
           }
-
+          
           // Make sure we're monitoring this topic for responses
           if (!monitorServices.has(topicId)) {
             logger.info("API", `Setting up message monitoring for topic ${topicId}`);

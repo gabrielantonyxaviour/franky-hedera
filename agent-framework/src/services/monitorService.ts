@@ -1,4 +1,4 @@
-import { HCS10Client, HCSMessage } from '@hashgraphonline/standards-sdk';
+import { HCS10Client, HCSMessage, FeeConfigBuilder, NetworkType, Logger as SDKLogger } from '@hashgraphonline/standards-sdk';
 import { logger } from '../utils/logger';
 import { EventEmitter } from 'events';
 import { FeeConfig } from '../utils/feeUtils';
@@ -33,6 +33,21 @@ export const isFeeGatedConnection = (connectionTopicId: string): boolean => {
 export const getFeeConfigForConnection = (connectionTopicId: string): FeeConfig | null => {
   return feeGatedConnections.get(connectionTopicId) || null;
 };
+
+/**
+ * Helper function to get the agent's fee amount from agent info
+ * @param agentInfo The agent information object
+ * @returns The fee amount in HBAR
+ */
+function getAgentFeeAmount(agentInfo: any): number {
+  // Try to get fee from the perApiCallFee property
+  if (agentInfo.perApiCallFee && !isNaN(parseFloat(agentInfo.perApiCallFee))) {
+    return parseFloat(agentInfo.perApiCallFee);
+  }
+  
+  // Fallback to default fee if not found (0.5 HBAR)
+  return 0.5;
+}
 
 /**
  * Service to monitor message topics according to HCS-10 standard and verify fee payments
@@ -108,51 +123,89 @@ export class MonitorService {
     try {
       logger.info('MONITOR', `Starting to monitor topic ${topicId}`);
       
-      // Initialize last processed message to 0
-      this.lastProcessedMessage.set(topicId, 0);
+      // Initialize last processed message to current state
+      try {
+        // Get the current latest message first to avoid processing history
+        const initialResult = await this.client.getMessages(topicId);
+        if (initialResult && initialResult.messages && initialResult.messages.length > 0) {
+          // Find the highest sequence number
+          const highestSeq = Math.max(...initialResult.messages.map(msg => msg.sequence_number));
+          this.lastProcessedMessage.set(topicId, highestSeq);
+          logger.info('MONITOR', `Initialized monitoring for topic ${topicId} starting at sequence ${highestSeq}`);
+        } else {
+          this.lastProcessedMessage.set(topicId, 0);
+        }
+      } catch (error) {
+        logger.error('MONITOR', `Error getting initial messages for topic ${topicId}: ${error}`);
+        // Default to 0 if we can't get initial state
+        this.lastProcessedMessage.set(topicId, 0);
+      }
       
       // Setup polling for messages
       const pollInterval = setInterval(async () => {
         try {
-          logger.debug('MONITOR', `Polling for messages on topic ${topicId}`);
+          // Get the last processed sequence number for this topic
+          const lastProcessed = this.lastProcessedMessage.get(topicId) || 0;
+          
+          // Get messages since the last processed message
           const result = await this.client.getMessages(topicId);
+          
           if (result && result.messages && result.messages.length > 0) {
-            logger.debug('MONITOR', `Found ${result.messages.length} total messages on topic ${topicId}`);
-            
-            // Get the last processed sequence number for this topic
-            const lastProcessed = this.lastProcessedMessage.get(topicId) || 0;
-            
-            // Filter for new messages
+            // Only process messages with higher sequence numbers
             const newMessages = result.messages
               .filter(msg => msg.sequence_number > lastProcessed)
               .sort((a, b) => a.sequence_number - b.sequence_number);
             
             if (newMessages.length > 0) {
               logger.debug('MONITOR', `Found ${newMessages.length} new messages on topic ${topicId}`);
-            }
               
-            // Process each new message
-            for (const message of newMessages) {
-              // Update last processed sequence
-              this.lastProcessedMessage.set(topicId, message.sequence_number);
+              // Process only the latest batch - for connection_request, only process the newest one
+              let messagesToProcess = newMessages;
               
-              logger.debug('MONITOR', `Processing message ${message.sequence_number} on topic ${topicId}, operation: ${message.op}`);
+              const topicInfo = this.topicConnections.get(topicId);
+              if (topicInfo && topicInfo.type === 'inbound') {
+                // For inbound topics, only process the newest connection request if there are multiple
+                const connectionRequests = newMessages.filter(
+                  msg => msg.op === 'connection_request'
+                );
+                
+                if (connectionRequests.length > 1) {
+                  // Find the newest connection request by sequence number
+                  const newestConnectionRequest = connectionRequests.reduce(
+                    (newest, current) => current.sequence_number > newest.sequence_number ? current : newest,
+                    connectionRequests[0]
+                  );
+                  
+                  // Replace all connection requests with just the newest one
+                  messagesToProcess = newMessages.filter(
+                    msg => msg.op !== 'connection_request' || 
+                    msg.sequence_number === newestConnectionRequest.sequence_number
+                  );
+                  
+                  logger.info('MONITOR', `Processing only the newest connection request ${newestConnectionRequest.sequence_number} out of ${connectionRequests.length} requests`);
+                }
+              }
               
-              // Process the message content based on the topic type
-              await this.processMessage(topicId, message);
-              
-              // Emit the message event
-              this.messageEmitter.emit(`message:${topicId}`, message);
-              
-              // Also emit on all topics channel
-              this.messageEmitter.emit('message:all', {
-                topicId,
-                message
-              });
+              // Process the filtered messages
+              for (const message of messagesToProcess) {
+                // Update last processed sequence right away
+                this.lastProcessedMessage.set(topicId, message.sequence_number);
+                
+                logger.debug('MONITOR', `Processing message ${message.sequence_number} on topic ${topicId}, operation: ${message.op}`);
+                
+                // Only process specific message types based on topic type
+                if (this.shouldProcessMessage(topicId, message)) {
+                  await this.processMessage(topicId, message);
+                }
+                
+                // Always emit the event
+                this.messageEmitter.emit(`message:${topicId}`, message);
+                this.messageEmitter.emit('message:all', { topicId, message });
+              }
             }
           }
         } catch (error) {
-          logger.error('MONITOR', `Error polling topic ${topicId}: ${error}`, error);
+          logger.error('MONITOR', `Error polling topic ${topicId}: ${error}`);
         }
       }, 5000); // Poll every 5 seconds
       
@@ -161,8 +214,40 @@ export class MonitorService {
       
       logger.info('MONITOR', `Successfully monitoring topic ${topicId}`);
     } catch (error) {
-      logger.error('MONITOR', `Failed to start monitoring topic ${topicId}: ${error}`, error);
+      logger.error('MONITOR', `Failed to start monitoring topic ${topicId}: ${error}`);
       throw error;
+    }
+  }
+
+  /**
+   * Determine if a message should be processed based on topic type and message operation
+   * @param topicId The topic ID
+   * @param message The message to check
+   * @returns boolean indicating whether to process the message
+   */
+  private shouldProcessMessage(topicId: string, message: HCSMessage): boolean {
+    const topicInfo = this.topicConnections.get(topicId);
+    
+    if (!topicInfo) {
+      // If we don't know the topic type, process all messages
+      return true;
+    }
+    
+    switch (topicInfo.type) {
+      case 'inbound':
+        // Only process connection_request messages on inbound topics
+        return message.op === 'connection_request';
+        
+      case 'outbound':
+        // Don't process outbound topic messages - they are just confirmations
+        return false;
+        
+      case 'connection':
+        // Only process message operations on connection topics
+        return message.op === 'message';
+        
+      default:
+        return true;
     }
   }
 
@@ -188,7 +273,7 @@ export class MonitorService {
           break;
           
         case 'outbound':
-          await this.processOutboundMessage(topicId, message);
+          // Skip outbound messages - they are just confirmations
           break;
           
         case 'connection':
@@ -200,7 +285,7 @@ export class MonitorService {
           await this.processConnectionMessage(topicId, message);
       }
     } catch (error) {
-      logger.error('MONITOR', `Error processing message on topic ${topicId}: ${error}`, error);
+      logger.error('MONITOR', `Error processing message on topic ${topicId}: ${error}`);
     }
   }
   
@@ -291,19 +376,67 @@ export class MonitorService {
           const agentClient = new HCS10Client({
             network: 'testnet',
             operatorId: operatorId,
-            operatorPrivateKey: agentPrivateKey,
+            operatorPrivateKey: PrivateKey.fromStringDer(agentPrivateKey).toString(),
             logLevel: 'debug'
           });
 
+          // Update tracking information BEFORE processing
+          // This prevents the same request from being processed multiple times
+          // even if the processing throws an error
+          this.lastConnectionRequestTime.set(topicId, messageTimestamp);
+          this.processedConnectionRequests.add(requestId);
+
           try {
-            // Create connection topic with both user and agent keys
+            // Get the agent fee from the agent info
+            const agentFee = getAgentFeeAmount(agentInfo);
+            
+            // Create a fee configuration for the connection
+            logger.info('MONITOR', `Creating fee-gated connection topic with fee amount ${agentFee} HBAR`);
+            
+            // Create a proper SDK Logger instance for FeeConfigBuilder
+            const sdkLogger = SDKLogger.getInstance({
+              level: 'info',
+              module: 'FeeConfig',
+              prettyPrint: true
+            });
+            
+            // Create a FeeConfigBuilder instance with HIP-991 support
+            const feeConfigBuilder = new FeeConfigBuilder({
+              network: 'testnet' as NetworkType,
+              logger: sdkLogger,
+              defaultCollectorAccountId: operatorId
+            });
+            
+            // Add HBAR fee with HIP-991 support
+            feeConfigBuilder.addHbarFee(
+              agentFee,    // Fee amount in HBAR from agent info
+              operatorId,                // Fee collector (the agent)
+              [operatorId, requesterAccountId]  // Exempt both the agent and the user for initial setup
+            );
+            
+            // Handle the connection request with fee configuration
             const { connectionTopicId } = await agentClient.handleConnectionRequest(
               topicId,
               requesterAccountId,
-              message.sequence_number
+              message.sequence_number,
+              feeConfigBuilder,  // Pass the fee config builder
+              60  // TTL in seconds
             );
             
-            logger.info('MONITOR', `Created connection topic: ${connectionTopicId}`);
+            logger.info('MONITOR', `Created fee-gated connection topic: ${connectionTopicId}`);
+            
+            // Register the fee configuration for this connection
+            const feeConfig: FeeConfig = {
+              feeAmount: agentFee,
+              feeCollector: operatorId,
+              useHip991: true,  // Enable HIP-991 fee collection
+              exemptAccounts: [operatorId, requesterAccountId]  // Exempt the agent and requesting user
+            };
+            
+            // Register the fee configuration
+            registerFeeGatedConnection(connectionTopicId, feeConfig);
+            
+            logger.info('MONITOR', `Registered fee configuration for topic ${connectionTopicId}`);
 
             // Send confirmation message ONLY on outbound topic in HCS-10 format
             const outboundTopicId = agentInfo.outboundTopicId;
@@ -327,58 +460,79 @@ export class MonitorService {
               logger.info('MONITOR', `Sent connection confirmation on outbound topic ${outboundTopicId}`);
             }
             
-            // Start monitoring the new connection topic
+            // Continue with the rest of the setup
             await this.startMonitoringTopic(connectionTopicId);
-            
-            // Register as a connection topic
             this.registerTopicType(connectionTopicId, 'connection', {
               characterId,
               userId: requesterAccountId
             });
             
-            // Set character for this connection topic
             const characterData = this.activeCharacters.get(topicId);
             if (characterData) {
               this.setCharacterForTopic(connectionTopicId, characterData);
             }
-
-            // Send welcome message on the new connection topic
-            await agentClient.submitPayload(
-              connectionTopicId,
-              {
-                p: 'hcs-10',
-                op: 'message',
-                data: JSON.stringify({
-                  type: 'GREETING',
-                  content: `Hello! I'm ${characterData?.name || 'your AI assistant'}. How can I help you today?`,
+            
+            // Send a welcome message on the connection topic
+            try {
+              await agentClient.sendMessage(
+                connectionTopicId,
+                JSON.stringify({
+                  type: 'welcome',
+                  message: `Welcome! I'm ready to assist you. This connection requires a fee of ${agentFee} HBAR per message.`,
                   timestamp: Date.now()
                 }),
-                operator_id: `${connectionTopicId}@${operatorId}`,
-                m: 'Welcome message'
-              },
-              undefined,
-              false
-            );
+                'Welcome message'
+              );
+              logger.info('MONITOR', 'Sent welcome message on connection topic');
+            } catch (welcomeError) {
+              logger.error('MONITOR', `Error sending welcome message: ${welcomeError}`);
+              // Non-critical error, continue
+            }
+          } catch (connectionError: any) {
+            logger.error('MONITOR', `Error creating connection topic: ${connectionError}`);
             
-            logger.info('MONITOR', `Sent welcome message on connection topic ${connectionTopicId}`);
-
-            // Update tracking information
-            this.lastConnectionRequestTime.set(topicId, messageTimestamp);
-            this.processedConnectionRequests.add(requestId);
-
-          } catch (error: any) {
-            // If the error is related to profile fetching, try a direct connection without profile validation
-            if (error.message?.includes('Error fetching profile')) {
-              logger.warn('MONITOR', 'Profile fetching failed, attempting direct connection');
+            if (connectionError.message && connectionError.message.includes('profile')) {
+              logger.warn('MONITOR', 'Profile fetching failed, attempting direct connection with fees');
               
-              // Create a new connection topic directly
+              // Get the agent fee from the agent info
+              const agentFee = getAgentFeeAmount(agentInfo);
+              
+              // Create a proper SDK Logger instance for FeeConfigBuilder
+              const sdkLogger = SDKLogger.getInstance({
+                level: 'info',
+                module: 'FeeConfig',
+                prettyPrint: true
+              });
+              
+              // Create a fee configuration
+              const feeConfig = new FeeConfigBuilder({
+                network: 'testnet' as NetworkType,
+                logger: sdkLogger,
+                defaultCollectorAccountId: operatorId
+              })
+              .addHbarFee(
+                agentFee,    // Fee amount in HBAR from agent info
+                operatorId,                // Fee collector (the agent)
+                [operatorId, requesterAccountId]  // Exempt both the agent and the user for initial setup
+              );
+              
+              // Create a new connection topic directly with fees
               const connectionTopicId = await agentClient.createTopic(
                 `hcs-10:connection:${requesterAccountId}:${Date.now()}`,
-                true,
-                true
+                true,   // Use operator key as admin key
+                true,   // Use operator key as submit key
+                feeConfig.build()  // Use the built fee configuration
               );
 
-              logger.info('MONITOR', `Created direct connection topic: ${connectionTopicId}`);
+              logger.info('MONITOR', `Created direct fee-gated connection topic: ${connectionTopicId}`);
+              
+              // Register the fee configuration for internal tracking
+              registerFeeGatedConnection(connectionTopicId, {
+                feeAmount: agentFee,
+                feeCollector: operatorId,
+                useHip991: true,  // Enable HIP-991 fee collection
+                exemptAccounts: [operatorId, requesterAccountId]  // Exempt the agent and requesting user
+              });
 
               // Send confirmation ONLY on outbound topic
               const outboundTopicId = agentInfo.outboundTopicId;
@@ -412,39 +566,34 @@ export class MonitorService {
               if (characterData) {
                 this.setCharacterForTopic(connectionTopicId, characterData);
               }
-
-              // Send welcome message on the new connection topic
-              await agentClient.submitPayload(
-                connectionTopicId,
-                {
-                  p: 'hcs-10',
-                  op: 'message',
-                  data: JSON.stringify({
-                    type: 'GREETING',
-                    content: `Hello! I'm ${characterData?.name || 'your AI assistant'}. How can I help you today?`,
+              
+              // Send a welcome message on the connection topic
+              try {
+                await agentClient.sendMessage(
+                  connectionTopicId,
+                  JSON.stringify({
+                    type: 'welcome',
+                    message: `Welcome! I'm ready to assist you. This connection requires a fee of ${agentFee} HBAR per message.`,
                     timestamp: Date.now()
                   }),
-                  operator_id: `${connectionTopicId}@${operatorId}`,
-                  m: 'Welcome message'
-                },
-                undefined,
-                false
-              );
-
-              // Update tracking information
-              this.lastConnectionRequestTime.set(topicId, messageTimestamp);
-              this.processedConnectionRequests.add(requestId);
+                  'Welcome message'
+                );
+                logger.info('MONITOR', 'Sent welcome message on connection topic');
+              } catch (welcomeError) {
+                logger.error('MONITOR', `Error sending welcome message: ${welcomeError}`);
+                // Non-critical error, continue
+              }
             } else {
-              // If it's not a profile fetching error, rethrow
-              throw error;
+              // If it's not a profile error, rethrow
+              throw connectionError;
             }
           }
-        } catch (err) {
-          logger.error('MONITOR', `Error handling connection request: ${err}`, err);
+        } catch (error) {
+          logger.error('MONITOR', `Error handling connection request: ${error}`);
         }
       }
     } catch (error) {
-      logger.error('MONITOR', `Error processing inbound message: ${error}`, error);
+      logger.error('MONITOR', `Error processing inbound message: ${error}`);
     }
   }
   
