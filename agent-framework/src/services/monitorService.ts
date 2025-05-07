@@ -8,7 +8,6 @@ import * as storageService from './storageService';
 import { decodeBase58 } from '../utils/base58';
 
 // Import AI service for generating responses
-import { generateCharacterResponse } from './aiService';
 import { getConnectionService } from './connectionService';
 import { PrivateKey } from '@hashgraph/sdk';
 
@@ -523,7 +522,7 @@ export class MonitorService {
   }
   
   /**
-   * Process a message on a connection topic (conversation)
+   * Process a message on a connection topic
    * @param topicId The connection topic ID
    * @param message The message to process
    */
@@ -538,12 +537,37 @@ export class MonitorService {
         if (content.prompt && content.id && content.response_id) {
           logger.info('MONITOR', `Processing user message ${content.id} from topic ${topicId}`);
           
+          // Get topic info for metadata
+          const topicInfo = this.topicConnections.get(topicId) || { 
+            type: 'connection',
+            characterId: null,
+            userId: null
+          };
+          
           // Get character data for this topic
           let characterData = this.activeCharacters.get(topicId);
           
-          // If no character data is set for this topic, use a default
+          // If no character data is set for this topic, try to get it from topic info
+          if (!characterData && topicInfo.characterId) {
+            try {
+              const characterId = topicInfo.characterId;
+              
+              // Try to load character data from storage service
+              const storedCharacter = await import('../services/storageService.js')
+                .then(storage => storage.getCharacterData(characterId));
+              
+              if (storedCharacter) {
+                characterData = storedCharacter;
+                this.setCharacterForTopic(topicId, characterData);
+                logger.info('MONITOR', `Loaded character data for ${characterId} from storage service`);
+              }
+            } catch (err) {
+              logger.error('MONITOR', `Error loading character data: ${err}`);
+            }
+          }
+          
+          // If we still don't have character data, use default
           if (!characterData) {
-            // We don't have direct access to connection info, so we'll use a default
             logger.warn('MONITOR', `No character data found for topic ${topicId}, using default`);
             characterData = {
               name: "Assistant",
@@ -551,22 +575,40 @@ export class MonitorService {
             };
           }
           
-          // Generate response
-          const response = await generateCharacterResponse(content.prompt, characterData);
-          
-          // Send response through the same connection topic
-          await this.client.sendMessage(
-            topicId,
-            JSON.stringify({
-              id: content.response_id,
-              response: response,
-              prompt_id: content.id,
-              timestamp: Date.now()
-            }),
-            "Character response"
-          );
-          
-          logger.info('MONITOR', `Sent response for message ${content.id} on topic ${topicId}`);
+          try {
+            // Generate response using agent character data
+            const response = await import('../services/aiService.js')
+              .then(aiService => aiService.generateCharacterResponse(content.prompt, characterData));
+            
+            // Send response through the same connection topic
+            await this.client.sendMessage(
+              topicId,
+              JSON.stringify({
+                id: content.response_id,
+                response: response,
+                prompt_id: content.id,
+                timestamp: Date.now()
+              }),
+              "Character response"
+            );
+            
+            logger.info('MONITOR', `Sent response for message ${content.id} on topic ${topicId}`);
+          } catch (generateError) {
+            logger.error('MONITOR', `Error generating response: ${generateError}`);
+            
+            // Send error response
+            await this.client.sendMessage(
+              topicId,
+              JSON.stringify({
+                id: content.response_id,
+                response: "I'm sorry, I encountered an error processing your message. Please try again later.",
+                prompt_id: content.id,
+                error: true,
+                timestamp: Date.now()
+              }),
+              "Error response"
+            );
+          }
         }
       } catch (e) {
         // Not a JSON message or missing required fields, skip

@@ -2,16 +2,49 @@ import { Logger, logger } from '../utils/logger';
 import { Character } from '../types';
 import { 
   generateResponse as responseGeneratorFunction,
-  enhancedToolDetection,
-  queryOllamaWithFallback,
-  createCharacterPrompt
+  initializeMCPState,
+  checkOllamaModel,
+  MCPState,
+  enhancedToolDetection
 } from '../utils/response-generator';
+import { MCPOpenAIClient } from '../utils/mcp-openai';
 
 const CONTEXT_AI = 'AI';
 
+// Global state to track if the response generator is initialized
+let isResponseGeneratorInitialized = false;
+// Track our OpenAI client for reinitialization
+let activeOpenAIClient: MCPOpenAIClient | null = null;
+// Track Ollama availability
+let ollamaAvailableState = false;
+
+/**
+ * Initialize the response generator service with required clients
+ * This should be called before generating any responses
+ */
+export const initializeResponseGenerator = async (
+  openAIClient: MCPOpenAIClient,
+  ollamaAvailable: boolean,
+  character: Character | null
+): Promise<void> => {
+  try {
+    // Store values for later reinitialization
+    activeOpenAIClient = openAIClient;
+    ollamaAvailableState = ollamaAvailable;
+    
+    // Initialize the state for response generator
+    initializeMCPState(openAIClient, ollamaAvailable, character);
+    isResponseGeneratorInitialized = true;
+    logger.info(CONTEXT_AI, 'Response generator initialized successfully');
+  } catch (error) {
+    logger.error(CONTEXT_AI, 'Failed to initialize response generator', error);
+    isResponseGeneratorInitialized = false;
+  }
+};
+
 /**
  * Generate a response from a character based on its traits and personality
- * This is a wrapper around the more comprehensive response-generator functionality
+ * This directly uses the comprehensive response-generator functionality
  */
 export const generateCharacterResponse = async (
   prompt: string,
@@ -20,7 +53,15 @@ export const generateCharacterResponse = async (
   try {
     logger.info(CONTEXT_AI, 'Generating character response', { promptLength: prompt.length });
     
-    // Convert character data to the expected Character format if needed
+    // Check if this is a complex query or requires tools
+    const requiresTools = enhancedToolDetection(prompt);
+    if (requiresTools) {
+      logger.info(CONTEXT_AI, 'Query detected as complex or requiring tools');
+    } else {
+      logger.info(CONTEXT_AI, 'Query detected as simple conversation');
+    }
+    
+    // Convert character data to the expected Character format
     const character: Character = {
       name: characterData.name || 'Assistant',
       description: characterData.description || 'A helpful AI assistant',
@@ -28,62 +69,73 @@ export const generateCharacterResponse = async (
       scenario: characterData.scenario || '',
       first_mes: characterData.first_mes || '',
       mes_example: characterData.mes_example || '',
+      traits: characterData.traits || {},
       ...characterData
     };
     
-    // Try to use the comprehensive response generator
-    try {
-      // This uses the advanced response generator with proper routing between Ollama and OpenAI
-      const response = await responseGeneratorFunction(prompt, character);
+    // Check if response generator is initialized
+    if (!isResponseGeneratorInitialized) {
+      logger.warn(CONTEXT_AI, 'Response generator not initialized, checking Ollama availability');
       
-      // Extract just the response part if it has a prefix like "Character: "
-      if (response.includes(':')) {
-        const parts = response.split(':', 2);
-        if (parts.length === 2) {
-          return parts[1].trim();
-        }
+      // Check Ollama availability
+      const ollamaCheckResult = await checkOllamaModel();
+      const ollamaAvailable = ollamaCheckResult.available;
+      ollamaAvailableState = ollamaAvailable;
+      
+      if (ollamaCheckResult.fallbackModel) {
+        process.env.OLLAMA_FALLBACK_MODEL = ollamaCheckResult.fallbackModel;
       }
-      
-      // If Blockchain result prefix, keep that
-      if (response.startsWith('Blockchain Result:')) {
-        return response;
-      }
-      
-      return response;
-    } catch (genError) {
-      logger.error(CONTEXT_AI, 'Error using comprehensive response generator, falling back', genError);
-      
-      // Fall back to simplified method if the comprehensive one fails
-      // Determine if we should use Ollama or OpenAI based on complexity
-      const requiresTools = enhancedToolDetection(prompt);
-      
-      if (requiresTools && process.env.OPENAI_API_KEY) {
-        // Use OpenAI for complex queries
-        logger.info(CONTEXT_AI, 'Using OpenAI for complex query');
-        return await callOpenAI(createSystemPrompt(character), prompt);
-      } else if (process.env.OLLAMA_BASE_URL) {
-        // Use Ollama for simple queries
-        logger.info(CONTEXT_AI, 'Using Ollama for simple query');
+
+      // Try to initialize with default settings if OpenAI API key is available
+      if (process.env.OPENAI_API_KEY) {
         try {
-          return await queryOllamaWithFallback(prompt, character);
-        } catch (ollamaError) {
-          // Fall back to OpenAI if Ollama fails and OpenAI is available
-          if (process.env.OPENAI_API_KEY) {
-            logger.info(CONTEXT_AI, 'Ollama failed, falling back to OpenAI');
-            return await callOpenAI(createSystemPrompt(character), prompt);
-          }
-          throw ollamaError;
+          const openAIClient = new MCPOpenAIClient(
+            process.env.OPENAI_API_KEY,
+            process.env.MCP_SERVER_URL || 'http://localhost:3001',
+            process.env.OPENAI_MODEL || 'gpt-4.1'
+          );
+          
+          activeOpenAIClient = openAIClient;
+          await initializeResponseGenerator(openAIClient, ollamaAvailable, character);
+        } catch (initError) {
+          logger.error(CONTEXT_AI, 'Failed to auto-initialize response generator', initError);
         }
-      } else if (process.env.OPENAI_API_KEY) {
-        // Use OpenAI if Ollama is not available
-        logger.info(CONTEXT_AI, 'Ollama not available, using OpenAI');
-        return await callOpenAI(createSystemPrompt(character), prompt);
-      } else {
-        // No API available, use mock response
-        logger.warn(CONTEXT_AI, 'No API key configured. Using mock response generator.');
-        return mockResponseGenerator(prompt, character);
+      }
+    } else if (activeOpenAIClient) {
+      // If already initialized, update the active character in the mcpState
+      // This ensures the character is available throughout the response generation process
+      initializeMCPState(activeOpenAIClient, ollamaAvailableState, character);
+      logger.debug(CONTEXT_AI, 'Updated active character in MCP state');
+    }
+    
+    // Set a global flag for the response generator to use
+    // This is a workaround since we can't modify the function signature
+    if (requiresTools) {
+      process.env.FORCE_USE_TOOLS = 'true';
+    } else {
+      delete process.env.FORCE_USE_TOOLS;
+    }
+    
+    // Use the comprehensive response generator to handle all logic
+    const response = await responseGeneratorFunction(prompt, character);
+    
+    // Reset the global flag
+    delete process.env.FORCE_USE_TOOLS;
+    
+    // Extract just the response part if it has a prefix like "Character: "
+    if (response.includes(':')) {
+      const parts = response.split(':', 2);
+      if (parts.length === 2 && parts[0].trim() === character.name) {
+        return parts[1].trim();
       }
     }
+    
+    // If Blockchain result prefix, keep that
+    if (response.startsWith('Blockchain Result:')) {
+      return response;
+    }
+    
+    return response;
   } catch (error) {
     logger.error(CONTEXT_AI, `Error generating character response`, error);
     return "I'm sorry, I couldn't process your message right now.";

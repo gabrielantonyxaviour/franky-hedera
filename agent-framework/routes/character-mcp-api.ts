@@ -61,7 +61,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { MonitorService, registerFeeGatedConnection } from "../src/services/monitorService.js";
-import { generateCharacterResponse } from "../src/services/aiService.js";
 import { FeeConfig } from "../src/utils/feeUtils.js";
 import { HCS11Client } from "@hashgraphonline/standards-sdk";
 import * as storageService from "../src/services/storageService.js";
@@ -186,23 +185,77 @@ function saveCharacterData(characterId: string, characterData: any): void {
 }
 
 /**
- * Get character data from storage
+ * Get character data for a given character ID
+ * This function first checks if we have the character data in memory
+ * If not, it will try to fetch it from an active user-agent mapping
+ * If that fails, it will fall back to the local file system
  */
 function getCharacterData(characterId: string): any | null {
   try {
+    // First check if we have this character in memory
+    if (characterCache.has(characterId)) {
+      logger.info("CHARACTER", `Using cached character data for ${characterId}`);
+      return characterCache.get(characterId);
+    }
+    
+    // Next, try to get it from a user-agent mapping
+    const mappingFiles = fs.readdirSync(USER_MAPPINGS_DIR);
+    
+    for (const file of mappingFiles) {
+      if (file.endsWith('.json')) {
+        const mapping = JSON.parse(fs.readFileSync(path.join(USER_MAPPINGS_DIR, file), 'utf8'));
+        
+        if (mapping.characterId === characterId) {
+          // If we have a mapping with this character ID, get the agent details
+          if (mapping.agentAddress) {
+            try {
+              // Try to fetch agent and character data from the database
+              const fetchedData = fetchAgentAndCharacterData(mapping.agentAddress);
+              
+              // Since fetchAgentAndCharacterData is async, we need to handle this differently
+              // Let's return null here, and the caller will need to use getUserAgentMapping to get character data
+              logger.info("CHARACTER", `Character data fetch initiated for ${characterId} from agent ${mapping.agentAddress}`);
+              return null;
+            } catch (error) {
+              logger.error("CHARACTER", `Error fetching character data for ${characterId}`, error);
+            }
+          }
+        }
+      }
+    }
+    
+    // As a last resort, try to load from file system
     const characterFile = path.join(CHARACTER_DATA_DIR, `${characterId.replace(/\./g, '_')}.json`);
     
     if (fs.existsSync(characterFile)) {
       const characterData = JSON.parse(fs.readFileSync(characterFile, 'utf8'));
-      logger.info("CHARACTER", `Loaded character data for ${characterId}`);
+      logger.info("CHARACTER", `Loaded character data for ${characterId} from file system`);
+      
+      // Cache the character data
+      characterCache.set(characterId, characterData);
+      
       return characterData;
     }
     
+    logger.warn("CHARACTER", `No character data found for ${characterId}`);
     return null;
   } catch (error) {
     logger.error("CHARACTER", `Error loading character data for ${characterId}`, error);
     return null;
   }
+}
+
+// Add a cache for character data
+const characterCache = new Map<string, any>();
+
+/**
+ * Store character data in the cache to be used across the application
+ * @param characterId The character ID
+ * @param characterData The character data to cache
+ */
+function cacheCharacterData(characterId: string, characterData: any): void {
+  characterCache.set(characterId, characterData);
+  logger.info("CHARACTER", `Cached character data for ${characterId}`);
 }
 
 /**
@@ -814,6 +867,21 @@ async function fetchAgentAndCharacterData(agentAddress: string): Promise<{
     } catch (characterError) {
       // Just log the error but continue - this is an enhancement, not required
       logger.warn("Agent Init", `Error enhancing character data, continuing with base data: ${characterError}`);
+    }
+
+    // Generate a unique characterId for this agent
+    const characterId = enhancedCharacter.id || agentData.id || `agent-${agentData.accountId || agentAddress}`;
+    enhancedCharacter.characterId = characterId;
+    
+    // Store the character data in memory cache and storage
+    cacheCharacterData(characterId, enhancedCharacter);
+    // Also store in storage service for later retrieval by monitor service
+    try {
+      const { saveCharacterData } = await import('../src/services/storageService.js');
+      saveCharacterData(characterId, enhancedCharacter);
+      logger.info("Agent Init", `Saved character data to storage service for ${characterId}`);
+    } catch (storageError) {
+      logger.warn("Agent Init", `Error saving character data to storage service: ${storageError}`);
     }
 
     // Convert the perApiCallFee from wei to HBAR
@@ -1510,233 +1578,287 @@ async function startServer() {
       }
 
       // Get the account ID from headers
-      const accountId = req.headers["x-account-id"] as string;
+      const userAddress = req.headers["x-account-id"] as string;
       // Topic ID is now optional - we'll automatically use the user's mapped agent
       let topicId = req.headers["topic-id"] as string;
 
-      if (!accountId) {
+      if (!userAddress) {
         return res.status(400).json({ error: "x-account-id header is required" });
       }
 
-      // Always check for a user agent mapping first, regardless of whether a topic ID was provided
-      getUserAgentMapping(accountId).then(mapping => {
-        if (!mapping) {
-          // No mapping found, return error
-          logger.warn("API", `No agent mapping found for user ${accountId}`);
-          return res.status(400).json({ 
-            error: "No existing agent connection found. Please initialize first." 
-          });
-        }
-        
-        // If topic ID is not provided, use the one from the mapping
-        if (!topicId) {
-          topicId = mapping.connectionTopicId;
-          logger.info("API", `Using mapped agent connection for user ${accountId}: ${topicId}`);
-        } else {
-          // Verify the provided topic ID matches the mapping
-          if (topicId !== mapping.connectionTopicId) {
-            logger.warn("API", `Provided topic ID ${topicId} does not match mapped connection ${mapping.connectionTopicId} for user ${accountId}`);
-                return res.status(400).json({
-              error: "The provided topic ID does not match your active agent connection."
+      // Convert EVM address to Hedera account ID if needed, then process the request
+      (async () => {
+        try {
+          let hederaAccountId = userAddress;
+          
+          // Check if the input is an EVM address
+          if (userAddress.startsWith("0x")) {
+            logger.info("API", `Converting EVM address ${userAddress} to Hedera account ID`);
+            
+            // Query the mirror node to get the Hedera account ID
+            const response = await fetch(
+              `https://testnet.mirrornode.hedera.com/api/v1/accounts/${userAddress}`
+            );
+
+            if (!response.ok) {
+              logger.error("API", `Failed to get account ID for EVM address: ${response.statusText}`);
+              return res.status(400).json({
+                error: `Failed to get account ID for EVM address: ${response.statusText}`
+              });
+            }
+
+            const data = await response.json();
+            hederaAccountId = data.account;
+            logger.info("API", `Converted EVM address ${userAddress} to Hedera account ID ${hederaAccountId}`);
+          }
+          
+          // Always check for a user agent mapping first, regardless of whether a topic ID was provided
+          const mapping = await getUserAgentMapping(hederaAccountId);
+          if (!mapping) {
+            // No mapping found, return error
+            logger.warn("API", `No agent mapping found for user ${hederaAccountId}`);
+            return res.status(400).json({ 
+              error: "No existing agent connection found. Please initialize first." 
             });
           }
-          logger.info("API", `Using provided topic ID ${topicId} which matches mapped connection`);
+          
+          // If topic ID is not provided, use the one from the mapping
+          if (!topicId) {
+            topicId = mapping.connectionTopicId;
+            logger.info("API", `Using mapped agent connection for user ${hederaAccountId}: ${topicId}`);
+          } else {
+            // Verify the provided topic ID matches the mapping
+            if (topicId !== mapping.connectionTopicId) {
+              logger.warn("API", `Provided topic ID ${topicId} does not match mapped connection ${mapping.connectionTopicId} for user ${hederaAccountId}`);
+              return res.status(400).json({
+                error: "The provided topic ID does not match your active agent connection."
+              });
+            }
+            logger.info("API", `Using provided topic ID ${topicId} which matches mapped connection`);
+          }
+          
+          // Continue processing with the topic ID and Hedera account ID
+          await processResponseRequest(hederaAccountId);
+          
+        } catch (err) {
+          logger.error("API", `Error processing account ID: ${err}`);
+          return res.status(500).json({ 
+            error: `Error processing account ID: ${err instanceof Error ? err.message : String(err)}` 
+          });
         }
-        
-        // Continue processing with the topic ID
-        processResponseRequest();
-      }).catch(err => {
-        logger.error("API", `Error getting user agent mapping: ${err}`);
-        return res.status(500).json({ error: "Error retrieving user agent mapping" });
-      });
+      })();
 
-      // Process the response request with the topic ID
-      function processResponseRequest() {
-        // First get the server wallet private key
-        getServerWalletPrivateKey(accountId)
-          .then(async ({ privateKey, error }) => {
-            if (error) {
-              logger.error("API", "Error getting server wallet", {
-                accountId,
-                error,
-              });
-              return res
-                .status(401)
-                .json({ error: `Server wallet access error: ${error}` });
-            }
+      // Process the response request with the topic ID and Hedera account ID
+      async function processResponseRequest(hederaAccountId: string) {
+        try {
+          // Get the server wallet private key
+          const { privateKey, error } = await getServerWalletPrivateKey(hederaAccountId);
+          
+          if (error) {
+            logger.error("API", "Error getting server wallet", {
+              accountId: hederaAccountId,
+              error,
+            });
+            return res
+              .status(401)
+              .json({ error: `Server wallet access error: ${error}` });
+          }
 
-            if (!privateKey) {
-              logger.error("API", "No private key returned", { accountId });
-              return res
-                .status(404)
-                .json({ error: "Server wallet not found or not accessible" });
-            }
+          if (!privateKey) {
+            logger.error("API", "No private key returned", { accountId: hederaAccountId });
+            return res
+              .status(404)
+              .json({ error: "Server wallet not found or not accessible" });
+          }
 
-            try {
-              // Create HCS-10 client with user credentials
-              const hcs10Client = new HCS10Client({
-                network: 'testnet' as NetworkType,
-                operatorId: accountId,
-                operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
-                logLevel: 'info',
-                prettyPrint: true
-              });
+          try {
+            // Create HCS-10 client with user credentials
+            const hcs10Client = new HCS10Client({
+              network: 'testnet' as NetworkType,
+              operatorId: hederaAccountId,
+              operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
+              logLevel: 'info',
+              prettyPrint: true
+            });
 
-              // Get messages from topic
-              const { messages } = await hcs10Client.getMessages(topicId);
-              
-              // Search for messages that match either the sequence number or the response ID
-              let foundMessage = null;
-              
-              // First try to find by sequence number
-              foundMessage = messages.find((msg: { sequence_number: number }) => 
-                msg.sequence_number.toString() === messageId
-              );
-              
-              // If not found, try to find by response ID in the message data
-              if (!foundMessage) {
-                for (const msg of messages) {
-                  if (msg.data && typeof msg.data === 'string') {
-                    try {
-                      const parsedData = JSON.parse(msg.data);
-                      // Check if this message has the target response ID
-                      if (parsedData.id === messageId || parsedData.response_id === messageId) {
-                        foundMessage = {
-                          ...msg,
-                          parsedData
-                        };
-                        break;
-                      }
-                    } catch (e) {
-                      // Skip messages that aren't valid JSON
-                      continue;
+            // Get messages from topic
+            const { messages } = await hcs10Client.getMessages(topicId);
+            
+            // Search for messages that match either the sequence number or the response ID
+            let foundMessage = null;
+            
+            // First try to find by sequence number
+            foundMessage = messages.find((msg: { sequence_number: number }) => 
+              msg.sequence_number.toString() === messageId
+            );
+            
+            // If not found, try to find by response ID in the message data
+            if (!foundMessage) {
+              for (const msg of messages) {
+                if (msg.data && typeof msg.data === 'string') {
+                  try {
+                    const parsedData = JSON.parse(msg.data);
+                    // Check if this message has the target response ID
+                    if (parsedData.id === messageId || parsedData.response_id === messageId) {
+                      foundMessage = {
+                        ...msg,
+                        parsedData
+                      };
+                      break;
                     }
+                  } catch (e) {
+                    // Skip messages that aren't valid JSON
+                    continue;
                   }
                 }
               }
-
-              if (!foundMessage) {
-                return res.status(404).json({ error: "Message not found" });
-              }
-
-              res.json({
-                status: "success",
-                messageData: foundMessage
-              });
-            } catch (error) {
-              logger.error("API", "Error getting message", error);
-              res.status(500).json({
-                error: `Error getting message: ${
-                  error instanceof Error ? error.message : String(error)
-                }`,
-              });
             }
-          })
-          .catch((error) => {
-          logger.error(
-            "API",
-              "Unexpected error in server wallet retrieval",
-            error
-          );
+
+            if (!foundMessage) {
+              return res.status(404).json({ error: "Message not found" });
+            }
+
+            res.json({
+              status: "success",
+              messageData: foundMessage,
+              hederaAccountId: hederaAccountId // Include the resolved Hedera account ID in the response
+            });
+          } catch (error) {
+            logger.error("API", "Error getting message", error);
             res.status(500).json({
-              error: `Unexpected error retrieving server wallet: ${
+              error: `Error getting message: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            });
+          }
+        } catch (error) {
+          logger.error("API", "Unexpected error in server wallet retrieval", error);
+          res.status(500).json({
+            error: `Unexpected error retrieving server wallet: ${
               error instanceof Error ? error.message : String(error)
             }`,
           });
-          });
+        }
       }
     });
 
     // Destruct/cleanup agent endpoint
     app.post("/destruct", (req: Request, res: Response) => {
       // Get the account ID from headers
-      const accountId = req.headers["x-account-id"] as string;
+      const userAddress = req.headers["x-account-id"] as string;
 
-      if (!accountId) {
+      if (!userAddress) {
         return res.status(400).json({ error: "x-account-id header is required" });
       }
 
-      // First check if user has an agent mapping
-      getUserAgentMapping(accountId).then(async mapping => {
-        if (!mapping) {
-          logger.warn("API", `No agent mapping found for user ${accountId}`);
-                return res.status(400).json({
-            error: "No active agent to destruct."
-          });
-        }
-        
-        // Get the server wallet private key
-        const { privateKey, error: walletError } = await getServerWalletPrivateKey(accountId);
-        
-        if (walletError || !privateKey) {
-          logger.error("API", `Error getting server wallet for cleanup: ${walletError}`);
-              return res.status(500).json({
-            error: `Error retrieving server wallet: ${walletError || "No private key returned"}`
-          });
-        }
-        
+      // Convert EVM address to Hedera account ID if needed
+      (async () => {
         try {
-          logger.info("API", `Cleaning up connection ${mapping.connectionTopicId} for user ${accountId}`);
+          let hederaAccountId = userAddress;
           
-          // Create client with user credentials
-          const userClient = new HCS10Client({
-            network: 'testnet' as NetworkType,
-            operatorId: accountId,
-            operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
-            logLevel: 'info',
-            prettyPrint: true
-          });
-          
-          // Send close message to the connection topic
-          await userClient.sendMessage(
-            mapping.connectionTopicId,
-            JSON.stringify({
-              type: "CONNECTION_CLOSED",
-              timestamp: Date.now(),
-              reason: "User requested cleanup"
-            }),
-            "Connection closed"
-          );
-          
-          // Stop monitoring the connection topic
-          const monitorService = monitorServices.get(mapping.connectionTopicId);
-          if (monitorService) {
-            await monitorService.stopMonitoringTopic(mapping.connectionTopicId);
-            monitorServices.delete(mapping.connectionTopicId);
-            logger.info("API", `Stopped monitoring for topic ${mapping.connectionTopicId}`);
+          // Check if the input is an EVM address
+          if (userAddress.startsWith("0x")) {
+            logger.info("API", `Converting EVM address ${userAddress} to Hedera account ID`);
+            
+            // Query the mirror node to get the Hedera account ID
+            const response = await fetch(
+              `https://testnet.mirrornode.hedera.com/api/v1/accounts/${userAddress}`
+            );
+
+            if (!response.ok) {
+              logger.error("API", `Failed to get account ID for EVM address: ${response.statusText}`);
+              return res.status(400).json({
+                error: `Failed to get account ID for EVM address: ${response.statusText}`
+              });
+            }
+
+            const data = await response.json();
+            hederaAccountId = data.account;
+            logger.info("API", `Converted EVM address ${userAddress} to Hedera account ID ${hederaAccountId}`);
+          }
+
+          // Check for user agent mapping using the Hedera account ID
+          const mapping = await getUserAgentMapping(hederaAccountId);
+          if (!mapping) {
+            logger.warn("API", `No agent mapping found for user ${hederaAccountId}`);
+            return res.status(400).json({
+              error: "No active agent to destruct."
+            });
           }
           
-          // Remove the user-agent mapping
-          const mappingFile = path.join(USER_MAPPINGS_DIR, `${accountId.replace(/\./g, '_')}.json`);
-          if (fs.existsSync(mappingFile)) {
-            fs.unlinkSync(mappingFile);
-            logger.info("API", `Removed mapping file for user ${accountId}`);
+          // Get the server wallet private key
+          const { privateKey, error: walletError } = await getServerWalletPrivateKey(hederaAccountId);
+          
+          if (walletError || !privateKey) {
+            logger.error("API", `Error getting server wallet for cleanup: ${walletError}`);
+            return res.status(500).json({
+              error: `Error retrieving server wallet: ${walletError || "No private key returned"}`
+            });
           }
           
-          // Remove from memory cache
-          userAgentMappings.delete(accountId);
-          
-          // Return success
-              res.json({
-                status: "success",
-            message: "Agent connection cleaned up successfully",
-            connectionTopicId: mapping.connectionTopicId,
-            agentAddress: mapping.agentAddress,
-            characterId: mapping.characterId,
-            timestamp: new Date().toISOString()
-          });
+          try {
+            logger.info("API", `Cleaning up connection ${mapping.connectionTopicId} for user ${hederaAccountId}`);
+            
+            // Create client with user credentials
+            const userClient = new HCS10Client({
+              network: 'testnet' as NetworkType,
+              operatorId: hederaAccountId,
+              operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
+              logLevel: 'info',
+              prettyPrint: true
+            });
+            
+            // Send close message to the connection topic
+            await userClient.sendMessage(
+              mapping.connectionTopicId,
+              JSON.stringify({
+                type: "CONNECTION_CLOSED",
+                timestamp: Date.now(),
+                reason: "User requested cleanup"
+              }),
+              "Connection closed"
+            );
+            
+            // Stop monitoring the connection topic
+            const monitorService = monitorServices.get(mapping.connectionTopicId);
+            if (monitorService) {
+              await monitorService.stopMonitoringTopic(mapping.connectionTopicId);
+              monitorServices.delete(mapping.connectionTopicId);
+              logger.info("API", `Stopped monitoring for topic ${mapping.connectionTopicId}`);
+            }
+            
+            // Remove the user-agent mapping
+            const mappingFile = path.join(USER_MAPPINGS_DIR, `${hederaAccountId.replace(/\./g, '_')}.json`);
+            if (fs.existsSync(mappingFile)) {
+              fs.unlinkSync(mappingFile);
+              logger.info("API", `Removed mapping file for user ${hederaAccountId}`);
+            }
+            
+            // Remove from memory cache
+            userAgentMappings.delete(hederaAccountId);
+            
+            // Return success
+            res.json({
+              status: "success",
+              message: "Agent connection cleaned up successfully",
+              connectionTopicId: mapping.connectionTopicId,
+              agentAddress: mapping.agentAddress,
+              characterId: mapping.characterId,
+              timestamp: new Date().toISOString()
+            });
+          } catch (error) {
+            logger.error("API", `Error during agent cleanup: ${error}`);
+            res.status(500).json({
+              error: `Error cleaning up agent: ${error instanceof Error ? error.message : String(error)}`
+            });
+          }
         } catch (error) {
-          logger.error("API", `Error during agent cleanup: ${error}`);
+          logger.error("API", `Error checking user agent mapping: ${error}`);
           res.status(500).json({
-            error: `Error cleaning up agent: ${error instanceof Error ? error.message : String(error)}`
+            error: `Error retrieving user agent mapping: ${error instanceof Error ? error.message : String(error)}`
           });
         }
-      }).catch(err => {
-        logger.error("API", `Error checking user agent mapping: ${err}`);
-            res.status(500).json({
-          error: `Error retrieving user agent mapping: ${err instanceof Error ? err.message : String(err)}` 
-            });
-          });
+      })();
     });
 
     // List available characters
@@ -1876,3 +1998,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 }
 
 export { startServer, processInput };
+
+let generateCharacterResponseFunction: typeof import('../src/services/aiService').generateCharacterResponse;
+
+// Pre-load the generateCharacterResponse function for later use
+(async () => {
+  try {
+    const aiService = await import('../src/services/aiService.js');
+    generateCharacterResponseFunction = aiService.generateCharacterResponse;
+    logger.info("API", "Loaded generateCharacterResponse function");
+  } catch (error) {
+    logger.error("API", "Failed to preload generateCharacterResponse function", error);
+  }
+})();

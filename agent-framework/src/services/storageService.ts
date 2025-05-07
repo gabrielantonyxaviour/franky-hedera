@@ -8,6 +8,9 @@ const AGENT_DIR = path.join(STATE_DIR, 'agents');
 const CONNECTION_DIR = path.join(STATE_DIR, 'connections');
 const MESSAGE_DIR = path.join(STATE_DIR, 'messages');
 
+// Add character cache directory
+const CHARACTER_DIR = path.join(STATE_DIR, 'characters');
+
 // Ensure directories exist
 if (!fs.existsSync(STATE_DIR)) {
   fs.mkdirSync(STATE_DIR, { recursive: true });
@@ -22,6 +25,11 @@ if (!fs.existsSync(MESSAGE_DIR)) {
   fs.mkdirSync(MESSAGE_DIR, { recursive: true });
 }
 
+// Ensure character directory exists
+if (!fs.existsSync(CHARACTER_DIR)) {
+  fs.mkdirSync(CHARACTER_DIR, { recursive: true });
+}
+
 /**
  * Agent information interface
  */
@@ -32,6 +40,7 @@ export interface AgentInfo {
   inboundTopicId: string;
   outboundTopicId?: string;
   connections?: string[];
+  characterData?: CharacterData;
 }
 
 /**
@@ -45,6 +54,23 @@ export interface ConnectionInfo {
   createdAt: string;
   lastMessageAt?: string;
 }
+
+/**
+ * Add character data interface
+ */
+export interface CharacterData {
+  name: string;
+  description: string;
+  personality?: string;
+  scenario?: string;
+  first_mes?: string;
+  mes_example?: string;
+  traits?: Record<string, any>;
+  [key: string]: any; // Allow any other character properties
+}
+
+// In-memory cache of character data
+const characterCache = new Map<string, CharacterData>();
 
 /**
  * Store agent information
@@ -250,5 +276,81 @@ export const updateConnectionLastMessage = async (
   } catch (error) {
     logger.error('STORAGE', `Failed to update connection last message: ${error}`, error);
     throw error;
+  }
+};
+
+/**
+ * Store character data in storage and cache
+ */
+export const saveCharacterData = async (
+  characterId: string, 
+  characterData: CharacterData
+): Promise<void> => {
+  try {
+    // Save to file
+    const filePath = path.join(CHARACTER_DIR, `${characterId}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(characterData, null, 2));
+    
+    // Save to cache
+    characterCache.set(characterId, characterData);
+    
+    logger.info('STORAGE', `Stored character data for ${characterId}`);
+  } catch (error) {
+    logger.error('STORAGE', `Failed to store character data: ${error}`, error);
+    throw error;
+  }
+};
+
+/**
+ * Get character data from cache or storage
+ */
+export const getCharacterData = async (
+  characterId: string
+): Promise<CharacterData | null> => {
+  try {
+    // Check cache first
+    if (characterCache.has(characterId)) {
+      return characterCache.get(characterId)!;
+    }
+    
+    // Try to load from file
+    const filePath = path.join(CHARACTER_DIR, `${characterId}.json`);
+    
+    if (!fs.existsSync(filePath)) {
+      // Try alternate format with underscores instead of dots
+      const altFilePath = path.join(CHARACTER_DIR, `${characterId.replace(/\./g, '_')}.json`);
+      
+      if (!fs.existsSync(altFilePath)) {
+        // Check if character data is in the agent info
+        const agentInfo = await getAgentInfoForCharacter(characterId);
+        
+        if (agentInfo && agentInfo.characterData) {
+          characterCache.set(characterId, agentInfo.characterData);
+          return agentInfo.characterData;
+        }
+        
+        logger.info('STORAGE', `No character data found for ${characterId}`);
+        return null;
+      }
+      
+      const data = fs.readFileSync(altFilePath, 'utf8');
+      const characterData = JSON.parse(data);
+      
+      // Save to cache
+      characterCache.set(characterId, characterData);
+      
+      return characterData;
+    }
+    
+    const data = fs.readFileSync(filePath, 'utf8');
+    const characterData = JSON.parse(data);
+    
+    // Save to cache
+    characterCache.set(characterId, characterData);
+    
+    return characterData;
+  } catch (error) {
+    logger.error('STORAGE', `Failed to get character data: ${error}`, error);
+    return null;
   }
 }; 

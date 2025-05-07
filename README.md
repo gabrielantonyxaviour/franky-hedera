@@ -147,7 +147,7 @@ Check if the agent framework is online and view available characters.
 Initialize an agent with a specific character. Creates two Hedera topics: one for user messages (monetized) and one for agent responses.
 
 **Headers:**
-- `account-id`: Hedera account's EVM address
+- `x-account-id`: Hedera account's EVM address
 
 ```json
 // Response
@@ -169,7 +169,7 @@ Initialize an agent with a specific character. Creates two Hedera topics: one fo
 Send a message to an agent. The message is published to the inbound Hedera topic with a micropayment in $HBAR.
 
 **Headers:**
-- `account-id`: Hedera account's EVM address
+- `x-account-id`: Hedera account's EVM address
 
 **Body:**
 ```json
@@ -194,7 +194,7 @@ Send a message to an agent. The message is published to the inbound Hedera topic
 Retrieve an agent's response message by its ID.
 
 **Headers:**
-- `account-id`: Hedera account's EVM address
+- `x-account-id`: Hedera account's EVM address
 
 **Response:**
 ```json
@@ -213,7 +213,7 @@ Retrieve an agent's response message by its ID.
 Clean up and destroy an agent instance.
 
 **Headers:**
-- `account-id`: Hedera account's EVM address
+- `x-account-id`: Hedera account's EVM address
 
 **Response:**
 ```json
@@ -236,6 +236,376 @@ When you interact with a Franky agent:
 4. For blockchain-related requests, **HederaAgentKit** tools are used
 5. The agent's response is published to your dedicated outbound topic
 6. Fees in **$HBAR** are distributed to device owners and agent creators
+
+## HCS-10 Implementation 
+
+This section provides a comprehensive explanation of each API endpoint and the detailed technical processes that occur behind the scenes when they are called.
+
+### Connection Initialization Flow
+
+When calling the `/initialize` endpoint, a complex series of operations occur to establish a secure communication channel:
+
+```
+┌──────────┐              ┌──────────┐              ┌──────────┐
+│   User   │              │  Server  │              │   Agent  │
+└────┬─────┘              └────┬─────┘              └────┬─────┘
+     │                         │                         │
+     │   1. Initialize Agent   │                         │
+     │─────────────────────────>                         │
+     │                         │                         │
+     │                         │ 2. Setup Topic Monitors │
+     │                         │────────────────────────>│
+     │                         │                         │
+     │                         │  3. Connection Request  │
+     │                         │────────────────────────>│
+     │                         │                         │
+     │                         │                         │ 4. Create Connection Topic
+     │                         │                         │──────────────────────────┐
+     │                         │                         │                          │
+     │                         │                         │<─────────────────────────┘
+     │                         │                         │
+     │                         │  5. Send Confirmation   │
+     │                         │<────────────────────────│
+     │                         │                         │
+     │      6. Connection      │                         │
+     │     Confirmation        │                         │
+     │<────────────────────────│                         │
+```
+
+#### Step-by-Step Process:
+
+1. **Account Resolution**: The server converts EVM addresses to Hedera account IDs using the mirror node API.
+
+2. **Agent Information Retrieval**: Server fetches agent metadata from the database:
+   ```typescript
+   const { agent, character, feeInHbar } = await fetchAgentAndCharacterData(agentAddress);
+   ```
+
+3. **Topic Monitoring Setup**: The server starts monitoring the agent's topics:
+   ```typescript
+   const agentMonitorService = new MonitorService(agentClient);
+   await agentMonitorService.startMonitoringTopic(agent.inboundTopicId);
+   ```
+
+4. **Connection Request**: The server submits a standardized HCS-10 connection request to the agent's inbound topic:
+   ```typescript
+   const result = await userClient.submitPayload(
+     agent.inboundTopicId,
+     {
+       p: 'hcs-10',
+       op: 'connection_request',
+       operator_id: `${agent.outboundTopicId}@${hederaAccountId}`,
+       m: 'Connection request',
+       data: JSON.stringify({
+         timestamp: Date.now(),
+         userId: hederaAccountId
+       })
+     }
+   );
+   ```
+
+5. **Connection Topic Creation**: The agent creates a dedicated connection topic with:
+   - Threshold keys allowing both agent and user to submit messages
+   - Optional fee configuration for monetized interactions
+   - HCS-10 standard memo format
+
+6. **Confirmation Monitoring**: The server polls the agent's outbound topic for confirmation:
+   ```typescript
+   while (!connectionTopicId && attempts < maxAttempts) {
+     const { messages } = await userClient.getMessages(agent.outboundTopicId);
+     
+     for (const message of messages) {
+       if (message.p === 'hcs-10' && 
+           message.op === 'connection_created' && 
+           message.connection_id === requestId) {
+         connectionTopicId = message.connection_topic_id;
+         break;
+       }
+     }
+   }
+   ```
+
+7. **Fee Configuration**: If the agent has a fee, it's applied to the connection:
+   ```typescript
+   const feeConfig = {
+     feeAmount: agentFee,
+     feeCollector: agent.owner_address,
+     useHip991: true,
+     exemptAccounts: [agent.owner_address, agent.account_id]
+   };
+   registerFeeGatedConnection(connectionTopicId, feeConfig);
+   ```
+
+8. **Persistence**: The connection details are saved for future use:
+   ```typescript
+   saveUserAgentMapping(hederaAccountId, {
+     agentAddress,
+     connectionTopicId,
+     characterId,
+     inboundTopicId: agent.inboundTopicId,
+     outboundTopicId: agent.outboundTopicId,
+     lastActive: new Date().toISOString()
+   });
+   ```
+
+### Messaging Flow
+
+For the `/chat` endpoint, the following operations occur:
+
+```
+┌──────────┐              ┌──────────┐              ┌──────────┐
+│   User   │              │  Server  │              │   Agent  │
+└────┬─────┘              └────┬─────┘              └────┬─────┘
+     │                         │                         │
+     │      1. Send Chat       │                         │
+     │─────────────────────────>                         │
+     │                         │                         │
+     │                         │    2. Forward Message   │
+     │                         │────────────────────────>│
+     │                         │                         │
+     │                         │                         │ 3. Generate Response
+     │                         │                         │─────────────────────┐
+     │                         │                         │                     │
+     │                         │                         │<────────────────────┘
+     │                         │                         │
+     │                         │   4. Send Response      │
+     │                         │<────────────────────────│
+     │                         │                         │
+     │    5. Get Response      │                         │
+     │─────────────────────────>                         │
+     │                         │                         │
+     │    6. Return Response   │                         │
+     │<────────────────────────│                         │
+```
+
+#### Technical Details:
+
+1. **Message Preparation**: The server generates unique IDs for message tracking:
+   ```typescript
+   const messageId = `msg-${uuidv4()}`;
+   const responseId = `resp-${uuidv4()}`;
+   
+   const formattedMessage = {
+     id: messageId,
+     prompt: message,
+     response_id: responseId,
+     timestamp: Date.now()
+   };
+   ```
+
+2. **Fee Processing**: the topic is fee-gated (using HIP-991), the appropriate fee in HBAR is attached to the transaction.
+
+3. **Message Submission**: The message is submitted to the connection topic:
+   ```typescript
+   const sendResult = await connectionService.sendMessage(
+     topicId,
+     formattedMessage,
+     hederaAccountId,
+     privateKey,
+     'User message'
+   );
+   ```
+
+4. **Response Generation**: The agent processes the message:
+   - Extracts the prompt from the message
+   - Uses Ollama (local LLM) or OpenAI (cloud) for inference
+   - Formats the response with the provided response ID
+   ```typescript
+   const aiResponse = await generateCharacterResponse(
+     parsedData.prompt,
+     characterData
+   );
+   
+   const responseMessage = {
+     id: parsedData.response_id,
+     response: aiResponse,
+     prompt_id: parsedData.id,
+     timestamp: Date.now()
+   };
+   ```
+
+5. **Response Retrieval**: When `/viewresponse/:messageId` is called:
+   - The server retrieves messages from the connection topic
+   - Filters for the message matching the requested ID
+   - Returns the structured response to the client
+
+### Topic Structure and Message Format
+
+The system uses three types of topics, each with a distinct purpose:
+
+1. **Inbound Topic**:
+   - Memo format: `hcs-10:inbound:accountId=0.0.12345:ttl=60`
+   - Purpose: Receives connection requests from users
+   - May be fee-gated using HIP-991
+
+2. **Outbound Topic**:
+   - Memo format: `hcs-10:outbound:ttl=60`
+   - Purpose: Broadcasts connection confirmations
+
+3. **Connection Topic**:
+   - Memo format: `hcs-10:connection:account=0.0.12345:reqId=42:ttl=60`
+   - Purpose: Private channel for bilateral agent-user communication
+   - Created with threshold keys (both agent and user can submit)
+   - May include fee configuration
+
+### HCS-10 Message Format
+
+All messages follow the HCS-10 standard format:
+
+```json
+{
+  "p": "hcs-10",                     // Protocol identifier
+  "op": "message|connection_request", // Operation type
+  "operator_id": "topicId@accountId", // Format: topicId@accountId
+  "m": "Message memo",               // Optional memo field
+  "data": "Message content"          // Content or JSON stringified object
+}
+```
+
+
+## standards-sdk Integration
+
+Franky Hedera extensively uses the Hashgraph Standards SDK for implementing the HCS-10 protocol. Here are key examples of how the standards-sdk is integrated throughout the codebase:
+
+### 1. HCS10Client Initialization
+
+```typescript
+// Create HCS-10 client for agent communication
+const hcs10Client = new HCS10Client({
+  network: 'testnet' as NetworkType,
+  operatorId: hederaAccountId,
+  operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
+  logLevel: 'info',
+  prettyPrint: true
+});
+```
+
+### 2. Connection Request Submission
+
+```typescript
+// Submit connection request using standards-sdk
+const result = await userClient.submitPayload(
+  agent.inboundTopicId,
+  {
+    p: 'hcs-10',
+    op: 'connection_request',
+    operator_id: `${agent.outboundTopicId}@${hederaAccountId}`,
+    m: 'Connection request',
+    data: JSON.stringify({
+      timestamp: Date.now(),
+      userId: hederaAccountId
+    })
+  },
+  undefined, // No submit key needed
+  false // No fee required for connection request
+);
+```
+
+### 3. Connection Topic Creation
+
+```typescript
+// Create connection topic using standards-sdk
+const connectionTopicId = await this.client.createConnectionTopic(
+  requesterId, // User account ID
+  requestId,   // Original request ID
+  feeConfig,   // Optional fee configuration
+  ttlSeconds   // TTL in seconds
+);
+```
+
+### 4. Connection Confirmation
+
+```typescript
+// Send connection confirmation using standards-sdk
+await this.client.confirmConnection(
+  outboundTopicId,  // Agent's outbound topic
+  connectionTopicId, // Newly created connection topic
+  requesterId,      // User account ID
+  requestId,        // Original request ID
+  'Connection created' // Memo
+);
+```
+
+### 5. Message Retrieval
+
+```typescript
+// Get messages from topic using standards-sdk
+const { messages } = await hcs10Client.getMessages(topicId);
+
+// Process messages
+for (const message of messages) {
+  if (message.p === 'hcs-10' && message.op === 'message') {
+    // Process message content
+    const parsedData = JSON.parse(message.data);
+    // Handle the message
+  }
+}
+```
+
+### 6. Message Submission
+
+```typescript
+// Send message using standards-sdk
+await client.sendMessage(
+  connectionTopicId,
+  JSON.stringify(responseMessage),
+  'Agent response'
+);
+```
+
+### 7. MonitorService Integration
+
+```typescript
+// Create monitoring service with HCS10Client
+const monitorService = new MonitorService(hcs10Client);
+
+// Set character data for response generation
+monitorService.setCharacterForTopic(connectionTopicId, characterData);
+
+// Start monitoring a topic
+await monitorService.startMonitoringTopic(connectionTopicId);
+
+// Register topic type for specific handling
+monitorService.registerTopicType(connectionTopicId, 'connection', {
+  characterId: characterId,
+  userId: hederaAccountId
+});
+```
+
+### 8. HCS-11 Profile Integration
+
+```typescript
+// Create HCS11Client for profile management
+const hcs11Client = new HCS11Client({
+  network: "testnet",
+  auth: {
+    operatorId: agent.account_id,
+    privateKey: PrivateKey.fromStringDer(agent.encryptedPrivateKey || '').toString()
+  },
+  logLevel: "info"
+});
+
+// Update account memo with profile
+await hcs11Client.updateAccountMemoWithProfile(
+  agent.account_id, 
+  agent.profile_topic_id
+);
+```
+
+### 9. Fee Configuration Using Standards SDK
+
+```typescript
+// Create fee configuration using standards-sdk
+const feeConfig: FeeConfig = {
+  feeAmount: agentFee,
+  feeCollector: agent.owner_address,
+  useHip991: true,
+  exemptAccounts: [agent.owner_address, agent.account_id || '']
+};
+
+// Register fee-gated connection
+registerFeeGatedConnection(connectionTopicId, feeConfig);
+```
 
 ## Hedera Consensus Service for Device Reputation Scores
 
@@ -314,247 +684,3 @@ This HCS-based reputation system creates the foundation for Franky's trust layer
 
 ---
 
-## Hedera Line of Code
-
-This section provides a detailed breakdown of where and how various Hedera technologies are integrated within the codebase.
-
-### 1. Hedera HIP991 Topics
-
-HIP-991 enables custom fees for HCS topics, allowing monetization of message submission.
-
-- **Topic Creation with Custom Fees** - [agent-framework/src/utils/hip991-agent.ts:183-226](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/agent-framework/src/utils/hip991-agent.ts)
-  ```typescript
-  export async function createMonetizedTopic(
-    serverClient: Client, 
-    serverAccountId: AccountId, 
-    serverKey: PrivateKey,
-    userAccountId: AccountId,
-    userPublicKey: any,
-    fee: number = 0.5
-  ): Promise<TopicId> {
-    // Create a fixed fee with the specified HBAR amount
-    const customFee = new CustomFixedFee()
-      .setHbarAmount(new Hbar(fee))
-      .setFeeCollectorAccountId(serverAccountId);
-    
-    // Create a monetized topic following HIP-991
-    const topicCreateTx = new TopicCreateTransaction()
-      .setTopicMemo(memo)
-      .setMaxTransactionFee(new Hbar(50))
-      .setAdminKey(serverKey.publicKey)
-      .setSubmitKey(userPublicKey)
-      .setCustomFees([customFee])
-      .setFeeScheduleKey(serverKey.publicKey);
-  }
-  ```
-
-- **Regular Topic Creation for Responses** - [agent-framework/src/utils/hip991-agent.ts:231-268](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/agent-framework/src/utils/hip991-agent.ts)
-  ```typescript
-  export async function createResponseTopic(
-    serverClient: Client, 
-    serverKey: PrivateKey,
-    userAccountId: AccountId
-  ): Promise<TopicId> {
-    // Create a topic with the server as the sole submitter
-    const topicCreateTx = new TopicCreateTransaction()
-      .setTopicMemo(memo)
-      .setMaxTransactionFee(new Hbar(50))
-      .setAdminKey(serverKey.publicKey)
-      .setSubmitKey(serverKey.publicKey); // Only server can post responses
-  }
-  ```
-
-### 2. Hedera HCS-10 Standard
-
-HCS-10 provides a standardized message format for agent communication.
-
-- **HCS Message Structure in Agent Framework** - [agent-framework/src/types/index.ts:129-140](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/agent-framework/src/types/index.ts)
-  ```typescript
-  export type HCSMessage = {
-    consensus_timestamp: string;
-    message: string;
-    payer_account_id: string;
-    sequence_number: number;
-    topic_id: string;
-  };
-  ```
-
-### 3. Hedera HCS Topics
-
-HCS provides a private consensus mechanism for device reputation.
-
-- **HCS Service Initialization** - [frontend/src/lib/services/hcs-service.ts:110-146](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/frontend/src/lib/services/hcs-service.ts)
-  ```typescript
-  private initializeClient(): void {
-    // Initialize operator credentials
-    this.operatorId = AccountId.fromString(OPERATOR_ID);
-    this.operatorKey = process.env.HEDERA_KEY_TYPE === "ECDSA" 
-      ? PrivateKey.fromStringECDSA(OPERATOR_KEY)
-      : PrivateKey.fromString(OPERATOR_KEY);
-    
-    // Create client based on network setting
-    this.client = HEDERA_NETWORK === 'mainnet' 
-      ? Client.forMainnet()
-      : Client.forTestnet();
-  }
-  ```
-
-- **HCS Topic Creation** - [frontend/src/lib/services/hcs-service.ts:246-299](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/frontend/src/lib/services/hcs-service.ts)
-  ```typescript
-  private async createTopic(name: string, memo: string): Promise<TopicId> {
-    // Create a new topic with memo and submit key
-    const transaction = await (
-      new TopicCreateTransaction()
-        .setTopicMemo(memo)
-        .setAdminKey(this.operatorKey.publicKey)
-        .setSubmitKey(this.operatorKey.publicKey)
-        .setMaxTransactionFee(new Hbar(2))
-        .freezeWith(this.client)
-    );
-  }
-  ```
-
-- **HCS Message Submission** - [frontend/src/lib/services/hcs-service.ts:306-347](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/frontend/src/lib/services/hcs-service.ts)
-  ```typescript
-  private async submitMessage(topicId: TopicId, message: any): Promise<string> {
-    const messageString = typeof message === 'string' 
-      ? message 
-      : JSON.stringify(message);
-    
-    const transaction = new TopicMessageSubmitTransaction({
-      topicId: topicId,
-      message: messageString,
-    })
-    .setMaxTransactionFee(new Hbar(2));
-  }
-  ```
-
-- **Device Reputation Consensus** - [frontend/src/lib/services/hcs-service.ts:614-690](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/frontend/src/lib/services/hcs-service.ts)
-  ```typescript
-  async getDeviceReputation(deviceAddress: string, checkCount: number = 10): Promise<any> {
-    // Get the topic for this device
-    const deviceTopicId = await this.getDeviceTopicMapping(deviceAddress);
-    
-    // Get messages from the device topic
-    const messages = await this.getMessages(deviceTopic, checkCount);
-    
-    const checkResults = messages
-      .filter(msg => {
-
-      })
-      .map(msg => {
-      });
-    
-    // Calculate consensus reputation
-    const reputationScore = this.calculateReputationConsensus(checkResults);
-  }
-  ```
-
-### 4. Hedera AgentKit and MCP
-
-Hedera AgentKit provides a framework for building agents on Hedera, with MCP (Model-Controller-Prompter) enabling AI integration.
-
-- **AgentKit Initialization** - [agent-framework/routes/character-mcp-api.ts:133-152](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/agent-framework/routes/character-mcp-api.ts)
-  ```typescript
-  const privateKey = PrivateKey.fromStringECDSA(formattedPrivateKey);
-  
-  const hederaKit = new HederaAgentKit(
-    process.env.HEDERA_ACCOUNT_ID!,
-    privateKey.toString(),
-    process.env.HEDERA_PUBLIC_KEY!,
-    (process.env.HEDERA_NETWORK_TYPE as "mainnet" | "testnet" | "previewnet") || "testnet"
-  );
-  ```
-
-- **MCP Server Setup** - [agent-framework/routes/character-mcp-api.ts:167-175](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/agent-framework/routes/character-mcp-api.ts)
-  ```typescript
-  // Create the LangChain-compatible tools
-  const tools = createHederaTools(hederaKit);
-  
-  // Start MCP server
-  const mcpServer = new MCPServer(tools, 3001);
-  await mcpServer.start();
-  ```
-
-- **MCP Client** - [`agent/api-server.js:35-56`](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/agent/api-server.js)
-  ```javascript
-  // Initialize HederaAgentKit
-  const hederaKit = new HederaAgentKit(
-
-  );
-  
-  // Create tools
-  const tools = createHederaTools(hederaKit);
-  
-  // Start MCP server
-  const mcpServer = new MCPServer(tools, port);
-  await mcpServer.start();
-  
-  ```
-
-- **HCS Topic-related Tools** - [`agent-framework/src/langchain/tools/hcs/submit_topic_message_tool.ts:8-44`](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/agent-framework/src/langchain/tools/hcs/submit_topic_message_tool.ts)
-  ```typescript
-  export class HederaSubmitTopicMessageTool extends Tool {
-    name = 'hedera_submit_topic_message';
-  
-    description = `Submit a message to a topic on Hedera
-  Inputs (input is a JSON string):
-  topicId: string, the ID of the topic to submit the message to e.g. 0.0.123456,
-  message: string, the message to submit to the topic e.g. "Hello, Hedera!"`;
-  
-    protected override async _call(input: any, _runManager?: CallbackManagerForToolRun, config?: ToolRunnableConfig): Promise<string> {
-      const parsedInput = JSON.parse(input);
-      const topicId = TopicId.fromString(parsedInput.topicId);
-      return await this.hederaKit
-        .submitTopicMessage(topicId, parsedInput.message, isCustodial)
-        .then(response => response.getStringifiedResponse());
-    }
-  }
-  ```
-
-### 5. Hedera Mirror Node
-
-The Mirror Node provides a REST API for accessing Hedera network data.
-
-- **Mirror Node Client Definition** - [frontend/src/utils/mirror-node-client.tsx:1-15](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/frontend/src/utils/mirror-node-client.tsx)
-  ```typescript
-  export class MirrorNodeClient {
-    url: string;
-    constructor(networkConfig: NetworkConfig) {
-      this.url = networkConfig.mirrorNodeUrl;
-    }
-  
-    async getAccountInfo(accountId: AccountId) {
-      const accountInfo = await fetch(`${this.url}/api/v1/accounts/${accountId}`, { method: "GET" });
-      const accountInfoJson = await accountInfo.json();
-      return accountInfoJson;
-    }
-  }
-  ```
-
-- **Mirror Node URL Configuration** - [frontend/src/config/networks.ts:1-10](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/frontend/src/config/networks.ts)
-  ```typescript
-  export const networkConfig: NetworkConfigs = {
-    testnet: {
-      network: "testnet",
-      jsonRpcUrl: "https://testnet.hashio.io/api",
-      mirrorNodeUrl: "https://testnet.mirrornode.hedera.com",
-      chainId: "0x128",
-    }
-  }
-  ```
-
-- **HCS Message Retrieval from Mirror Node** - [frontend/src/lib/services/hcs-service.ts:352-381](https://github.com/gabrielantonyxaviour/franky-hedera/blob/main/frontend/src/lib/services/hcs-service.ts)
-  ```typescript
-  private async getMessages(topicId: TopicId, limit: number = 100): Promise<any[]> {
-    const networkType = process.env.HEDERA_NETWORK || 'testnet';
-    const baseUrl = networkType === 'mainnet' 
-      ? 'https://mainnet-public.mirrornode.hedera.com'
-      : 'https://testnet.mirrornode.hedera.com';
-      
-    let url = `${baseUrl}/api/v1/topics/${topicId.toString()}/messages?encoding=UTF-8&limit=${limit}&order=desc`;
-    const messages: any[] = [];
-  
-    return messages;
-  }
-  ```
