@@ -1497,7 +1497,7 @@ async function startServer() {
             topicId,
             formattedMessage,
             hederaAccountId,
-            privateKey,
+            PrivateKey.fromStringECDSA(privateKey).toString(),
             'User message'
           );
           
