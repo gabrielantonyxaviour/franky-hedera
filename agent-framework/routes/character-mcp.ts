@@ -81,7 +81,7 @@ async function initializeMCP() {
 
     // Start MCP server
     logger.info('MCP Init', 'Starting MCP server');
-    const mcpServer = new MCPServer(tools, 3000);
+    const mcpServer = new MCPServer(tools, 3002);
     await mcpServer.start();
     logger.info('MCP Init', `MCP server started at ${mcpServer.getUrl()}`);
 

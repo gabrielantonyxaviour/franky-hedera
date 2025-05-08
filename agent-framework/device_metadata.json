@@ -4,10 +4,10 @@
   "storage": "1376.1 GB",
   "cpu": "Apple M2 (8 cores)",
   "os": "macOS 15.1.1",
-  "timestamp": "2025-05-06T11:29:58.008Z",
-  "ngrokLink": "https://1e2b-106-219-182-119.ngrok-free.app",
-  "bytes32Data": "0x5b33855c30419b3c7cbb917e0139bf20b8a3d2b65c7db67acbf61109684f28d4",
-  "signature": "0xf9e219d7cdf7daa5cfd10fce31bbc339b5bf66d503cd0657f44dad08ecdb00ef01fa79593fde7f5946f93d73a8360bab8c925f425be9644807ad51881e62419f1b",
+  "timestamp": "2025-05-08T20:26:02.611Z",
+  "ngrokLink": "https://b7d2-106-219-183-123.ngrok-free.app",
+  "bytes32Data": "0x68553b044f3138fdad2e9857ebc5f365ab9e89591e6039403b268592dada4725",
+  "signature": "0x174a0ae502bda1af93b0a399641430e63b26aaa08e922ae29db80dad542a48b4234028071d57261c827e92fac5111a58a814372387479bfbd916dd7aa57bf59f1b",
   "walletAddress": "0x0280be61d5613eaf0c19b7c7bbcbb233c6b7ae0d",
   "accountId": "0.0.113981"
 }

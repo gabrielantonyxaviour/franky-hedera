@@ -117,25 +117,25 @@ export const generateCharacterResponse = async (
     }
     
     // Use the comprehensive response generator to handle all logic
-    const response = await responseGeneratorFunction(prompt, character);
+      const response = await responseGeneratorFunction(prompt, character);
     
     // Reset the global flag
     delete process.env.FORCE_USE_TOOLS;
-    
-    // Extract just the response part if it has a prefix like "Character: "
-    if (response.includes(':')) {
-      const parts = response.split(':', 2);
+      
+      // Extract just the response part if it has a prefix like "Character: "
+      if (response.includes(':')) {
+        const parts = response.split(':', 2);
       if (parts.length === 2 && parts[0].trim() === character.name) {
-        return parts[1].trim();
+          return parts[1].trim();
+        }
       }
-    }
-    
-    // If Blockchain result prefix, keep that
-    if (response.startsWith('Blockchain Result:')) {
+      
+      // If Blockchain result prefix, keep that
+      if (response.startsWith('Blockchain Result:')) {
+        return response;
+      }
+      
       return response;
-    }
-    
-    return response;
   } catch (error) {
     logger.error(CONTEXT_AI, `Error generating character response`, error);
     return "I'm sorry, I couldn't process your message right now.";

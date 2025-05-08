@@ -122,7 +122,7 @@ export class MonitorService {
       } catch (error) {
         logger.error('MONITOR', `Error getting initial messages for topic ${topicId}: ${error}`);
         // Default to 0 if we can't get initial state
-        this.lastProcessedMessage.set(topicId, 0);
+      this.lastProcessedMessage.set(topicId, 0);
       }
       
       // Setup polling for messages
@@ -173,17 +173,17 @@ export class MonitorService {
               // Process the filtered messages
               for (const message of messagesToProcess) {
                 // Update last processed sequence right away
-                this.lastProcessedMessage.set(topicId, message.sequence_number);
-                
-                logger.debug('MONITOR', `Processing message ${message.sequence_number} on topic ${topicId}, operation: ${message.op}`);
-                
+              this.lastProcessedMessage.set(topicId, message.sequence_number);
+              
+              logger.debug('MONITOR', `Processing message ${message.sequence_number} on topic ${topicId}, operation: ${message.op}`);
+              
                 // Only process specific message types based on topic type
                 if (this.shouldProcessMessage(topicId, message)) {
-                  await this.processMessage(topicId, message);
+              await this.processMessage(topicId, message);
                 }
-                
+              
                 // Always emit the event
-                this.messageEmitter.emit(`message:${topicId}`, message);
+              this.messageEmitter.emit(`message:${topicId}`, message);
                 this.messageEmitter.emit('message:all', { topicId, message });
               }
             }
@@ -319,43 +319,43 @@ export class MonitorService {
 
         logger.info('MONITOR', `Processing new connection request on inbound topic: ${topicId}`);
 
-        try {
-          // Extract requester account ID from operator_id
+      try {
+        // Extract requester account ID from operator_id
           const requesterAccountId = message.operator_id ? 
             this.client.extractAccountFromOperatorId(message.operator_id) :
             (messageData?.userId || null);
 
-          if (!requesterAccountId) {
+        if (!requesterAccountId) {
             logger.error('MONITOR', 'Failed to extract requester account ID');
-            return;
-          }
-          
-          // Get character ID for this topic
-          const topicInfo = this.topicConnections.get(topicId);
-          const characterId = topicInfo?.characterId;
-          
-          if (!characterId) {
-            logger.error('MONITOR', `No character ID associated with inbound topic ${topicId}`);
-            return;
-          }
-          
-          // Get the agent credentials from storage
-          const agentInfo = await storageService.getAgentInfoByInboundTopic(topicId);
-          if (!agentInfo) {
-            logger.error('MONITOR', `No agent info found for inbound topic ${topicId}`);
-            return;
-          }
-          
-          const operatorId = agentInfo.accountId;
-          const agentPrivateKey = agentInfo.privateKey;
-          
-          if (!operatorId || !agentPrivateKey) {
-            logger.error('MONITOR', 'Missing agent credentials');
-            return;
-          }
-          
+          return;
+        }
+        
+        // Get character ID for this topic
+        const topicInfo = this.topicConnections.get(topicId);
+        const characterId = topicInfo?.characterId;
+        
+        if (!characterId) {
+          logger.error('MONITOR', `No character ID associated with inbound topic ${topicId}`);
+          return;
+        }
+        
+        // Get the agent credentials from storage
+        const agentInfo = await storageService.getAgentInfoByInboundTopic(topicId);
+        if (!agentInfo) {
+          logger.error('MONITOR', `No agent info found for inbound topic ${topicId}`);
+          return;
+        }
+        
+        const operatorId = agentInfo.accountId;
+        const agentPrivateKey = agentInfo.privateKey;
+        
+        if (!operatorId || !agentPrivateKey) {
+          logger.error('MONITOR', 'Missing agent credentials');
+          return;
+        }
+        
           logger.info('MONITOR', `Using agent ${operatorId} to handle connection request from ${requesterAccountId}`);
-          
+        
           // Create a new connection topic
           const agentClient = new HCS10Client({
             network: 'testnet',
@@ -373,8 +373,8 @@ export class MonitorService {
           try {
             // Try to create connection topic with both user and agent keys
             const { connectionTopicId } = await agentClient.handleConnectionRequest(
-              topicId,
-              requesterAccountId,
+          topicId,
+          requesterAccountId,
               message.sequence_number
             );
             
@@ -471,12 +471,12 @@ export class MonitorService {
               // Set up monitoring and character data
               await this.startMonitoringTopic(connectionTopicId);
               this.registerTopicType(connectionTopicId, 'connection', {
-                characterId,
-                userId: requesterAccountId
-              });
-
-              const characterData = this.activeCharacters.get(topicId);
-              if (characterData) {
+          characterId,
+          userId: requesterAccountId
+        });
+        
+        const characterData = this.activeCharacters.get(topicId);
+        if (characterData) {
                 this.setCharacterForTopic(connectionTopicId, characterData);
               }
 
@@ -501,10 +501,10 @@ export class MonitorService {
               // If it's not a profile fetching error, rethrow
               throw error;
             }
-          }
-        } catch (err) {
-          logger.error('MONITOR', `Error handling connection request: ${err}`, err);
         }
+      } catch (err) {
+        logger.error('MONITOR', `Error handling connection request: ${err}`, err);
+      }
       }
     } catch (error) {
       logger.error('MONITOR', `Error processing inbound message: ${error}`, error);
@@ -579,20 +579,20 @@ export class MonitorService {
             // Generate response using agent character data
             const response = await import('../services/aiService.js')
               .then(aiService => aiService.generateCharacterResponse(content.prompt, characterData));
-            
-            // Send response through the same connection topic
-            await this.client.sendMessage(
-              topicId,
-              JSON.stringify({
-                id: content.response_id,
-                response: response,
-                prompt_id: content.id,
-                timestamp: Date.now()
-              }),
-              "Character response"
-            );
-            
-            logger.info('MONITOR', `Sent response for message ${content.id} on topic ${topicId}`);
+          
+          // Send response through the same connection topic
+          await this.client.sendMessage(
+            topicId,
+            JSON.stringify({
+              id: content.response_id,
+              response: response,
+              prompt_id: content.id,
+              timestamp: Date.now()
+            }),
+            "Character response"
+          );
+          
+          logger.info('MONITOR', `Sent response for message ${content.id} on topic ${topicId}`);
           } catch (generateError) {
             logger.error('MONITOR', `Error generating response: ${generateError}`);
             

@@ -1,7 +1,7 @@
 {
   "characterId": "franky-one-piece",
-  "accountId": "0.0.5953636",
-  "privateKey": "026790356ffa5a27d510a832a0634c1ceff8dc8ea5cf315e5a238e6aacc478562b7ddfca9d05d3d840f8496efca6453bead50df382145c85fa1144b42fef564fcc53df3b8bf89fbbdd619dfac76ba8f3ca2fcc7cddece7c444e82152257eb8144c03159e39145b78ef4c7266352edd15b553bbf6d70c8d32ecff115d",
-  "inboundTopicId": "0.0.5953638",
-  "outboundTopicId": "0.0.5953637"
+  "accountId": "0.0.5955539",
+  "privateKey": "302e020100300506032b65700422042084ae8e0527363d3ca948591f639e71527e9d80eb6537e7b93a7334b42691d33a",
+  "inboundTopicId": "0.0.5955545",
+  "outboundTopicId": "0.0.5955541"
 }

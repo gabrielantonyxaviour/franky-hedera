@@ -425,7 +425,6 @@ export const getConnectionService = async (): Promise<ConnectionService> => {
       operatorPrivateKey: PrivateKey.fromStringECDSA(process.env.HEDERA_PRIVATE_KEY).toString(),
       logLevel: 'debug', // Set to debug for detailed logs
       prettyPrint: true,
-      guardedRegistryBaseUrl: process.env.REGISTRY_URL,
     });
     
     connectionServiceInstance = new ConnectionService(client);
