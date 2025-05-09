@@ -8,6 +8,10 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { HCS11Client, AIAgentType, AIAgentCapability, InboundTopicType, Hcs10MemoType } from '@hashgraphonline/standards-sdk';
 import { AgentBuilder } from '@hashgraphonline/standards-sdk';
+import { MCPServer } from '../src/utils/mcp-server';
+import { createHederaTools } from '../src/langchain';
+import HederaAgentKit from '../src/agent';
+import { MCPOpenAIClient } from '../src/utils/mcp-openai';
 
 dotenv.config();
 
@@ -20,14 +24,66 @@ const logger = new Logger({
   prettyPrint: true,
 });
 
-// Store the MCP process reference
+// Store references to the processes and clients
 let mcpProcess: any = null;
+let mcpServer: MCPServer | null = null;
+let mcpClient: MCPOpenAIClient | null = null;
+
+// Initialize the MCP server and client
+async function initializeMCP(): Promise<void> {
+  try {
+    logger.info('MCP Init', 'Initializing HederaAgentKit');
+    
+    // Get private key and ensure correct formatting
+    const privateKeyString = process.env.HEDERA_PRIVATE_KEY!;
+    
+    // Format private key correctly - remove 0x prefix if present
+    let formattedPrivateKey = privateKeyString;
+    if (privateKeyString.startsWith('0x')) {
+      formattedPrivateKey = privateKeyString.substring(2);
+      logger.debug('MCP Init', 'Removed 0x prefix from private key');
+    }
+    
+    // Convert to proper key type using SDK
+    const privateKey = PrivateKey.fromStringECDSA(formattedPrivateKey);
+    logger.debug('MCP Init', 'ECDSA private key created successfully');
+    
+    const hederaKit = new HederaAgentKit(
+      process.env.HEDERA_ACCOUNT_ID!,
+      privateKey.toString(),
+      process.env.HEDERA_PUBLIC_KEY!,
+      process.env.HEDERA_NETWORK_TYPE as "mainnet" | "testnet" | "previewnet" || "testnet"
+    );
+    logger.debug('MCP Init', 'HederaAgentKit initialized');
+
+    // Create the LangChain-compatible tools
+    logger.info('MCP Init', 'Creating Hedera tools');
+    const tools = createHederaTools(hederaKit);
+    logger.debug('MCP Init', `Created ${tools.length} tools`);
+
+    // Start MCP server on port 3005 (the port character-mcp-api.ts expects)
+    logger.info('MCP Init', 'Starting MCP server');
+    mcpServer = new MCPServer(tools, 3005);
+    await mcpServer.start();
+    logger.info('MCP Init', `MCP server started at ${mcpServer.getUrl()}`);
+
+
+  } catch (error) {
+    logger.error('MCP Init', 'Failed to initialize MCP', error);
+    throw error;
+  }
+}
 
 // Function to start MCP server
 async function startMCPServer(agentAddress: string): Promise<void> {
   // Kill existing process if any
   if (mcpProcess) {
     mcpProcess.kill();
+  }
+
+  // First ensure MCP server is running
+  if (!mcpServer) {
+    await initializeMCP();
   }
 
   return new Promise((resolve, reject) => {
@@ -400,25 +456,16 @@ app.post('/destruct', async (req, res) => {
       return res.status(404).json({ error: 'Agent not found for the provided address' });
     }
 
-    // Prepare close connection payload according to HCS-10 format
-    const closePayload = {
-      p: 'hcs-10',
-      op: 'close_connection',
-      data: 'User requested connection close',
-      created: new Date(),
-      payer: accountId,
-      operator_id: `${agent.inboundTopicId}@${accountId}`,
-      reason: 'User requested connection close',
-      close_method: 'user_request',
-      m: 'Connection close'
-    };
-
-    // Send close connection message using submitPayload
-    await client.submitPayload(
+    // Send close connection message using sendMessage
+    await client.sendMessage(
       connectionTopicId,
-      closePayload,
-      undefined,  // no submit key
-      false       // no fee required
+      JSON.stringify({
+        op: 'close_connection',
+        reason: 'User requested connection close',
+        close_method: 'user_request',
+        timestamp: new Date().toISOString()
+      }),
+      'Connection close'
     );
 
     // Remove from our local mapping
@@ -598,6 +645,12 @@ process.on('SIGTERM', () => {
 
 const PORT = 8080;
 
-app.listen(PORT, () => {
-  logger.info(`Initialization server running on port ${PORT}`);
+// Initialize MCP server first, then start the Express server
+initializeMCP().then(() => {
+  app.listen(PORT, () => {
+    logger.info(`Initialization server running on port ${PORT}`);
+  });
+}).catch(error => {
+  logger.error(`Error initializing MCP server: ${error}`);
+  process.exit(1);
 }); 

@@ -16,6 +16,34 @@ let mcpState: MCPState = {
   activeCharacter: null
 };
 
+// Function to create a comprehensive system prompt from character details
+function createSystemPromptFromCharacter(character: Character): string {
+  const systemPrompt = [
+    // Core identity and role
+    `You are ${character.name}. ${character.description}`,
+    
+    // Personality and behavior guidelines
+    `PERSONALITY: ${character.personality}`,
+    
+    // Scenario and context
+    `CONTEXT: ${character.scenario}`,
+    
+    // System instructions
+    character.system_prompt,
+    
+    // Traits and characteristics
+    'TRAITS:',
+    ...Object.entries(character.traits || {}).map(([key, value]) => `- ${key}: ${value}`),
+    
+    // Additional notes
+    character.creator_notes ? `ADDITIONAL NOTES: ${character.creator_notes}` : '',
+  ]
+  .filter(Boolean) // Remove empty strings
+  .join('\n\n');
+
+  return systemPrompt;
+}
+
 // Function to initialize MCP state
 export function initializeMCPState(openAIClient: MCPOpenAIClient, ollamaAvailable: boolean, character: Character | null | undefined) {
   mcpState = {
@@ -235,6 +263,9 @@ export async function generateResponse(userInput: string, character?: Character)
     return "Error: MCP client is not initialized. Please initialize the service.";
   }
 
+  // Create the system prompt from character details
+  const systemPrompt = createSystemPromptFromCharacter(activeCharacter);
+
   // Use enhanced tool detection to be more aggressive in routing to OpenAI
   const requiresTools = enhancedToolDetection(userInput);
   
@@ -243,8 +274,8 @@ export async function generateResponse(userInput: string, character?: Character)
     logger.info('API', 'Detected complex query or blockchain operation, using OpenAI');
     
     try {
-      // Generate response with MCP
-      const { response, toolCalls } = await mcpState.openAIClient.generateResponse(userInput);
+      // Generate response with MCP, passing the character-based system prompt
+      const { response, toolCalls } = await mcpState.openAIClient.generateResponse(userInput, systemPrompt);
       
       // Only process tool calls if there are any
       if (toolCalls.length > 0) {

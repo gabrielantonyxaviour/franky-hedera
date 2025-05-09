@@ -8,7 +8,6 @@ import {
   ConnectionsManager,
   Connection,
 } from '@hashgraphonline/standards-sdk';
-import { getOrCreateBob } from './agent-utils';
 import { getAgent } from './get-agent';
 import { generateResponse, initializeMCPState } from '../src/utils/response-generator';
 import { MCPOpenAIClient } from '../src/utils/mcp-openai';
@@ -30,26 +29,7 @@ const mcpClient = new MCPOpenAIClient(
   process.env.OPENAI_MODEL || 'gpt-4.1'
 );
 
-// Character definition for the agent
-const agentCharacter: Character = {
-  id: 'bob-agent',
-  name: 'Bob',
-  description: 'A friendly and helpful Hedera agent that can assist with blockchain operations.',
-  personality: 'Friendly, helpful, and knowledgeable about blockchain technology.',
-  scenario: 'You are helping users interact with the Hedera network.',
-  first_mes: 'Hello! I\'m Bob, your friendly Hedera agent! How can I assist you today?',
-  mes_example: 'I can help you with various blockchain operations. What would you like to do?',
-  creator_notes: 'Bob is designed to help users interact with the Hedera network in a friendly way.',
-  system_prompt: 'You are Bob, a helpful Hedera agent. Always maintain a friendly and professional demeanor while assisting users with blockchain operations.',
-  traits: {
-    expertise: 'blockchain',
-    friendliness: 'high',
-    helpfulness: 'high'
-  }
-};
 
-// Initialize the response generator with the agent's character
-initializeMCPState(mcpClient, true, agentCharacter);
 
 const isJson = (str: string): boolean => {
   try {
@@ -194,48 +174,25 @@ async function handleConnectionRequest(
   }
 
   try {
-    const { connectionTopicId, confirmedConnectionSequenceNumber } =
-      await agent.client.handleConnectionRequest(
-        agent.inboundTopicId,
-        requesterAccountId,
-        message.sequence_number
-      );
+    // Handle the connection request using HCS10Client's method which will automatically
+    // send the connection_created message in the correct format
+    const { connectionTopicId } = await agent.client.handleConnectionRequest(
+      agent.inboundTopicId,
+      requesterAccountId,
+      message.sequence_number
+    );
 
     await connectionManager.fetchConnectionData(agent.accountId);
-
-    // Send connection_created message to outbound topic
-    const connectionCreatedPayload = {
-      op: 'connection_created',
-      connection_topic_id: connectionTopicId,
-      connection_id: message.sequence_number,
-      target_account_id: requesterAccountId,
-      timestamp: new Date().toISOString(),
-      memo: 'Connection created confirmation'
-    };
-
-    await agent.client.submitPayload(
-      agent.outboundTopicId,
-      connectionCreatedPayload,
-      undefined,
-      false
-    );
 
     // Generate and send welcome message
     const welcomeMessage = agent.character.first_mes || 
       `Hello! I'm ${agent.character.name}. ${agent.character.description} How can I assist you today?`;
 
-    const welcomePayload = {
-      op: 'message',
-      data: welcomeMessage,
-      timestamp: new Date().toISOString(),
-      memo: 'Welcome message after connection established'
-    };
-
-    await agent.client.submitPayload(
+    // Send the welcome message using sendMessage
+    await agent.client.sendMessage(
       connectionTopicId,
-      welcomePayload,
-      undefined,
-      false
+      welcomeMessage,
+      'Welcome message after connection established'
     );
 
     logger.info(
@@ -553,14 +510,7 @@ async function main() {
       );
     }
 
-    const baseClient = new HCS10Client({
-      network: 'testnet',
-      operatorId: process.env.HEDERA_ACCOUNT_ID,
-      operatorPrivateKey: process.env.HEDERA_PRIVATE_KEY,
-      guardedRegistryBaseUrl: registryUrl,
-      prettyPrint: true,
-      logLevel: 'debug',
-    });
+
 
     const agent = await getAgent(logger, agentAddress);
     if (!agent) {

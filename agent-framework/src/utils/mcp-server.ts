@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import bodyParser from 'body-parser';
+// import bodyParser from 'body-parser';
 import { Tool } from '@langchain/core/tools';
 import { logger } from './logger';
 import { MCPAdapter } from './mcp-adapter';
@@ -25,7 +25,7 @@ export class MCPServer {
     
     // Setup middleware
     this.app.use(cors());
-    this.app.use(bodyParser.json());
+    // this.app.use(bodyParser.json());
     
     // Setup routes
     this.setupRoutes();
