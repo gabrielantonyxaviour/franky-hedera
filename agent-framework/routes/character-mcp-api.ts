@@ -323,20 +323,12 @@ async function handleStandardMessage(
     // Generate response using our AI service with the agent's character
     const response = await generateResponse(messageContent, agent.character);
     
-    // Send the response using submitPayload
-    const responsePayload = {
-      op: 'message',
-      data: response,
-      timestamp: new Date().toISOString(),
-      memo: `${agent.character.name} response`
-    };
-
+    // Send the response using higher-level sendMessage function
     logger.info(`Sending response to topic ${connectionTopicId}`);
-    await agent.client.submitPayload(
+    await agent.client.sendMessage(
       connectionTopicId,
-      responsePayload,
-      undefined,
-      false
+      response,
+      `${agent.character.name} response`  // memo
     );
   } catch (error) {
     logger.error(
@@ -366,128 +358,40 @@ async function monitorTopics(agent: {
     // Only add topic IDs that follow the 0.0.number format
     if (topicId.match(/^[0-9]+\.[0-9]+\.[0-9]+$/)) {
       connectionTopics.add(topicId);
-    } else {
-      logger.debug(`Skipping invalid topic ID format: ${topicId}`);
-    }
-  }
-
-  logger.info('Pre-populating processed messages for existing connections...');
-  
-  for (const topicId of connectionTopics) {
-    const initialProcessedSet = new Set<number>();
-    processedMessages.set(topicId, initialProcessedSet);
-    
-    const connection = connections.get(topicId);
-    if (!connection) continue;
-    
-    try {
-      const history = await agent.client.getMessageStream(topicId);
-      
-      for (const msg of history.messages) {
-        if (
-          typeof msg.sequence_number === 'number' &&
-          msg.sequence_number > 0 &&
-          msg.created
-        ) {
-          if (
-            connection.lastActivity &&
-            msg.created.getTime() <= connection.lastActivity.getTime()
-          ) {
-            initialProcessedSet.add(msg.sequence_number);
-            logger.debug(
-              `Pre-populated message #${msg.sequence_number} on topic ${topicId} based on timestamp`
-            );
-          } else if (
-            msg.operator_id &&
-            msg.operator_id.endsWith(`@${agent.accountId}`)
-            ) {
-              initialProcessedSet.add(msg.sequence_number);
-            }
-          }
-        }
-      
-      logger.debug(
-        `Pre-populated ${initialProcessedSet.size} messages for topic ${topicId}`
-      );
-    } catch (error: any) {
-      logger.warn(
-        `Failed to pre-populate messages for topic ${topicId}: ${error.message}. It might be closed or invalid.`
-      );
-      if (
-        error.message &&
-        (error.message.includes('INVALID_TOPIC_ID') ||
-          error.message.includes('TopicId Does Not Exist'))
-      ) {
-        connectionTopics.delete(topicId);
-        processedMessages.delete(topicId);
-        connections.delete(topicId);
-      }
+      processedMessages.set(topicId, new Set<number>());
     }
   }
 
   logger.info(`Starting polling agent for ${agent.operatorId}`);
   logger.info(`Monitoring inbound topic: ${agent.inboundTopicId}`);
   logger.info(
-    `Monitoring ${connectionTopics.size} active connection topics after pre-population.`
+    `Monitoring ${connectionTopics.size} active connection topics.`
   );
 
   while (true) {
     try {
+      // Update connections from manager
       await connectionManager.fetchConnectionData(agent.accountId);
       const updatedConnections = connectionManager.getAllConnections();
       
       // Update our local map of connections
       connections.clear();
       for (const connection of updatedConnections) {
-        connections.set(connection.connectionTopicId, connection);
-      }
-      
-      // Update connection topics set - only use valid topic IDs
-      const currentTrackedTopics = new Set<string>();
-      for (const [topicId, _] of connections.entries()) {
-        if (topicId.match(/^[0-9]+\.[0-9]+\.[0-9]+$/)) {
-          currentTrackedTopics.add(topicId);
-        }
-      }
-      
-      const previousTrackedTopics = new Set(connectionTopics);
-      
-      // Add new topics to track
-      for (const topicId of currentTrackedTopics) {
-        if (!previousTrackedTopics.has(topicId)) {
-          connectionTopics.add(topicId);
-          if (!processedMessages.has(topicId)) {
-            processedMessages.set(topicId, new Set<number>());
+        if (connection.connectionTopicId.match(/^[0-9]+\.[0-9]+\.[0-9]+$/)) {
+          connections.set(connection.connectionTopicId, connection);
+          if (!connectionTopics.has(connection.connectionTopicId)) {
+            connectionTopics.add(connection.connectionTopicId);
+            processedMessages.set(connection.connectionTopicId, new Set<number>());
+            logger.info(
+              `Discovered new connection topic: ${connection.connectionTopicId}`
+            );
           }
-          logger.info(
-            `Discovered new connection topic: ${topicId} for ${
-              connections.get(topicId)?.targetAccountId
-            }`
-          );
-        }
-      }
-      
-      // Remove closed topics
-      for (const topicId of previousTrackedTopics) {
-        if (!currentTrackedTopics.has(topicId)) {
-          connectionTopics.delete(topicId);
-          processedMessages.delete(topicId);
-          logger.info(`Removed connection topic: ${topicId}`);
         }
       }
 
-      const inboundMessages = await agent.client.getMessages(
-        agent.inboundTopicId
-      );
+      // Process inbound topic messages (connection requests)
+      const inboundMessages = await agent.client.getMessages(agent.inboundTopicId);
       const inboundProcessed = processedMessages.get(agent.inboundTopicId)!;
-
-      inboundMessages.messages.sort((a: HCSMessage, b: HCSMessage) => {
-        const seqA =
-          typeof a.sequence_number === 'number' ? a.sequence_number : 0;
-        const seqB =
-          typeof b.sequence_number === 'number' ? b.sequence_number : 0;
-        return seqA - seqB;
-      });
 
       for (const message of inboundMessages.messages) {
         if (
@@ -540,9 +444,7 @@ async function monitorTopics(agent: {
             );
             if (newTopicId && !connectionTopics.has(newTopicId)) {
               connectionTopics.add(newTopicId);
-              if (!processedMessages.has(newTopicId)) {
-                processedMessages.set(newTopicId, new Set<number>());
-              }
+              processedMessages.set(newTopicId, new Set<number>());
               logger.info(`Now monitoring new connection topic: ${newTopicId}`);
             }
           } else if (message.op === 'connection_created') {
@@ -553,37 +455,21 @@ async function monitorTopics(agent: {
         }
       }
 
-      const topicsToProcess = Array.from(connectionTopics);
-      for (const topicId of topicsToProcess) {
+      // Process messages in each connection topic
+      for (const topicId of connectionTopics) {
         try {
           if (!connections.has(topicId)) {
             logger.warn(
               `Skipping processing for topic ${topicId} as it's no longer in the active connections map.`
             );
-            if (connectionTopics.has(topicId)) connectionTopics.delete(topicId);
-            if (processedMessages.has(topicId))
-              processedMessages.delete(topicId);
+            connectionTopics.delete(topicId);
+            processedMessages.delete(topicId);
             continue;
           }
 
+          // Use getMessageStream for real-time message monitoring
           const messages = await agent.client.getMessageStream(topicId);
-
-          if (!processedMessages.has(topicId)) {
-            processedMessages.set(topicId, new Set<number>());
-          }
           const processedSet = processedMessages.get(topicId)!;
-
-          messages.messages.sort((a: HCSMessage, b: HCSMessage) => {
-            const seqA =
-              typeof a.sequence_number === 'number' ? a.sequence_number : 0;
-            const seqB =
-              typeof b.sequence_number === 'number' ? b.sequence_number : 0;
-            return seqA - seqB;
-          });
-
-          const connection = connections.get(topicId);
-          const lastActivityTimestamp =
-            connection?.lastActivity?.getTime() || 0;
 
           for (const message of messages.messages) {
             if (
@@ -592,11 +478,6 @@ async function monitorTopics(agent: {
               message.sequence_number <= 0
             )
               continue;
-
-            if (message.created.getTime() <= lastActivityTimestamp) {
-              processedSet.add(message.sequence_number);
-              continue;
-            }
 
             if (!processedSet.has(message.sequence_number)) {
               processedSet.add(message.sequence_number);
@@ -651,6 +532,7 @@ async function monitorTopics(agent: {
       await new Promise((resolve) => setTimeout(resolve, 10000));
     }
 
+    // Poll every 5 seconds
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
 }

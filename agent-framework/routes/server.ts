@@ -6,8 +6,8 @@ import { Logger } from '@hashgraphonline/standards-sdk';
 import { getAgent } from './get-agent';
 import { spawn } from 'child_process';
 import path from 'path';
-import { ConnectionsManager, Connection } from '@hashgraphonline/standards-sdk';
-import { HCS11Client, AIAgentType, AIAgentCapability, ProfileType } from '@hashgraphonline/standards-sdk';
+import { HCS11Client, AIAgentType, AIAgentCapability, InboundTopicType, Hcs10MemoType } from '@hashgraphonline/standards-sdk';
+import { AgentBuilder } from '@hashgraphonline/standards-sdk';
 
 dotenv.config();
 
@@ -61,7 +61,8 @@ async function startMCPServer(agentAddress: string): Promise<void> {
 // Mock database of account IDs and their private keys
 // In a real application, this would be a secure database
 const accountKeyMap = new Map<string, string>([
-  ['0.0.5616430', 'f22ee3d62bfc11b720a635d8d09c9a1c974e08a5f9bd875a6058ddfbe62415bf'],
+  ['0.0.5969996', '397016c1d1b9577e7c65dd854218036fe9b3a3c69178d726fbafd5ce967da65e'],
+  ['0.0.5970003', 'ad82a74d63a37ddca7a8e33caa96516629cf8ede2bbcaea586c5cf5b24ed024d'],
   // Add more test accounts as needed
 ]);
 
@@ -69,7 +70,7 @@ const accountKeyMap = new Map<string, string>([
 // In a real application, this would be in a persistent database
 const connectionTopicMap = new Map<string, string>();
 
-// Function to wait for Bob's response
+
 async function waitForResponse(
   client: HCS10Client,
   connectionTopicId: string,
@@ -110,8 +111,7 @@ async function waitForResponse(
   return null;
 }
 
-// Initialize ConnectionsManager instance - we'll set the client later
-let connectionsManager: ConnectionsManager;
+
 
 app.post('/initialize', async (req, res) => {
   try {
@@ -132,20 +132,10 @@ app.post('/initialize', async (req, res) => {
       return res.status(404).json({ error: 'Account credentials not found' });
     }
 
-    // Create HCS11Client to check for user's profile
-    const hcs11Client = new HCS11Client({
-      network: 'testnet',
-      auth: {
-        operatorId: accountId,
-        privateKey: PrivateKey.fromStringECDSA(privateKey).toString()
-      },
-      logLevel: 'info'
-    });
-
     try {
       // Create a Hedera client to check account info
       const client = Client.forTestnet();
-      client.setOperator(accountId, PrivateKey.fromStringECDSA(privateKey));
+      client.setOperator(accountId, privateKey);
 
       // Query account info to check for HCS-11 profile in memo
       const accountInfo = await new AccountInfoQuery()
@@ -165,18 +155,8 @@ app.post('/initialize', async (req, res) => {
             endpoint: '/create-profile',
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
               'account-id': accountId
             },
-            body: {
-              displayName: 'Your Name',
-              bio: 'A brief description',
-              capabilities: ['TEXT_GENERATION'],
-              type: 'manual',
-              model: 'your-model',
-              socials: {},
-              properties: {}
-            }
           }
         });
       }
@@ -214,18 +194,12 @@ app.post('/initialize', async (req, res) => {
     const userClient = new HCS10Client({
       network: 'testnet',
       operatorId: accountId,
-      operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
+      operatorPrivateKey: privateKey,
       guardedRegistryBaseUrl: process.env.REGISTRY_URL,
       prettyPrint: true,
       logLevel: 'debug'
     });
 
-    // Initialize ConnectionsManager with the user's client
-    connectionsManager = new ConnectionsManager({
-      baseClient: userClient
-    });
-
-    // Send connection request directly without profile validation
     try {
       logger.info('Sending connection request to agent', {
         accountId,
@@ -233,22 +207,9 @@ app.post('/initialize', async (req, res) => {
         inboundTopicId: agent.inboundTopicId
       });
 
-      const message = {
-        p: 'hcs-10',
-        op: 'connection_request',
-        data: 'Connection request from ' + accountId,
-        created: new Date(),
-        payer: accountId,
-        requesting_account_id: accountId,
-        operator_id: `${agent.inboundTopicId}@${accountId}`
-      };
-      
-      const result = await userClient.submitPayload(
-        agent.inboundTopicId,
-        message,
-        undefined,
-        false
-      );
+      // Submit connection request using higher-level method
+      const connectionMemo = `Connection request from ${accountId} to ${agentAddress}`;
+      const result = await userClient.submitConnectionRequest(agent.inboundTopicId, connectionMemo);
       
       if (!result.topicSequenceNumber) {
         throw new Error('Failed to get sequence number from connection request');
@@ -263,39 +224,26 @@ app.post('/initialize', async (req, res) => {
         requestId
       });
 
-      // Set up a promise that resolves when the connection is confirmed
-      const connectionPromise = new Promise<Connection>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Connection confirmation timeout'));
-        }, 60000); // 60 second timeout
+      // Wait for connection confirmation using higher-level method
+      const connectionResponse = await userClient.waitForConnectionConfirmation(
+        agent.inboundTopicId,
+        requestId,
+        30, // maxAttempts
+        2000 // delayMs
+      );
 
-        // Check for connection confirmation every 2 seconds
-        const checkInterval = setInterval(async () => {
-          const connections = await connectionsManager.getAllConnections();
-          const confirmedConnection = connections.find((conn: Connection) => 
-            conn.status === 'established' && 
-            conn.connectionRequestId === requestId
-          );
-
-          if (confirmedConnection) {
-            clearInterval(checkInterval);
-            clearTimeout(timeout);
-            resolve(confirmedConnection);
-          }
-        }, 2000);
-      });
-
-      // Wait for connection confirmation
-      const connection = await connectionPromise;
+      if (!connectionResponse.connectionTopicId) {
+        throw new Error('Failed to confirm connection - no connection topic ID received');
+      }
 
       // Store the connection topic for this account
-      connectionTopicMap.set(accountId, connection.connectionTopicId);
+      connectionTopicMap.set(accountId, connectionResponse.connectionTopicId);
 
       return res.json({
         success: true,
         accountId,
         agentAddress,
-        connectionTopicId: connection.connectionTopicId,
+        connectionTopicId: connectionResponse.connectionTopicId,
         message: 'Connection established with agent'
       });
 
@@ -351,7 +299,7 @@ app.post('/chat', async (req, res) => {
     const userClient = new HCS10Client({
       network: 'testnet',
       operatorId: accountId,
-      operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
+      operatorPrivateKey: privateKey,
       guardedRegistryBaseUrl: process.env.REGISTRY_URL,
       prettyPrint: true,
       logLevel: 'debug',
@@ -362,23 +310,11 @@ app.post('/chat', async (req, res) => {
       return res.status(404).json({ error: 'Agent not found for the provided address' });
     }
 
-    // Prepare the message payload according to HCS-10 format
-    const messagePayload = {
-      p: 'hcs-10',
-      op: 'message',
-      data: message,
-      operator_id: `${agent.inboundTopicId}@${accountId}`,
-      created: new Date(),
-      payer: accountId,
-      m: 'message from ' + accountId
-    };
-
-    // Send message using submitPayload
-    const result = await userClient.submitPayload(
+    // Send message using higher-level sendMessage function
+    const result = await userClient.sendMessage(
       connectionTopicId,
-      messagePayload,
-      undefined,  // no submit key
-      false       // no fee required
+      message,
+      `message from ${accountId}`  // memo
     );
 
     if (!result.topicSequenceNumber) {
@@ -453,7 +389,7 @@ app.post('/destruct', async (req, res) => {
     const client = new HCS10Client({
       network: 'testnet',
       operatorId: accountId,
-      operatorPrivateKey: PrivateKey.fromStringECDSA(privateKey).toString(),
+      operatorPrivateKey: privateKey,
       guardedRegistryBaseUrl: process.env.REGISTRY_URL,
       prettyPrint: true,
       logLevel: 'debug',
@@ -512,39 +448,9 @@ app.post('/destruct', async (req, res) => {
 app.post('/create-profile', async (req, res) => {
   try {
     const accountId = req.headers['account-id'];
-
     if (!accountId || typeof accountId !== 'string') {
-      return res.status(400).json({ error: 'Account ID header (account-id) is required' });
+      return res.status(400).json({ error: 'Missing or invalid account-id header' });
     }
-
-    // Default placeholder values that match the required format
-    const defaultProfile = {
-      displayName: `User ${accountId}`,
-      type: AIAgentType.MANUAL,
-      capabilities: [AIAgentCapability.TEXT_GENERATION],
-      model: 'GPT-4',
-      optionalProps: {
-        bio: 'A Hedera network user',
-        creator: accountId,
-        properties: {
-          created: new Date().toISOString(),
-          version: '1.0',
-          specializations: ['general conversation'],
-          supportedFeatures: ['text interaction']
-        }
-      }
-    };
-
-    // Merge request body with default values
-    const { 
-      displayName = defaultProfile.displayName,
-      type = defaultProfile.type,
-      capabilities = defaultProfile.capabilities,
-      model = defaultProfile.model,
-      bio = defaultProfile.optionalProps.bio,
-      creator = defaultProfile.optionalProps.creator,
-      properties = defaultProfile.optionalProps.properties
-    } = req.body || {};
 
     // Get private key from our mock database
     const privateKey = accountKeyMap.get(accountId);
@@ -552,96 +458,116 @@ app.post('/create-profile', async (req, res) => {
       return res.status(404).json({ error: 'Account credentials not found' });
     }
 
-    // Initialize HCS11Client
-    const hcs11Client = new HCS11Client({
+    // Initialize HCS10Client
+    const client = new HCS10Client({
       network: 'testnet',
-      auth: {
-        operatorId: accountId,
-        privateKey: PrivateKey.fromStringECDSA(privateKey).toString()
-      },
-      logLevel: 'info'
+      operatorId: accountId,
+      operatorPrivateKey: privateKey,
+      guardedRegistryBaseUrl: process.env.REGISTRY_URL,
+      prettyPrint: true,
+      logLevel: 'debug'
     });
 
-    // Create the AI agent profile exactly as shown in docs
-    const aiAgentProfile = hcs11Client.createAIAgentProfile(
-      displayName,
-      type === 'autonomous' ? AIAgentType.AUTONOMOUS : AIAgentType.MANUAL,
-      Array.isArray(capabilities) ? capabilities : [AIAgentCapability.TEXT_GENERATION],
-      model,
-      {
-        bio,
-        creator,
-        properties
+    // First check if profile already exists
+    const existingProfile = await client.retrieveProfile(accountId);
+    if (existingProfile.success && existingProfile.profile) {
+      logger.info('Found existing profile', {
+        accountId,
+        profileTopicId: existingProfile.topicInfo?.profileTopicId
+      });
+      
+      return res.json({
+        success: true,
+        profileTopicId: existingProfile.topicInfo?.profileTopicId,
+        memo: `hcs-11:hcs://1/${existingProfile.topicInfo?.profileTopicId}`,
+        profile: existingProfile.profile,
+        message: 'Using existing profile'
+      });
+    }
+
+    // Default placeholder values that match the required format
+    const defaultProfile = {
+      displayName: `User ${accountId}`,
+      capabilities: [AIAgentCapability.TEXT_GENERATION],
+      model: 'GPT-4',
+      bio: 'A Hedera network user',
+      properties: {
+        created: new Date().toISOString(),
+        version: '1.0',
+        specializations: ['general conversation'],
+        supportedFeatures: ['text interaction']
       }
-    );
+    };
+
+    // Merge request body with default values
+    const { 
+      displayName = defaultProfile.displayName,
+      capabilities = defaultProfile.capabilities,
+      model = defaultProfile.model,
+      bio = defaultProfile.bio,
+      properties = defaultProfile.properties
+    } = req.body || {};
 
     // Track inscription progress
     let currentProgress = 0;
     let currentStage = '';
     let currentMessage = '';
 
-    // Inscribe the profile with progress tracking
-    const result = await hcs11Client.inscribeProfile(aiAgentProfile, {
-      waitForConfirmation: true,
-      progressCallback: (progressData) => {
-        currentProgress = progressData.progressPercent || 0;
-        currentStage = progressData.stage || '';
-        currentMessage = progressData.message || '';
-        
-        logger.info('Profile inscription progress', {
-          stage: progressData.stage,
-          message: progressData.message,
-          progress: progressData.progressPercent || 0
-        });
-      }
-    });
+    // Create agent with inbound and outbound topics
+    const agentBuilder = new AgentBuilder()
+      .setName(displayName)
+      .setBio(bio)
+      .setType('manual')
+      .setCapabilities(capabilities)
+      .setInboundTopicType(InboundTopicType.PUBLIC)
+      .setNetwork('testnet')
+      .setCreator(accountId);
 
-    if (!result.success) {
-      logger.error('Failed to inscribe profile:', result.error);
-      return res.status(500).json({ 
-        error: 'Failed to inscribe profile',
-        details: result.error,
-        progress: {
-          stage: currentStage,
-          message: currentMessage,
-          percent: currentProgress
-        }
-      });
+    const agentResult = await client.createAgent(agentBuilder, 60);
+    
+    if (!agentResult.inboundTopicId || !agentResult.outboundTopicId) {
+      throw new Error('Failed to create agent topics');
     }
 
-    // Update account memo to point to the profile
-    const updateResult = await hcs11Client.updateAccountMemoWithProfile(
-      accountId,
-      result.profileTopicId
+    // Store the HCS11 profile
+    const profileResult = await client.storeHCS11Profile(
+      displayName,
+      bio,
+      agentResult.inboundTopicId,
+      agentResult.outboundTopicId,
+      capabilities,
+      {
+        model,
+        ...properties
+      }
     );
 
-    if (!updateResult.success) {
-      logger.error('Failed to update account memo:', updateResult.error);
-      return res.status(500).json({
-        error: 'Profile created but failed to update account memo',
-        profileTopicId: result.profileTopicId,
-        memoError: updateResult.error
+    if (!profileResult.success) {
+      logger.error('Failed to store profile:', profileResult.error);
+      return res.status(500).json({ 
+        error: 'Failed to store profile',
+        details: profileResult.error
       });
     }
 
-    logger.info('Profile created and memo updated successfully', {
+    logger.info('Profile created successfully', {
       accountId,
-      profileTopicId: result.profileTopicId,
-      memo: `hcs-11:hcs://1/${result.profileTopicId}`
+      profileTopicId: profileResult.profileTopicId,
+      inboundTopicId: agentResult.inboundTopicId,
+      outboundTopicId: agentResult.outboundTopicId
     });
 
     return res.json({
       success: true,
-      profileTopicId: result.profileTopicId,
-      transactionId: result.transactionId,
-      memo: `hcs-11:hcs://1/${result.profileTopicId}`,
+      profileTopicId: profileResult.profileTopicId,
+      inboundTopicId: agentResult.inboundTopicId,
+      outboundTopicId: agentResult.outboundTopicId,
+      transactionId: profileResult.transactionId,
       profile: {
         displayName,
-        type: type === 'autonomous' ? 'autonomous' : 'manual',
         capabilities,
         model,
         bio,
-        creator,
         properties
       }
     });
