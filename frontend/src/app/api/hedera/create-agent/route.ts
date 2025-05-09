@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     const agentBuilder = new AgentBuilder()
       .setName(name)
       .setBio(description || `Character agent for ${name}`)
-      .setType('manual')
+      .setType('autonomous')
       .setInboundTopicType(InboundTopicType.PUBLIC) // Make it publicly accessible
       .setCapabilities([AIAgentCapability.TEXT_GENERATION])
       .setModel('gpt-4')
